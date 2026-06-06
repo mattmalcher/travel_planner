@@ -21,6 +21,22 @@
 .hrow:last-child{border:none}
 .hdrop{border:.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:2.25rem 2rem;cursor:pointer;max-width:460px;margin:0 auto 1rem;transition:background .15s;text-align:center}
 .hdrop:hover,.hdrop.over{background:var(--color-background-secondary)}
+#hvgantt{overflow:hidden}
+.hgt-wrap{display:flex;flex-direction:column;height:calc(100vh - 120px);min-height:400px}
+.hgt-head{display:flex;flex-shrink:0;border-bottom:.5px solid var(--color-border-tertiary);background:var(--color-background-primary);z-index:10}
+.hgt-head-axis{width:60px;flex-shrink:0;font-size:11px;padding:.5rem 0 .5rem .5rem;font-weight:500;color:var(--color-text-secondary)}
+.hgt-col-hd{flex:1;font-size:12px;font-weight:500;padding:.5rem .75rem;border-left:.5px solid var(--color-border-tertiary);color:var(--color-text-primary)}
+.hgt-scroll{overflow-y:auto;flex:1;position:relative;display:flex}
+.hgt-axis{width:60px;flex-shrink:0;position:relative}
+.hgt-body{flex:1;display:flex;position:relative}
+.hgt-col{flex:1;position:relative;border-left:.5px solid var(--color-border-tertiary)}
+.hgt-day{position:absolute;left:0;right:0;border-top:.5px solid var(--color-border-secondary);pointer-events:none;z-index:1}
+.hgt-tick{position:absolute;left:0;right:0;border-top:.5px dashed var(--color-border-tertiary);pointer-events:none;z-index:1}
+.hgt-day-lbl{position:absolute;left:0;width:60px;font-size:9px;font-weight:500;color:var(--color-text-secondary);padding-left:4px;line-height:1;text-transform:uppercase;letter-spacing:.04em}
+.hgt-tick-lbl{position:absolute;left:0;width:60px;font-size:9px;color:var(--color-text-tertiary);padding-left:4px;line-height:1}
+.hgt-blk{position:absolute;left:4px;right:4px;border-radius:4px;overflow:hidden;cursor:default;font-size:10px;font-weight:500;color:#fff;padding:3px 5px;line-height:1.3;z-index:2;transition:filter .15s,box-shadow .15s;box-sizing:border-box}
+.hgt-blk:hover{filter:brightness(1.15);box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:5}
+.hgt-gap{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,var(--color-background-warning) 0px,var(--color-background-warning) 4px,transparent 4px,transparent 10px);border:1.5px dashed var(--color-text-warning);border-radius:4px;opacity:.45;z-index:1;pointer-events:none}
 </style>
 
 <div id="hupl" style="padding:2.5rem 1.5rem">
@@ -51,6 +67,7 @@
     <div class="htab on" data-v="list" onclick="hsw('list')"><i class="ti ti-list-details" aria-hidden="true"></i> Timeline</div>
     <div class="htab" data-v="budget" onclick="hsw('budget')"><i class="ti ti-coins" aria-hidden="true"></i> Budget</div>
     <div class="htab" data-v="map" onclick="hsw('map')"><i class="ti ti-map-2" aria-hidden="true"></i> Map</div>
+    <div class="htab" data-v="gantt" onclick="hsw('gantt')"><i class="ti ti-chart-gantt" aria-hidden="true"></i> Gantt</div>
   </div>
   <div id="hvlist" class="hv on" style="padding:1.25rem;max-width:760px"></div>
   <div id="hvbudget" class="hv" style="padding:1.25rem;max-width:760px"></div>
@@ -63,6 +80,7 @@
     <div id="hmap" style="width:100%;height:440px;border-radius:var(--border-radius-lg);border:.5px solid var(--color-border-tertiary)"></div>
     <div id="hmaplist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;margin-top:1rem"></div>
   </div>
+  <div id="hvgantt" class="hv" style="padding:0"></div>
 </div>
 
 <script>
@@ -284,6 +302,89 @@ function hrenderMap(){
     </div>`).join('');
 }
 
+function hrenderGantt(){
+  if(!HD)return;
+  const PX_PER_MIN=0.25;
+  const tripStartMs=new Date(HD.trip.start+'T00:00:00').getTime();
+  const tripEndMs=new Date(HD.trip.end+'T23:59:59').getTime();
+  const totalMins=(tripEndMs-tripStartMs)/60000;
+  const totalPx=totalMins*PX_PER_MIN;
+  function toPx(dateStr,timeStr){
+    return(new Date(dateStr+'T'+(timeStr||'00:00')+':00').getTime()-tripStartMs)/60000*PX_PER_MIN;
+  }
+  const TRANSPORT_COLOR={train:'#f59e0b',bus:'#10b981',ferry:'#06b6d4',flight:'#8b5cf6'};
+  const EVENT_COLOR={festival:'#ec4899',gig:'#f97316',walk:'#22c55e',tour:'#6366f1',activity:'#14b8a6',other:'#64748b'};
+  const ACCOM_COLOR='#3b82f6';
+  const accomBlocks=[],travelBlocks=[],eventBlocks=[];
+  for(const s of HD.segments){
+    if(s.type==='accommodation'){
+      const top=toPx(s.checkin.date,s.checkin.from||'14:00');
+      const bot=toPx(s.checkout.date,s.checkout.by||'11:00');
+      accomBlocks.push({top,h:Math.max(bot-top,28),color:ACCOM_COLOR,label:s.name,sub:`${s.checkin.from||'?'} → ${s.checkout.by||'?'}`});
+    } else if(s.type==='transport'){
+      const top=toPx(s.date,s.departs.time);
+      const h=Math.max(s.duration_min*PX_PER_MIN,28);
+      travelBlocks.push({top,h,color:TRANSPORT_COLOR[s.mode]||'#64748b',
+        label:s.operator+(s.service?' · '+s.service:''),sub:`${s.departs.station} → ${s.arrives.station}`});
+    } else if(s.type==='event'){
+      const top=toPx(s.date,s.time||'10:00');
+      const h=Math.max((s.duration_min||120)*PX_PER_MIN,28);
+      eventBlocks.push({top,h,color:EVENT_COLOR[s.subtype]||EVENT_COLOR.other,label:s.name,sub:s.subtype||'event'});
+    }
+  }
+  const covered=HD.segments.filter(s=>s.type==='accommodation').map(s=>({
+    start:(new Date(s.checkin.date+'T'+(s.checkin.from||'14:00')+':00')-tripStartMs)/60000,
+    end:(new Date(s.checkout.date+'T'+(s.checkout.by||'11:00')+':00')-tripStartMs)/60000
+  })).sort((a,b)=>a.start-b.start);
+  const gapBlocks=[];let cursor=0;
+  for(const iv of covered){
+    if(cursor<iv.start)gapBlocks.push({top:cursor*PX_PER_MIN,h:(iv.start-cursor)*PX_PER_MIN});
+    cursor=Math.max(cursor,iv.end);
+  }
+  if(cursor<totalMins)gapBlocks.push({top:cursor*PX_PER_MIN,h:(totalMins-cursor)*PX_PER_MIN});
+  const tripStartDate=new Date(HD.trip.start+'T00:00:00');
+  const tripEndDate=new Date(HD.trip.end+'T00:00:00');
+  const numDays=Math.round((tripEndDate-tripStartDate)/86400000)+1;
+  let axisHtml='',bodyLines='';
+  for(let d=0;d<numDays;d++){
+    const dayPx=d*1440*PX_PER_MIN;
+    const dayDate=new Date(tripStartDate.getTime()+d*86400000);
+    const dayLabel=dayDate.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    bodyLines+=`<div class="hgt-day" style="top:${dayPx}px"></div>`;
+    axisHtml+=`<div class="hgt-day-lbl" style="top:${dayPx+2}px">${dayLabel}</div>`;
+    for(const hr of[6,12,18]){
+      const tickPx=dayPx+hr*60*PX_PER_MIN;
+      bodyLines+=`<div class="hgt-tick" style="top:${tickPx}px"></div>`;
+      axisHtml+=`<div class="hgt-tick-lbl" style="top:${tickPx+2}px">${String(hr).padStart(2,'0')}:00</div>`;
+    }
+  }
+  function blkHtml(blocks){
+    return blocks.map(b=>`<div class="hgt-blk" style="top:${b.top.toFixed(1)}px;height:${b.h.toFixed(1)}px;background:${b.color}" title="${b.label}${b.sub?' — '+b.sub:''}">
+      <div style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${b.label}</div>
+      ${b.h>=36?`<div style="font-weight:400;opacity:.75;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px">${b.sub}</div>`:''}
+    </div>`).join('');
+  }
+  const gapHtml=gapBlocks.map(g=>`<div class="hgt-gap" style="top:${g.top.toFixed(1)}px;height:${Math.max(g.h,4).toFixed(1)}px" title="No accommodation booked"></div>`).join('');
+  document.getElementById('hvgantt').innerHTML=`
+    <div class="hgt-wrap">
+      <div class="hgt-head">
+        <div class="hgt-head-axis"></div>
+        <div class="hgt-col-hd"><i class="ti ti-home" aria-hidden="true"></i> Accommodation</div>
+        <div class="hgt-col-hd"><i class="ti ti-train" aria-hidden="true"></i> Travel</div>
+        <div class="hgt-col-hd"><i class="ti ti-calendar-event" aria-hidden="true"></i> Events</div>
+      </div>
+      <div class="hgt-scroll">
+        <div class="hgt-axis" style="height:${totalPx.toFixed(0)}px">${axisHtml}</div>
+        <div class="hgt-body" style="height:${totalPx.toFixed(0)}px">
+          ${bodyLines}
+          <div class="hgt-col">${gapHtml}${blkHtml(accomBlocks)}</div>
+          <div class="hgt-col">${blkHtml(travelBlocks)}</div>
+          <div class="hgt-col">${blkHtml(eventBlocks)}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function hload(data){
   HD=typeof data==='string'?JSON.parse(data):data;
   document.getElementById('hupl').style.display='none';
@@ -292,7 +393,7 @@ function hload(data){
   document.getElementById('htmeta').innerHTML=`
     <span><i class="ti ti-calendar" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${hfmtD(HD.trip.start)} – ${hfmtD(HD.trip.end)}</span>
     <span><i class="ti ti-users" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${HD.trip.travellers.join(' & ')}</span>`;
-  hrenderList();hrenderBudget();
+  hrenderList();hrenderBudget();hrenderGantt();
 }
 
 function hreset(){
@@ -307,6 +408,7 @@ function hsw(v){
   document.getElementById('hvlist').className='hv'+(v==='list'?' on':'');
   document.getElementById('hvbudget').className='hv'+(v==='budget'?' on':'');
   document.getElementById('hvmap').className='hv'+(v==='map'?' on':'');
+  document.getElementById('hvgantt').className='hv'+(v==='gantt'?' on':'');
   if(v==='map'&&!HMapReady&&HD){HMapReady=true;setTimeout(hrenderMap,120);}
 }
 

@@ -2,3 +2,4 @@ node_modules/
 playwright-report/
 blob-report/
 test-results/
+data/*.json
