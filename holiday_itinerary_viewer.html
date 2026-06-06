@@ -98,7 +98,7 @@ function hfmtD(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',
 function hfmtDs(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long'});}
 function hfmtMin(m){const h=Math.floor(m/60),mn=m%60;return mn?`${h}h ${mn}m`:`${h}h`;}
 function hsegDate(s){return s.type==='accommodation'?s.checkin.date:s.date;}
-function hsegTime(s){return s.type==='transport'?s.departs.time:s.type==='accommodation'?(s.checkin.from||'00:00'):(s.time||'12:00');}
+function hsegTime(s){return s.type==='transport'?s.departs.time:s.type==='accommodation'?'23:59':(s.time||'12:00');}
 
 function hci(s){
   const c=s.cost;if(!c)return null;
