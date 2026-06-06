@@ -64,42 +64,6 @@
   },
   "additionalProperties": false,
   "definitions": {
-    "SegmentBase": {
-      "type": "object",
-      "required": [
-        "id",
-        "type"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique segment identifier, e.g. seg-1"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "transport",
-            "accommodation",
-            "event"
-          ]
-        },
-        "proposal": {
-          "$ref": "#/definitions/Proposal",
-          "description": "Collaboration status — omit for already-confirmed/booked segments"
-        },
-        "notes": {
-          "type": "string",
-          "description": "Freeform notes visible on any segment type"
-        },
-        "warnings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Alert banners rendered separately from notes — use for deadlines, safety info, and action items. Replaces the *** convention in freeform notes."
-        }
-      }
-    },
     "Cost": {
       "type": "object",
       "properties": {
@@ -112,7 +76,8 @@
           "enum": [
             "paid",
             "pending",
-            "free"
+            "free",
+            "not_booked"
           ]
         },
         "paid_by": {
@@ -318,115 +283,128 @@
       "additionalProperties": false
     },
     "EventSegment": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/SegmentBase"
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "subtype",
+        "name",
+        "date",
+        "cost"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique segment identifier, e.g. seg-1"
         },
-        {
-          "type": "object",
-          "required": [
-            "subtype",
-            "name",
-            "date",
-            "cost"
+        "type": {
+          "const": "event"
+        },
+        "proposal": {
+          "$ref": "#/definitions/Proposal",
+          "description": "Collaboration status — omit for already-confirmed/booked segments"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Freeform notes visible on any segment type"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Alert banners rendered separately from notes — use for deadlines, safety info, and action items. Replaces the *** convention in freeform notes."
+        },
+        "subtype": {
+          "type": "string",
+          "enum": [
+            "festival",
+            "gig",
+            "walk",
+            "tour",
+            "activity",
+            "other"
           ],
+          "description": "Distinguishes the kind of event for UI rendering and filtering"
+        },
+        "name": {
+          "type": "string"
+        },
+        "artist": {
+          "type": "string",
+          "description": "Performer name — used for gigs; omit for walks/activities"
+        },
+        "venue": {
+          "type": "string",
+          "description": "Venue or trailhead name"
+        },
+        "address": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lng": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "time": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "description": "Start time HH:MM (24 h)"
+        },
+        "duration_min": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Expected duration in minutes — useful for walks and timed gigs"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Event page, AllTrails link, etc."
+        },
+        "tickets_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "rating": {
+          "$ref": "#/definitions/Rating"
+        },
+        "walk": {
+          "type": "object",
+          "description": "Walk-specific detail — only populated when subtype is 'walk'",
           "properties": {
-            "id": {
-              "type": "string"
+            "distance_km": {
+              "type": "number",
+              "minimum": 0
             },
-            "type": {
-              "const": "event"
+            "elevation_m": {
+              "type": "integer",
+              "description": "Total elevation gain in metres"
             },
-            "subtype": {
+            "difficulty": {
               "type": "string",
               "enum": [
-                "festival",
-                "gig",
-                "walk",
-                "tour",
-                "activity",
-                "other"
-              ],
-              "description": "Distinguishes the kind of event for UI rendering and filtering"
+                "easy",
+                "moderate",
+                "hard",
+                "expert"
+              ]
             },
-            "name": {
-              "type": "string"
-            },
-            "artist": {
+            "route_type": {
               "type": "string",
-              "description": "Performer name — used for gigs; omit for walks/activities"
-            },
-            "venue": {
-              "type": "string",
-              "description": "Venue or trailhead name"
-            },
-            "address": {
-              "type": "string"
-            },
-            "lat": {
-              "type": "number",
-              "minimum": -90,
-              "maximum": 90
-            },
-            "lng": {
-              "type": "number",
-              "minimum": -180,
-              "maximum": 180
-            },
-            "date": {
-              "type": "string",
-              "format": "date"
-            },
-            "time": {
-              "type": "string",
-              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-              "description": "Start time HH:MM (24 h)"
-            },
-            "duration_min": {
-              "type": "integer",
-              "minimum": 1,
-              "description": "Expected duration in minutes — useful for walks and timed gigs"
-            },
-            "url": {
-              "type": "string",
-              "format": "uri",
-              "description": "Event page, AllTrails link, etc."
-            },
-            "tickets_url": {
-              "type": "string",
-              "format": "uri"
-            },
-            "rating": {
-              "$ref": "#/definitions/Rating"
-            },
-            "walk": {
-              "type": "object",
-              "description": "Walk-specific detail — only populated when subtype is 'walk'",
-              "properties": {
-                "distance_km": {
-                  "type": "number",
-                  "minimum": 0
-                },
-                "elevation_m": {
-                  "type": "integer",
-                  "description": "Total elevation gain in metres"
-                },
-                "difficulty": {
-                  "type": "string",
-                  "enum": [
-                    "easy",
-                    "moderate",
-                    "hard",
-                    "expert"
-                  ]
-                },
-                "route_type": {
-                  "type": "string",
-                  "enum": [
-                    "loop",
-                    "out-and-back",
-                    "point-to-point"
-                  ]
+              "enum": [
+                "loop",
+                "out-and-back",
+                "point-to-point"
+              ]
                 },
                 "surface": {
                   "type": "string",
@@ -467,213 +445,194 @@
             },
             "cost": {
               "$ref": "#/definitions/Cost"
-            },
-            "proposal": {
-              "$ref": "#/definitions/Proposal"
-            },
-            "notes": {
-              "type": "string"
-            },
-            "warnings": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Alert banners rendered separately from notes — use for deadlines, safety info, and action items. Replaces the *** convention in freeform notes."
             }
           },
           "additionalProperties": false
-        }
-      ]
     },
     "TransportSegment": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/SegmentBase"
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "mode",
+        "operator",
+        "ref",
+        "date",
+        "departs",
+        "arrives",
+        "duration_min",
+        "class",
+        "seats",
+        "cost"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique segment identifier, e.g. seg-1"
         },
-        {
-          "type": "object",
-          "required": [
-            "mode",
-            "operator",
-            "ref",
-            "date",
-            "departs",
-            "arrives",
-            "duration_min",
-            "class",
-            "seats",
-            "cost"
-          ],
-          "properties": {
-            "id": {
-              "type": "string"
-            },
-            "type": {
-              "const": "transport"
-            },
-            "mode": {
-              "type": "string",
-              "enum": [
-                "train",
-                "bus",
-                "ferry",
-                "flight"
-              ]
-            },
-            "operator": {
-              "type": "string"
-            },
-            "service": {
-              "type": "string",
-              "description": "Train/flight number"
-            },
-            "ref": {
-              "type": "string",
-              "description": "Booking reference"
-            },
-            "date": {
-              "type": "string",
-              "format": "date"
-            },
-            "departs": {
-              "$ref": "#/definitions/StationPoint"
-            },
-            "arrives": {
-              "$ref": "#/definitions/StationPoint"
-            },
-            "duration_min": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "class": {
-              "type": "string"
-            },
-            "seats": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Seat"
-              },
-              "minItems": 1
-            },
-            "cost": {
-              "$ref": "#/definitions/Cost"
-            },
-            "proposal": {
-              "$ref": "#/definitions/Proposal"
-            },
-            "notes": {
-              "type": "string"
-            },
-            "warnings": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Alert banners rendered separately from notes — use for deadlines, safety info, and action items. Replaces the *** convention in freeform notes."
-            }
+        "type": {
+          "const": "transport"
+        },
+        "proposal": {
+          "$ref": "#/definitions/Proposal",
+          "description": "Collaboration status — omit for already-confirmed/booked segments"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Freeform notes visible on any segment type"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
           },
-          "additionalProperties": false
+          "description": "Alert banners rendered separately from notes — use for deadlines, safety info, and action items. Replaces the *** convention in freeform notes."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "train",
+            "bus",
+            "ferry",
+            "flight"
+          ]
+        },
+        "operator": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string",
+          "description": "Train/flight number"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Booking reference"
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "departs": {
+          "$ref": "#/definitions/StationPoint"
+        },
+        "arrives": {
+          "$ref": "#/definitions/StationPoint"
+        },
+        "duration_min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "class": {
+          "type": "string"
+        },
+        "seats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Seat"
+          },
+          "minItems": 1
+        },
+        "cost": {
+          "$ref": "#/definitions/Cost"
         }
-      ]
+      },
+      "additionalProperties": false
     },
     "AccommodationSegment": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/SegmentBase"
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "name",
+        "host",
+        "ref",
+        "address",
+        "lat",
+        "lng",
+        "checkin",
+        "checkout",
+        "guests",
+        "nights",
+        "self_checkin",
+        "cost",
+        "date"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique segment identifier, e.g. seg-1"
         },
-        {
-          "type": "object",
-          "required": [
-            "name",
-            "host",
-            "ref",
-            "address",
-            "lat",
-            "lng",
-            "checkin",
-            "checkout",
-            "guests",
-            "nights",
-            "self_checkin",
-            "cost",
-            "date"
-          ],
-          "properties": {
-            "id": {
-              "type": "string"
-            },
-            "type": {
-              "const": "accommodation"
-            },
-            "name": {
-              "type": "string"
-            },
-            "host": {
-              "type": "string"
-            },
-            "ref": {
-              "type": "string"
-            },
-            "address": {
-              "type": "string"
-            },
-            "lat": {
-              "type": "number",
-              "minimum": -90,
-              "maximum": 90
-            },
-            "lng": {
-              "type": "number",
-              "minimum": -180,
-              "maximum": 180
-            },
-            "phone": {
-              "type": "string",
-              "description": "Host phone in E.164 format"
-            },
-            "checkin": {
-              "$ref": "#/definitions/CheckTime"
-            },
-            "checkout": {
-              "$ref": "#/definitions/CheckTime"
-            },
-            "guests": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "nights": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "self_checkin": {
-              "type": "boolean"
-            },
-            "cost": {
-              "$ref": "#/definitions/Cost"
-            },
-            "proposal": {
-              "$ref": "#/definitions/Proposal"
-            },
-            "notes": {
-              "type": "string"
-            },
-            "date": {
-              "type": "string",
-              "format": "date",
-              "description": "Convenience alias for checkin.date — must match. Enables uniform date-based sorting across all segment types."
-            },
-            "warnings": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Alert banners rendered separately from notes — use for deadlines, safety info, and action items. Replaces the *** convention in freeform notes."
-            }
+        "type": {
+          "const": "accommodation"
+        },
+        "proposal": {
+          "$ref": "#/definitions/Proposal",
+          "description": "Collaboration status — omit for already-confirmed/booked segments"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Freeform notes visible on any segment type"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
           },
-          "additionalProperties": false
+          "description": "Alert banners rendered separately from notes — use for deadlines, safety info, and action items. Replaces the *** convention in freeform notes."
+        },
+        "name": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lng": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "phone": {
+          "type": "string",
+          "description": "Host phone in E.164 format"
+        },
+        "checkin": {
+          "$ref": "#/definitions/CheckTime"
+        },
+        "checkout": {
+          "$ref": "#/definitions/CheckTime"
+        },
+        "guests": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nights": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "self_checkin": {
+          "type": "boolean"
+        },
+        "cost": {
+          "$ref": "#/definitions/Cost"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Convenience alias for checkin.date — must match. Enables uniform date-based sorting across all segment types."
         }
-      ]
+      },
+      "additionalProperties": false
     }
   }
 }
