@@ -1,8 +1,14 @@
 
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Itinerary Viewer</title>
 <h2 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore timeline, budget and map views</h2>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
+:root{--color-text-primary:#1e293b;--color-text-secondary:#64748b;--color-text-tertiary:#94a3b8;--color-text-success:#16a34a;--color-text-warning:#d97706;--color-text-danger:#dc2626;--color-text-info:#0284c7;--color-background-primary:#ffffff;--color-background-secondary:#f1f5f9;--color-background-success:#dcfce7;--color-background-warning:#fef3c7;--color-background-danger:#fee2e2;--color-background-info:#e0f2fe;--color-border-tertiary:#e2e8f0;--color-border-secondary:#cbd5e1;--border-radius-lg:12px;--border-radius-md:8px}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:var(--color-text-primary)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .hv{display:none}.hv.on{display:block}
 .htab{padding:.55rem .9rem;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:5px;transition:color .15s;user-select:none}
@@ -86,7 +92,7 @@
 <script>
 const STNS={"london st pancras int'l":[51.5322,-0.1233],"paris gare du nord":[48.8809,2.3553],"paris montparnasse 1 et 2":[48.8404,2.3208],"bayonne":[43.4929,-1.4749],"lourdes":[43.0957,-0.0514]};
 
-let HD=null,HM=null,HMapReady=false;
+let HD=null,HM=null,HMapReady=false,hGanttCompact=false;
 
 function hfmtD(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 function hfmtDs(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long'});}
@@ -308,9 +314,43 @@ function hrenderGantt(){
   const tripStartMs=new Date(HD.trip.start+'T00:00:00').getTime();
   const tripEndMs=new Date(HD.trip.end+'T23:59:59').getTime();
   const totalMins=(tripEndMs-tripStartMs)/60000;
-  const totalPx=totalMins*PX_PER_MIN;
-  function toPx(dateStr,timeStr){
-    return(new Date(dateStr+'T'+(timeStr||'00:00')+':00').getTime()-tripStartMs)/60000*PX_PER_MIN;
+  const tripStartDate=new Date(HD.trip.start+'T00:00:00');
+  const tripEndDate=new Date(HD.trip.end+'T00:00:00');
+  const numDays=Math.round((tripEndDate-tripStartDate)/86400000)+1;
+  // msToIso: convert a ms timestamp to {date,time} strings for toPx
+  function msToIso(ms){const d=new Date(ms);return{date:d.toISOString().slice(0,10),time:d.toISOString().slice(11,16)};}
+  let totalPx,toPx;
+  if(hGanttCompact){
+    const pts=new Set([tripStartMs,tripEndMs]);
+    for(let d=0;d<numDays;d++)pts.add(tripStartDate.getTime()+d*86400000);
+    for(const s of HD.segments){
+      if(s.type==='accommodation'){
+        pts.add(new Date(s.checkin.date+'T'+(s.checkin.from||'14:00')+':00').getTime());
+        pts.add(new Date(s.checkout.date+'T'+(s.checkout.by||'11:00')+':00').getTime());
+      } else if(s.type==='transport'){
+        const dep=new Date(s.date+'T'+s.departs.time+':00').getTime();
+        pts.add(dep);pts.add(dep+s.duration_min*60000);
+      } else if(s.type==='event'){
+        const ev=new Date(s.date+'T'+(s.time||'10:00')+':00').getTime();
+        pts.add(ev);pts.add(ev+(s.duration_min||120)*60000);
+      }
+    }
+    const sorted=Array.from(pts).sort((a,b)=>a-b);
+    const SLOT=36;
+    const cmap=new Map(sorted.map((t,i)=>[t,i*SLOT]));
+    totalPx=(sorted.length-1)*SLOT;
+    toPx=(dateStr,timeStr)=>{
+      const ms=new Date(dateStr+'T'+(timeStr||'00:00')+':00').getTime();
+      if(cmap.has(ms))return cmap.get(ms);
+      for(let i=0;i<sorted.length-1;i++){
+        if(sorted[i]<=ms&&ms<=sorted[i+1])
+          return i*SLOT+(ms-sorted[i])/(sorted[i+1]-sorted[i])*SLOT;
+      }
+      return(sorted.length-1)*SLOT;
+    };
+  } else {
+    totalPx=totalMins*PX_PER_MIN;
+    toPx=(dateStr,timeStr)=>(new Date(dateStr+'T'+(timeStr||'00:00')+':00').getTime()-tripStartMs)/60000*PX_PER_MIN;
   }
   const TRANSPORT_COLOR={train:'#f59e0b',bus:'#10b981',ferry:'#06b6d4',flight:'#8b5cf6'};
   const EVENT_COLOR={festival:'#ec4899',gig:'#f97316',walk:'#22c55e',tour:'#6366f1',activity:'#14b8a6',other:'#64748b'};
@@ -322,53 +362,61 @@ function hrenderGantt(){
       const bot=toPx(s.checkout.date,s.checkout.by||'11:00');
       accomBlocks.push({top,h:Math.max(bot-top,28),color:ACCOM_COLOR,label:s.name,sub:`${s.checkin.from||'?'} → ${s.checkout.by||'?'}`});
     } else if(s.type==='transport'){
+      const depMs=new Date(s.date+'T'+s.departs.time+':00').getTime();
+      const arr=msToIso(depMs+s.duration_min*60000);
       const top=toPx(s.date,s.departs.time);
-      const h=Math.max(s.duration_min*PX_PER_MIN,28);
-      travelBlocks.push({top,h,color:TRANSPORT_COLOR[s.mode]||'#64748b',
-        label:s.operator+(s.service?' · '+s.service:''),sub:`${s.departs.station} → ${s.arrives.station}`});
+      const bot=toPx(arr.date,arr.time);
+      travelBlocks.push({top,h:Math.max(bot-top,28),color:TRANSPORT_COLOR[s.mode]||'#64748b',
+        label:s.operator+(s.service?' · '+s.service:''),
+        times:`${s.departs.time} → ${arr.time} (${hfmtMin(s.duration_min)})`,
+        sub:`${s.departs.station} → ${s.arrives.station}`});
     } else if(s.type==='event'){
+      const evMs=new Date(s.date+'T'+(s.time||'10:00')+':00').getTime();
+      const end=msToIso(evMs+(s.duration_min||120)*60000);
       const top=toPx(s.date,s.time||'10:00');
-      const h=Math.max((s.duration_min||120)*PX_PER_MIN,28);
-      eventBlocks.push({top,h,color:EVENT_COLOR[s.subtype]||EVENT_COLOR.other,label:s.name,sub:s.subtype||'event'});
+      const bot=toPx(end.date,end.time);
+      eventBlocks.push({top,h:Math.max(bot-top,28),color:EVENT_COLOR[s.subtype]||EVENT_COLOR.other,label:s.name,sub:s.subtype||'event'});
     }
   }
-  const covered=HD.segments.filter(s=>s.type==='accommodation').map(s=>({
-    start:(new Date(s.checkin.date+'T'+(s.checkin.from||'14:00')+':00')-tripStartMs)/60000,
-    end:(new Date(s.checkout.date+'T'+(s.checkout.by||'11:00')+':00')-tripStartMs)/60000
-  })).sort((a,b)=>a.start-b.start);
-  const gapBlocks=[];let cursor=0;
-  for(const iv of covered){
-    if(cursor<iv.start)gapBlocks.push({top:cursor*PX_PER_MIN,h:(iv.start-cursor)*PX_PER_MIN});
-    cursor=Math.max(cursor,iv.end);
+  const coveredIntervals=HD.segments.filter(s=>s.type==='accommodation').map(s=>({
+    startMs:new Date(s.checkin.date+'T'+(s.checkin.from||'14:00')+':00').getTime(),
+    endMs:new Date(s.checkout.date+'T'+(s.checkout.by||'11:00')+':00').getTime()
+  })).sort((a,b)=>a.startMs-b.startMs);
+  const gapBlocks=[];let cursorMs=tripStartMs;
+  for(const iv of coveredIntervals){
+    if(cursorMs<iv.startMs){const a=msToIso(cursorMs),b=msToIso(iv.startMs);gapBlocks.push({top:toPx(a.date,a.time),bot:toPx(b.date,b.time)});}
+    cursorMs=Math.max(cursorMs,iv.endMs);
   }
-  if(cursor<totalMins)gapBlocks.push({top:cursor*PX_PER_MIN,h:(totalMins-cursor)*PX_PER_MIN});
-  const tripStartDate=new Date(HD.trip.start+'T00:00:00');
-  const tripEndDate=new Date(HD.trip.end+'T00:00:00');
-  const numDays=Math.round((tripEndDate-tripStartDate)/86400000)+1;
+  if(cursorMs<tripEndMs){const a=msToIso(cursorMs),b=msToIso(tripEndMs);gapBlocks.push({top:toPx(a.date,a.time),bot:toPx(b.date,b.time)});}
   let axisHtml='',bodyLines='';
   for(let d=0;d<numDays;d++){
-    const dayPx=d*1440*PX_PER_MIN;
     const dayDate=new Date(tripStartDate.getTime()+d*86400000);
+    const dayIso=dayDate.toISOString().slice(0,10);
+    const dayPx=toPx(dayIso,'00:00');
     const dayLabel=dayDate.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
-    bodyLines+=`<div class="hgt-day" style="top:${dayPx}px"></div>`;
-    axisHtml+=`<div class="hgt-day-lbl" style="top:${dayPx+2}px">${dayLabel}</div>`;
-    for(const hr of[6,12,18]){
-      const tickPx=dayPx+hr*60*PX_PER_MIN;
-      bodyLines+=`<div class="hgt-tick" style="top:${tickPx}px"></div>`;
-      axisHtml+=`<div class="hgt-tick-lbl" style="top:${tickPx+2}px">${String(hr).padStart(2,'0')}:00</div>`;
+    bodyLines+=`<div class="hgt-day" style="top:${dayPx.toFixed(1)}px"></div>`;
+    axisHtml+=`<div class="hgt-day-lbl" style="top:${(dayPx+2).toFixed(1)}px">${dayLabel}</div>`;
+    if(!hGanttCompact){
+      for(const hr of[6,12,18]){
+        const tickPx=d*1440*PX_PER_MIN+hr*60*PX_PER_MIN;
+        bodyLines+=`<div class="hgt-tick" style="top:${tickPx}px"></div>`;
+        axisHtml+=`<div class="hgt-tick-lbl" style="top:${tickPx+2}px">${String(hr).padStart(2,'0')}:00</div>`;
+      }
     }
   }
   function blkHtml(blocks){
-    return blocks.map(b=>`<div class="hgt-blk" style="top:${b.top.toFixed(1)}px;height:${b.h.toFixed(1)}px;background:${b.color}" title="${b.label}${b.sub?' — '+b.sub:''}">
+    return blocks.map(b=>`<div class="hgt-blk" style="top:${b.top.toFixed(1)}px;height:${b.h.toFixed(1)}px;background:${b.color}" title="${b.label}${b.times?' — '+b.times:''}${b.sub?' · '+b.sub:''}">
       <div style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${b.label}</div>
-      ${b.h>=36?`<div style="font-weight:400;opacity:.75;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px">${b.sub}</div>`:''}
+      ${b.times&&b.h>=28?`<div style="font-weight:600;opacity:.9;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px">${b.times}</div>`:''}
+      ${b.sub&&b.h>=44?`<div style="font-weight:400;opacity:.75;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px">${b.sub}</div>`:''}
     </div>`).join('');
   }
-  const gapHtml=gapBlocks.map(g=>`<div class="hgt-gap" style="top:${g.top.toFixed(1)}px;height:${Math.max(g.h,4).toFixed(1)}px" title="No accommodation booked"></div>`).join('');
+  const gapHtml=gapBlocks.map(g=>`<div class="hgt-gap" style="top:${g.top.toFixed(1)}px;height:${Math.max(g.bot-g.top,4).toFixed(1)}px" title="No accommodation booked"></div>`).join('');
+  const toggleBtn=`<button onclick="hGanttCompact=!hGanttCompact;hrenderGantt()" style="font-size:10px;padding:2px 6px;line-height:1.4" title="${hGanttCompact?'Switch to proportional time':'Switch to compact view'}">${hGanttCompact?'<i class="ti ti-clock" aria-hidden="true"></i> Time':'<i class="ti ti-layout-list" aria-hidden="true"></i> Compact'}</button>`;
   document.getElementById('hvgantt').innerHTML=`
     <div class="hgt-wrap">
       <div class="hgt-head">
-        <div class="hgt-head-axis"></div>
+        <div class="hgt-head-axis" style="display:flex;align-items:flex-end;padding-bottom:4px">${toggleBtn}</div>
         <div class="hgt-col-hd"><i class="ti ti-home" aria-hidden="true"></i> Accommodation</div>
         <div class="hgt-col-hd"><i class="ti ti-train" aria-hidden="true"></i> Travel</div>
         <div class="hgt-col-hd"><i class="ti ti-calendar-event" aria-hidden="true"></i> Events</div>

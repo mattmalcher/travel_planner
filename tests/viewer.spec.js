@@ -157,6 +157,54 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(totalCard).toContainText('£243.24');
   });
 
+  test('should render gantt blocks and support compact toggle', async ({ page }) => {
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
+    await page.click('.htab[data-v="gantt"]');
+    await expect(page.locator('#hvgantt')).toBeVisible();
+
+    // Blocks should be present in each lane
+    const blocks = page.locator('#hvgantt .hgt-blk');
+    await expect(blocks).toHaveCount(2); // 1 transport + 1 accommodation
+
+    // Toggle button present, labelled "Compact" in proportional mode
+    const toggleBtn = page.locator('#hvgantt button');
+    await expect(toggleBtn).toBeVisible();
+    await expect(toggleBtn).toContainText('Compact');
+
+    // Record proportional body height
+    const bodyProp = page.locator('#hvgantt .hgt-body');
+    const propHeight = await bodyProp.evaluate(el => el.offsetHeight);
+
+    // Switch to compact mode
+    await toggleBtn.click();
+    await expect(toggleBtn).toContainText('Time');
+
+    // Compact body must be shorter than proportional
+    const compactHeight = await bodyProp.evaluate(el => el.offsetHeight);
+    expect(compactHeight).toBeLessThan(propHeight);
+
+    // Blocks still present and in topological order within each lane
+    const lanes = page.locator('#hvgantt .hgt-col');
+    for (let i = 0; i < await lanes.count(); i++) {
+      const tops = await lanes.nth(i).locator('.hgt-blk').evaluateAll(
+        els => els.map(e => parseFloat(e.style.top)).filter(t => !isNaN(t))
+      );
+      for (let j = 1; j < tops.length; j++) {
+        expect(tops[j]).toBeGreaterThanOrEqual(tops[j - 1]);
+      }
+    }
+
+    // Toggle back to proportional
+    await toggleBtn.click();
+    await expect(toggleBtn).toContainText('Compact');
+    const restoredHeight = await bodyProp.evaluate(el => el.offsetHeight);
+    expect(restoredHeight).toBe(propHeight);
+  });
+
   test('should successfully load a custom uploaded JSON itinerary', async ({ page }) => {
     const customItinerary = {
       trip: {
