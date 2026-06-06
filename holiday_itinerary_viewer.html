@@ -136,7 +136,7 @@ function hsicon(s){
 }
 
 function hrenderTransport(s){
-  const seats=s.seats.map(x=>`${x.traveller.split(' ')[0]}: Coach ${x.coach}${x.deck?' ('+x.deck+')':''}, Seat ${x.seat}`).join(' · ');
+  const seatsLine=s.seats&&s.seats.length?`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${s.seats.map(x=>`${x.traveller.split(' ')[0]}: Coach ${x.coach}${x.deck?' ('+x.deck+')':''}, Seat ${x.seat}`).join(' · ')}</div>`:'';
   return `<div style="margin-top:8px;font-size:13px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <span style="font-weight:500">${s.departs.time}</span>
@@ -147,7 +147,7 @@ function hrenderTransport(s){
       <span style="color:var(--color-text-secondary);font-size:12px">${hfmtMin(s.duration_min)}</span>
     </div>
     <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${s.operator}${s.service?' · '+s.service:''} · ${s.class} · Ref: <code>${s.ref}</code></div>
-    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${seats}</div>
+    ${seatsLine}
   </div>`;
 }
 
