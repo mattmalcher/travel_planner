@@ -435,6 +435,7 @@ function hrenderGantt(){
 
 function hload(data){
   HD=typeof data==='string'?JSON.parse(data):data;
+  localStorage.setItem('hItinerary',JSON.stringify(HD));
   document.getElementById('hupl').style.display='none';
   document.getElementById('happ').style.display='block';
   document.getElementById('htname').textContent=HD.trip.name;
@@ -445,7 +446,7 @@ function hload(data){
 }
 
 function hreset(){
-  HD=null;if(HM){HM.remove();HM=null;}HMapReady=false;
+  HD=null;localStorage.removeItem('hItinerary');if(HM){HM.remove();HM=null;}HMapReady=false;
   document.getElementById('hupl').style.display='block';
   document.getElementById('happ').style.display='none';
   hsw('list');
@@ -476,4 +477,6 @@ dz.addEventListener('drop',e=>{
   r.onload=ev=>{try{hload(JSON.parse(ev.target.result));}catch(err){alert('Invalid JSON: '+err.message);}};
   r.readAsText(f);
 });
+const _saved=localStorage.getItem('hItinerary');
+if(_saved){try{hload(JSON.parse(_saved));}catch(e){localStorage.removeItem('hItinerary');}}
 </script>
