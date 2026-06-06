@@ -1,0 +1,330 @@
+
+<h2 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore timeline, budget and map views</h2>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.hv{display:none}.hv.on{display:block}
+.htab{padding:.55rem .9rem;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:5px;transition:color .15s;user-select:none}
+.htab:hover{color:var(--color-text-primary)}.htab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
+.hseg{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:.8rem 1rem;margin-bottom:.5rem}
+.hbadge{font-size:10px;font-weight:500;padding:2px 6px;border-radius:999px;white-space:nowrap}
+.hbadge.paid{background:var(--color-background-success);color:var(--color-text-success)}
+.hbadge.pending,.hbadge.partial{background:var(--color-background-warning);color:var(--color-text-warning)}
+.hbadge.not_booked{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.hbadge.considering,.hbadge.suggested{background:var(--color-background-info);color:var(--color-text-info)}
+.hbadge.included{background:var(--color-background-success);color:var(--color-text-success)}
+.hbadge.free{background:var(--color-background-success);color:var(--color-text-success)}
+.hbadge.rejected{background:var(--color-background-danger);color:var(--color-text-danger)}
+.hsmc{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.8rem}
+.hrow{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:.5px solid var(--color-border-tertiary);font-size:13px}
+.hrow:last-child{border:none}
+.hdrop{border:.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:2.25rem 2rem;cursor:pointer;max-width:460px;margin:0 auto 1rem;transition:background .15s;text-align:center}
+.hdrop:hover,.hdrop.over{background:var(--color-background-secondary)}
+</style>
+
+<div id="hupl" style="padding:2.5rem 1.5rem">
+  <div style="text-align:center;margin-bottom:1.75rem">
+    <div style="font-size:17px;font-weight:500;margin-bottom:4px">Itinerary viewer</div>
+    <div style="font-size:13px;color:var(--color-text-secondary)">Load any <code>HolidayItinerary</code> JSON file to view timeline, budget and map</div>
+  </div>
+  <div class="hdrop" id="hdz" onclick="document.getElementById('hfile').click()">
+    <i class="ti ti-file-import" style="font-size:28px;color:var(--color-text-secondary);display:block;margin-bottom:10px" aria-hidden="true"></i>
+    <p style="font-size:14px;font-weight:500;margin-bottom:4px">Drop your itinerary JSON here</p>
+    <p style="font-size:12px;color:var(--color-text-secondary)">or click to browse</p>
+  </div>
+  <div style="text-align:center;display:flex;gap:8px;justify-content:center">
+    <input type="file" id="hfile" accept=".json" style="display:none">
+    <button onclick="document.getElementById('hfile').click()"><i class="ti ti-upload" aria-hidden="true"></i> Browse</button>
+    <button onclick="hload(HSAMPLE)"><i class="ti ti-map-2" aria-hidden="true"></i> Load example trip ↗</button>
+  </div>
+</div>
+
+<div id="happ" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)">
+    <div>
+      <div id="htname" style="font-size:15px;font-weight:500"></div>
+      <div id="htmeta" style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;display:flex;gap:12px"></div>
+    </div>
+    <button onclick="hreset()" style="font-size:12px"><i class="ti ti-refresh" aria-hidden="true"></i> New file</button>
+  </div>
+  <div style="display:flex;border-bottom:.5px solid var(--color-border-tertiary);padding:0 1.25rem">
+    <div class="htab on" data-v="list" onclick="hsw('list')"><i class="ti ti-list-details" aria-hidden="true"></i> Timeline</div>
+    <div class="htab" data-v="budget" onclick="hsw('budget')"><i class="ti ti-coins" aria-hidden="true"></i> Budget</div>
+    <div class="htab" data-v="map" onclick="hsw('map')"><i class="ti ti-map-2" aria-hidden="true"></i> Map</div>
+  </div>
+  <div id="hvlist" class="hv on" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvbudget" class="hv" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvmap" class="hv" style="padding:1.25rem">
+    <div style="display:flex;gap:8px;font-size:11px;color:var(--color-text-secondary);margin-bottom:8px;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#4b5563;display:inline-block"></span>Station</span>
+      <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#b45309;display:inline-block"></span>Stay</span>
+      <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#15803d;display:inline-block"></span>Event</span>
+    </div>
+    <div id="hmap" style="width:100%;height:440px;border-radius:var(--border-radius-lg);border:.5px solid var(--color-border-tertiary)"></div>
+    <div id="hmaplist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;margin-top:1rem"></div>
+  </div>
+</div>
+
+<script>
+const STNS={"london st pancras int'l":[51.5322,-0.1233],"paris gare du nord":[48.8809,2.3553],"paris montparnasse 1 et 2":[48.8404,2.3208],"bayonne":[43.4929,-1.4749],"lourdes":[43.0957,-0.0514]};
+
+let HD=null,HM=null,HMapReady=false;
+
+function hfmtD(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function hfmtDs(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long'});}
+function hfmtMin(m){const h=Math.floor(m/60),mn=m%60;return mn?`${h}h ${mn}m`:`${h}h`;}
+function hsegDate(s){return s.type==='accommodation'?s.checkin.date:s.date;}
+function hsegTime(s){return s.type==='transport'?s.departs.time:s.type==='accommodation'?(s.checkin.from||'00:00'):(s.time||'12:00');}
+
+function hci(s){
+  const c=s.cost;if(!c)return null;
+  if(c.included_in)return{t:'inc'};
+  if(c.status==='not_booked')return{t:'nb'};
+  const cur=c.currency||HD.trip.currency_primary,sym=cur==='EUR'?'€':'£';
+  if(c.payments){
+    const tot=c.total||c.payments.reduce((a,p)=>a+p.amount,0);
+    const pd=c.payments.filter(p=>p.status==='paid').reduce((a,p)=>a+p.amount,0);
+    const pn=c.payments.filter(p=>p.status==='pending').reduce((a,p)=>a+p.amount,0);
+    return{t:'amt',tot,sym,cur,st:pn>0?(pd>0?'partial':'pending'):'paid'};
+  }
+  return{t:'amt',tot:c.amount||c.total||0,sym,cur,st:c.status,due:c.due};
+}
+
+function hbadge(st,txt){return `<span class="hbadge ${st}">${txt||st}</span>`;}
+
+function hcb(ci){
+  if(!ci)return'';
+  if(ci.t==='inc')return hbadge('included','Included');
+  if(ci.t==='nb')return hbadge('not_booked','Not booked');
+  return hbadge(ci.st,{paid:'Paid',pending:'Due',partial:'Part paid',free:'Free'}[ci.st]||ci.st);
+}
+
+function hpb(s){
+  if(!s.proposal)return'';
+  const lbl={draft:'Draft',suggested:'Suggested',considering:'Considering',confirmed:'Confirmed',rejected:'Rejected'};
+  return hbadge(s.proposal.status,lbl[s.proposal.status]);
+}
+
+function hsicon(s){
+  if(s.type==='transport')return{train:'ti-train',bus:'ti-bus',ferry:'ti-sailboat',flight:'ti-plane'}[s.mode]||'ti-route';
+  if(s.type==='accommodation')return 'ti-home';
+  return{festival:'ti-music',gig:'ti-microphone-2',walk:'ti-walk',tour:'ti-flag-2',activity:'ti-activity',other:'ti-calendar-event'}[s.subtype]||'ti-calendar-event';
+}
+
+function hrenderTransport(s){
+  const seats=s.seats.map(x=>`${x.traveller.split(' ')[0]}: Coach ${x.coach}${x.deck?' ('+x.deck+')':''}, Seat ${x.seat}`).join(' · ');
+  return `<div style="margin-top:8px;font-size:13px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span style="font-weight:500">${s.departs.time}</span>
+      <span style="color:var(--color-text-secondary)">${s.departs.station}</span>
+      <i class="ti ti-arrow-right" style="color:var(--color-text-secondary);font-size:12px" aria-hidden="true"></i>
+      <span style="color:var(--color-text-secondary)">${s.arrives.station}</span>
+      <span style="font-weight:500">${s.arrives.time}</span>
+      <span style="color:var(--color-text-secondary);font-size:12px">${hfmtMin(s.duration_min)}</span>
+    </div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${s.operator}${s.service?' · '+s.service:''} · ${s.class} · Ref: <code>${s.ref}</code></div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${seats}</div>
+  </div>`;
+}
+
+function hrenderAccom(s){
+  return `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;gap:8px">
+    <span><i class="ti ti-door-enter" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> In after ${s.checkin.from} · ${hfmtDs(s.checkin.date)}</span>
+    <span><i class="ti ti-door-exit" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Out by ${s.checkout.by} · ${hfmtDs(s.checkout.date)}</span>
+    <span>${s.nights} night${s.nights!==1?'s':''} · Host: ${s.host}</span>
+    ${s.self_checkin?'<span><i class="ti ti-key" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Self check-in</span>':''}
+    ${s.phone?`<span><i class="ti ti-phone" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${s.phone}</span>`:''}
+    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">${s.address} · Ref: <code>${s.ref}</code></div>
+  </div>`;
+}
+
+function hrenderEvent(s){
+  let pr='';
+  if(s.pricing){pr=Object.entries(s.pricing).map(([k,v])=>{const l=k.replace(/_/g,' ');const val=v.amount!==undefined?`€${v.amount}`:(v.from!==undefined?`€${v.from}–€${v.to}`:'');return `${l}: ${val}`;}).join(' · ');}
+  return `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;gap:8px">
+    ${s.venue?`<span><i class="ti ti-map-pin" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${s.venue}</span>`:''}
+    ${s.time?`<span><i class="ti ti-clock" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${s.time}</span>`:''}
+    ${pr?`<span>${pr}</span>`:''}
+    ${s.url?`<span><a href="${s.url}" style="color:var(--color-text-info)">Website <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a></span>`:''}
+    ${s.tickets_url?`<span><a href="${s.tickets_url}" style="color:var(--color-text-info)">Tickets <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a></span>`:''}
+  </div>`;
+}
+
+function hrenderNotes(s){
+  if(!s.notes)return'';
+  const parts=s.notes.split('***').map(p=>p.trim()).filter(Boolean);
+  if(parts.length<=1)return`<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${s.notes}</div>`;
+  return parts.map((p,i)=>i%2===1
+    ?`<div style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${p}</div>`
+    :`<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${p}</div>`
+  ).join('');
+}
+
+function hrenderList(){
+  const sorted=[...HD.segments].sort((a,b)=>(hsegDate(a).localeCompare(hsegDate(b)))||hsegTime(a).localeCompare(hsegTime(b)));
+  const grp={};
+  sorted.forEach(s=>{const d=hsegDate(s);(grp[d]=grp[d]||[]).push(s);});
+  document.getElementById('hvlist').innerHTML=Object.entries(grp).map(([date,segs])=>`
+    <div style="margin-bottom:1.75rem">
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;display:flex;align-items:center;gap:8px">
+        ${hfmtDs(date)}<span style="flex:1;height:.5px;background:var(--color-border-tertiary);display:block"></span>
+      </div>
+      ${segs.map(s=>{
+        const ci=hci(s),ic=hsicon(s);
+        const title=s.name||s.operator||'Segment';
+        const sub=s.type==='transport'?`${s.departs.station} → ${s.arrives.station}`:s.type==='accommodation'?s.address:(s.subtype?s.subtype.charAt(0).toUpperCase()+s.subtype.slice(1):'');
+        const costStr=ci&&ci.t==='amt'?`${ci.sym}${ci.tot.toFixed(2)}`:'';
+        const detail=s.type==='transport'?hrenderTransport(s):s.type==='accommodation'?hrenderAccom(s):hrenderEvent(s);
+        return `<div class="hseg">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0">
+              <i class="ti ${ic}" style="font-size:17px;color:var(--color-text-secondary);flex-shrink:0;margin-top:2px" aria-hidden="true"></i>
+              <div><div style="font-size:14px;font-weight:500">${title}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${sub}</div></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+              ${costStr?`<span style="font-size:13px;font-weight:500">${costStr}</span>`:''}
+              ${hcb(ci)}${hpb(s)}
+            </div>
+          </div>
+          ${detail}${hrenderNotes(s)}
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+function hrenderBudget(){
+  let pgbp=0,peur=0,pngbp=0,pneur=0;
+  const upco=[],nb=[],rows=[];
+  for(const s of HD.segments){
+    const c=s.cost;if(!c||c.included_in)continue;
+    const cur=c.currency||HD.trip.currency_primary,sym=cur==='EUR'?'€':'£',gbp=cur==='GBP';
+    if(c.status==='not_booked'){nb.push(s);rows.push({s,st:'not_booked',amt:null,sym});continue;}
+    if(c.status==='free'){rows.push({s,st:'free',amt:0,sym});continue;}
+    if(c.payments){
+      const tot=c.total||c.payments.reduce((a,p)=>a+p.amount,0);
+      for(const p of c.payments){
+        if(p.status==='paid'){gbp?pgbp+=p.amount:peur+=p.amount;}
+        else{gbp?pngbp+=p.amount:pneur+=p.amount;upco.push({n:s.name||s.operator,amt:p.amount,sym,due:p.due});}
+      }
+      const pd=c.payments.filter(p=>p.status==='paid').reduce((a,p)=>a+p.amount,0);
+      const pn=c.payments.filter(p=>p.status==='pending').reduce((a,p)=>a+p.amount,0);
+      rows.push({s,st:pn>0?(pd>0?'partial':'pending'):'paid',amt:tot,sym});
+    } else {
+      const amt=c.amount||c.total||0;
+      if(c.status==='paid'){gbp?pgbp+=amt:peur+=amt;}
+      else if(c.status==='pending'){gbp?pngbp+=amt:pneur+=amt;upco.push({n:s.name||s.operator,amt,sym,due:c.due});}
+      rows.push({s,st:c.status,amt,sym});
+    }
+  }
+  upco.sort((a,b)=>new Date(a.due||'9999')-new Date(b.due||'9999'));
+  const f=n=>n.toFixed(2),lbl={paid:'Paid',pending:'Due',partial:'Part paid',not_booked:'Not booked',free:'Free'};
+  document.getElementById('hvbudget').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem">
+      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Paid</div>
+        <div style="font-size:21px;font-weight:500;color:var(--color-text-success)">£${f(pgbp)}</div>
+        ${peur>0?`<div style="font-size:11px;color:var(--color-text-secondary)">+ €${f(peur)}</div>`:''}
+      </div>
+      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Pending</div>
+        <div style="font-size:21px;font-weight:500;color:var(--color-text-warning)">£${f(pngbp)}</div>
+        ${pneur>0?`<div style="font-size:11px;color:var(--color-text-secondary)">+ €${f(pneur)}</div>`:''}
+      </div>
+      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Not booked</div>
+        <div style="font-size:21px;font-weight:500;color:var(--color-text-secondary)">${nb.length} item${nb.length!==1?'s':''}</div>
+      </div>
+      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Total confirmed</div>
+        <div style="font-size:21px;font-weight:500">£${f(pgbp+pngbp)}</div>
+        ${(peur+pneur)>0?`<div style="font-size:11px;color:var(--color-text-secondary)">+ €${f(peur+pneur)}</div>`:''}
+      </div>
+    </div>
+    ${upco.length?`<div style="font-size:13px;font-weight:500;margin-bottom:.5rem">Upcoming payments</div>
+    <div style="background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0 1rem;margin-bottom:1.5rem">
+      ${upco.map(p=>`<div class="hrow"><span>${p.n}</span><div style="display:flex;gap:10px;align-items:center">${p.due?`<span style="font-size:12px;color:var(--color-text-secondary)">${hfmtD(p.due)}</span>`:''}<span style="font-weight:500;color:var(--color-text-warning)">${p.sym}${p.amt.toFixed(2)}</span></div></div>`).join('')}
+    </div>`:''}
+    <div style="font-size:13px;font-weight:500;margin-bottom:.5rem">All segments</div>
+    <div style="background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0 1rem">
+      ${rows.map(r=>`<div class="hrow">
+        <div><div style="font-weight:500">${r.s.name||r.s.operator||'Segment'}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${r.s.type}${r.s.mode?' · '+r.s.mode:''}${r.s.subtype?' · '+r.s.subtype:''}</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${hbadge(r.st,lbl[r.st]||r.st)}
+          <span style="font-weight:500;min-width:60px;text-align:right">${r.amt!==null?r.sym+r.amt.toFixed(2):'—'}</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function hrenderMap(){
+  if(!window.L||!HD)return;
+  if(HM){HM.remove();HM=null;}
+  HM=L.map('hmap');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(HM);
+  const mpin=(col,lbl)=>L.divIcon({html:`<div style="background:${col};width:22px;height:22px;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;font-family:sans-serif">${lbl}</div>`,className:'',iconAnchor:[11,11],popupAnchor:[0,-13]});
+  const allc=[],route=[],seen=new Set();
+  const sorted=[...HD.segments].sort((a,b)=>(hsegDate(a).localeCompare(hsegDate(b)))||hsegTime(a).localeCompare(hsegTime(b)));
+  for(const s of sorted){
+    if(s.type==='transport'){
+      const dk=s.departs.station.toLowerCase(),ak=s.arrives.station.toLowerCase();
+      const dc=STNS[dk],ac=STNS[ak];
+      if(dc){route.push(dc);if(!seen.has(dk)){seen.add(dk);allc.push(dc);L.marker(dc,{icon:mpin('#4b5563','T')}).addTo(HM).bindPopup(`<strong>${s.departs.station}</strong><br>${s.operator}${s.service?' · '+s.service:''}<br>Departs ${s.departs.time}`);}}
+      if(ac){route.push(ac);if(!seen.has(ak)){seen.add(ak);allc.push(ac);L.marker(ac,{icon:mpin('#4b5563','T')}).addTo(HM).bindPopup(`<strong>${s.arrives.station}</strong>`);}}
+    } else if(s.type==='accommodation'){
+      const c=[s.lat,s.lng];route.push(c);allc.push(c);
+      L.marker(c,{icon:mpin('#b45309','H')}).addTo(HM).bindPopup(`<strong>${s.name}</strong><br>${s.host}<br>${s.address}<br>Check-in: ${hfmtD(s.checkin.date)}`);
+    } else if(s.type==='event'&&s.lat){
+      const c=[s.lat,s.lng];allc.push(c);
+      L.marker(c,{icon:mpin('#15803d','E')}).addTo(HM).bindPopup(`<strong>${s.name}</strong><br>${s.venue||''}<br>${hfmtD(s.date)}`);
+    }
+  }
+  if(route.length>1)L.polyline(route,{color:'#6366f1',weight:2,opacity:0.55,dashArray:'6 8'}).addTo(HM);
+  if(allc.length>0)HM.fitBounds(L.latLngBounds(allc).pad(0.18));
+  document.getElementById('hmaplist').innerHTML=HD.segments.filter(s=>s.lat).map(s=>`
+    <div onclick="if(window.HM)HM.setView([${s.lat},${s.type==='accommodation'?s.lng:s.lng}],13)" style="background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.55rem .75rem;cursor:pointer;font-size:12px" onmouseover="this.style.background='var(--color-background-secondary)'" onmouseout="this.style.background='var(--color-background-primary)'">
+      <div style="font-weight:500;margin-bottom:2px">${s.name||s.venue}</div>
+      <div style="color:var(--color-text-secondary)">${hfmtD(hsegDate(s))}</div>
+    </div>`).join('');
+}
+
+function hload(data){
+  HD=typeof data==='string'?JSON.parse(data):data;
+  document.getElementById('hupl').style.display='none';
+  document.getElementById('happ').style.display='block';
+  document.getElementById('htname').textContent=HD.trip.name;
+  document.getElementById('htmeta').innerHTML=`
+    <span><i class="ti ti-calendar" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${hfmtD(HD.trip.start)} – ${hfmtD(HD.trip.end)}</span>
+    <span><i class="ti ti-users" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${HD.trip.travellers.join(' & ')}</span>`;
+  hrenderList();hrenderBudget();
+}
+
+function hreset(){
+  HD=null;if(HM){HM.remove();HM=null;}HMapReady=false;
+  document.getElementById('hupl').style.display='block';
+  document.getElementById('happ').style.display='none';
+  hsw('list');
+}
+
+function hsw(v){
+  document.querySelectorAll('.htab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
+  document.getElementById('hvlist').className='hv'+(v==='list'?' on':'');
+  document.getElementById('hvbudget').className='hv'+(v==='budget'?' on':'');
+  document.getElementById('hvmap').className='hv'+(v==='map'?' on':'');
+  if(v==='map'&&!HMapReady&&HD){HMapReady=true;setTimeout(hrenderMap,120);}
+}
+
+document.getElementById('hfile').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{hload(JSON.parse(ev.target.result));}catch(err){alert('Invalid JSON: '+err.message);}};
+  r.readAsText(f);e.target.value='';
+});
+const dz=document.getElementById('hdz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('over');
+  const f=e.dataTransfer.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{hload(JSON.parse(ev.target.result));}catch(err){alert('Invalid JSON: '+err.message);}};
+  r.readAsText(f);
+});
+</script>
