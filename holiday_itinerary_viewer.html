@@ -158,7 +158,7 @@ function hrenderAccom(s){
     <span>${s.nights} night${s.nights!==1?'s':''} · Host: ${s.host}</span>
     ${s.self_checkin?'<span><i class="ti ti-key" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Self check-in</span>':''}
     ${s.phone?`<span><i class="ti ti-phone" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${s.phone}</span>`:''}
-    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">${s.address} · Ref: <code>${s.ref}</code></div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">Ref: <code>${s.ref}</code></div>
   </div>`;
 }
 
