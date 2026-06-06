@@ -462,7 +462,6 @@
         "arrives",
         "duration_min",
         "class",
-        "seats",
         "cost"
       ],
       "properties": {
