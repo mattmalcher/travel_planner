@@ -205,6 +205,21 @@ test.describe('Holiday Itinerary Viewer', () => {
     expect(restoredHeight).toBe(propHeight);
   });
 
+  test('should sort accommodation after transport on the same day even when check-in opens earlier', async ({ page }) => {
+    // genericItinerary has: accommodation check-in from 13:00 and Eurostar departing 16:31, both on 2026-09-18.
+    // The accommodation must sort last (after transport) regardless of its check-in window time.
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
+
+    const segs = page.locator('#hvlist .hseg');
+    await expect(segs).toHaveCount(2);
+    await expect(segs.nth(0)).toContainText('Eurostar');
+    await expect(segs.nth(1)).toContainText('Cosy Studio near Sacré-Cœur');
+  });
+
   test('should successfully load a custom uploaded JSON itinerary', async ({ page }) => {
     const customItinerary = {
       trip: {

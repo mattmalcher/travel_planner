@@ -1,5 +1,7 @@
 # Holiday Itinerary Viewer - Development & Test Harness
 
+**[Open the viewer](https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html)**
+
 This workspace contains the static HTML viewer for `HolidayItinerary` JSON files (`holiday_itinerary_viewer.html`), accompanied by a local development server and a Playwright-based End-to-End (E2E) integration test suite.
 
 ## Getting Started
