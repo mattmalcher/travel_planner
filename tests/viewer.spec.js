@@ -1,5 +1,62 @@
 import { test, expect } from '@playwright/test';
 
+const genericItinerary = {
+  trip: {
+    name: "Paris, Bayonne & Luz-Saint-Sauveur 2026",
+    travellers: ["Judy Jetson", "George Jetson"],
+    start: "2026-07-03",
+    end: "2026-07-13",
+    currency_primary: "GBP"
+  },
+  segments: [
+    {
+      id: "seg-1",
+      type: "transport",
+      mode: "train",
+      operator: "Eurostar",
+      ref: "AB1234",
+      date: "2026-07-03",
+      departs: { station: "London St Pancras Int'l", time: "16:31" },
+      arrives: { station: "Paris Gare du Nord", time: "19:49" },
+      duration_min: 138,
+      class: "Standard",
+      seats: [
+        { traveller: "Judy Jetson", coach: 5, seat: 84 },
+        { traveller: "George Jetson", coach: 5, seat: 83 }
+      ],
+      cost: {
+        total: 156.00,
+        currency: "GBP",
+        status: "paid",
+        paid_by: "Judy Jetson"
+      }
+    },
+    {
+      id: "seg-2",
+      type: "accommodation",
+      name: "Cosy Studio near Sacré-Cœur",
+      host: "Pierre",
+      ref: "XY9876Z",
+      address: "42 Rue de Rivoli, 75001 Paris, France",
+      lat: 48.8566,
+      lng: 2.3522,
+      checkin: { date: "2026-07-03", from: "13:00" },
+      checkout: { date: "2026-07-04", by: "13:00" },
+      guests: 2,
+      nights: 1,
+      self_checkin: true,
+      cost: {
+        amount: 87.24,
+        currency: "GBP",
+        status: "paid",
+        paid_by: "Judy Jetson"
+      },
+      notes: "Smart checkin",
+      date: "2026-07-03"
+    }
+  ]
+};
+
 test.describe('Holiday Itinerary Viewer', () => {
   
   test.beforeEach(async ({ page }) => {
@@ -21,9 +78,13 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('#happ')).toBeHidden();
   });
 
-  test('should load the example trip when clicking the example button', async ({ page }) => {
-    // Click on "Load example trip"
-    await page.click('button:has-text("Load example trip")');
+  test('should load a generic itinerary when uploading a valid JSON file', async ({ page }) => {
+    // Upload genericItinerary
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
 
     // Upload screen should be hidden, app screen visible
     await expect(page.locator('#hupl')).toBeHidden();
@@ -33,14 +94,19 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('#htname')).toHaveText('Paris, Bayonne & Luz-Saint-Sauveur 2026');
     await expect(page.locator('#htmeta')).toContainText('Judy Jetson & George Jetson');
 
-    // Verify Timeline contains some segments
+    // Verify Timeline contains correct segments
     const timeline = page.locator('#hvlist');
     await expect(timeline).toBeVisible();
-    await expect(timeline.locator('.hseg')).not.toHaveCount(0);
+    await expect(timeline.locator('.hseg')).toHaveCount(2);
   });
 
   test('should allow switching tabs and update views accordingly', async ({ page }) => {
-    await page.click('button:has-text("Load example trip")');
+    // Upload genericItinerary
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
 
     // Initially "Timeline" tab is active, others inactive
     await expect(page.locator('.htab[data-v="list"]')).toHaveClass(/on/);
@@ -69,18 +135,26 @@ test.describe('Holiday Itinerary Viewer', () => {
   });
 
   test('should calculate and display the correct budget figures on the Budget tab', async ({ page }) => {
-    await page.click('button:has-text("Load example trip")');
+    // Upload genericItinerary
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
     await page.click('.htab[data-v="budget"]');
 
     // Check key budget summary elements
     const paidCard = page.locator('.hsmc:has-text("Paid")');
     await expect(paidCard).toBeVisible();
+    await expect(paidCard).toContainText('£243.24');
     
     const pendingCard = page.locator('.hsmc:has-text("Pending")');
     await expect(pendingCard).toBeVisible();
+    await expect(pendingCard).toContainText('£0.00');
 
     const totalCard = page.locator('.hsmc:has-text("Total confirmed")');
     await expect(totalCard).toBeVisible();
+    await expect(totalCard).toContainText('£243.24');
   });
 
   test('should successfully load a custom uploaded JSON itinerary', async ({ page }) => {
