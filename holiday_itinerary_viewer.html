@@ -375,7 +375,7 @@ function hrenderGantt(){
       const end=msToIso(evMs+(s.duration_min||120)*60000);
       const top=toPx(s.date,s.time||'10:00');
       const bot=toPx(end.date,end.time);
-      eventBlocks.push({top,h:Math.max(bot-top,28),color:EVENT_COLOR[s.subtype]||EVENT_COLOR.other,label:s.name,sub:s.subtype||'event'});
+      eventBlocks.push({top,h:Math.max(bot-top,28),color:EVENT_COLOR[s.subtype]||EVENT_COLOR.other,label:s.name,times:`${s.time||'10:00'} → ${end.time} (${hfmtMin(s.duration_min||120)})`,sub:s.subtype||'event'});
     }
   }
   const coveredIntervals=HD.segments.filter(s=>s.type==='accommodation').map(s=>({
