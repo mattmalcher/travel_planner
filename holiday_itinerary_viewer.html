@@ -318,7 +318,7 @@ function hrenderGantt(){
   const tripEndDate=new Date(HD.trip.end+'T00:00:00');
   const numDays=Math.round((tripEndDate-tripStartDate)/86400000)+1;
   // msToIso: convert a ms timestamp to {date,time} strings for toPx
-  function msToIso(ms){const d=new Date(ms);return{date:d.toISOString().slice(0,10),time:d.toISOString().slice(11,16)};}
+  function msToIso(ms){const d=new Date(ms);const date=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;const time=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;return{date,time};}
   let totalPx,toPx;
   if(hGanttCompact){
     const pts=new Set([tripStartMs,tripEndMs]);
@@ -391,7 +391,7 @@ function hrenderGantt(){
   let axisHtml='',bodyLines='';
   for(let d=0;d<numDays;d++){
     const dayDate=new Date(tripStartDate.getTime()+d*86400000);
-    const dayIso=dayDate.toISOString().slice(0,10);
+    const dayIso=`${dayDate.getFullYear()}-${String(dayDate.getMonth()+1).padStart(2,'0')}-${String(dayDate.getDate()).padStart(2,'0')}`;
     const dayPx=toPx(dayIso,'00:00');
     const dayLabel=dayDate.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
     bodyLines+=`<div class="hgt-day" style="top:${dayPx.toFixed(1)}px"></div>`;
