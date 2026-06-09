@@ -44,7 +44,9 @@ A `Makefile` is provided to simplify hosting and running tests.
 ```text
 .
 ├── holiday_itinerary_schema.json  # JSON schema defining the HolidayItinerary schema
-├── holiday_itinerary_viewer.html  # The standalone interactive HTML application
+├── holiday_itinerary_viewer.html  # Page markup & external CDN includes (entry point)
+├── viewer.css                     # Application styles
+├── viewer.js                      # Application logic (rendering, budget, map, gantt, edit)
 ├── playwright.config.js           # Playwright test configuration & web server setup
 ├── Makefile                       # Developer-friendly shortcut targets
 ├── package.json                   # Project metadata and script definition
@@ -52,12 +54,17 @@ A `Makefile` is provided to simplify hosting and running tests.
     └── viewer.spec.js             # End-to-End integration tests
 ```
 
+The viewer is split across three sibling files served statically by GitHub Pages:
+`holiday_itinerary_viewer.html` holds the markup and references `viewer.css` and
+`viewer.js`. The JS is a classic (non-module) script, so its functions remain in
+global scope for the inline event handlers in the markup.
+
 ---
 
 ## Guidance for AI Models & Developers
 
-When making changes to the itinerary viewer (`holiday_itinerary_viewer.html`):
-1. Keep the HTML standalone (inline CSS and JS) unless refactoring is requested.
+When making changes to the itinerary viewer:
+1. Styles live in `viewer.css`, logic in `viewer.js`, and markup in `holiday_itinerary_viewer.html`. Keep each concern in its own file. `viewer.js` stays a classic (non-module) script so its functions remain globally available to the inline handlers in the markup.
 2. Ensure you run the E2E test suite to verify your changes did not introduce regressions:
    ```bash
    make test
