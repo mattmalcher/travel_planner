@@ -119,7 +119,6 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 </div>
 
 <script>
-const STNS={"london st pancras int'l":[51.5322,-0.1233],"paris gare du nord":[48.8809,2.3553],"paris montparnasse 1 et 2":[48.8404,2.3208],"bayonne":[43.4929,-1.4749],"lourdes":[43.0957,-0.0514]};
 
 let HD=null,HM=null,HMapReady=false,hGanttCompact=false;
 
@@ -318,7 +317,8 @@ function hrenderMap(){
   for(const s of sorted){
     if(s.type==='transport'){
       const dk=s.departs.station.toLowerCase(),ak=s.arrives.station.toLowerCase();
-      const dc=STNS[dk],ac=STNS[ak];
+      const dc=s.departs.lat!=null?[s.departs.lat,s.departs.lng]:null;
+      const ac=s.arrives.lat!=null?[s.arrives.lat,s.arrives.lng]:null;
       if(dc){route.push(dc);if(!seen.has(dk)){seen.add(dk);allc.push(dc);L.marker(dc,{icon:mpin('#4b5563','T')}).addTo(HM).bindPopup(`<strong>${s.departs.station}</strong><br>${s.operator}${s.service?' · '+s.service:''}<br>Departs ${s.departs.time}`);}}
       if(ac){route.push(ac);if(!seen.has(ak)){seen.add(ak);allc.push(ac);L.marker(ac,{icon:mpin('#4b5563','T')}).addTo(HM).bindPopup(`<strong>${s.arrives.station}</strong>`);}}
     } else if(s.type==='accommodation'){

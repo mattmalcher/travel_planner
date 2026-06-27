@@ -159,13 +159,13 @@
           "type": "number",
           "minimum": -90,
           "maximum": 90,
-          "description": "WGS-84 latitude — enables map rendering without a lookup table"
+          "description": "WGS-84 latitude — enables map rendering without a lookup table. For rail stations, coordinates can be looked up from https://github.com/trainline-eu/stations (stations.csv, 'latitude'/'longitude' columns, match on 'name' or 'uic_name'). For bus stops and other stops, query the Overpass API (https://overpass-api.de/api/interpreter) using tags highway=bus_stop or public_transport=platform — use the /find-stop project skill to do this."
         },
         "lng": {
           "type": "number",
           "minimum": -180,
           "maximum": 180,
-          "description": "WGS-84 longitude"
+          "description": "WGS-84 longitude — see lat description for source guidance."
         }
       },
       "additionalProperties": false
