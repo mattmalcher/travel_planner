@@ -52,6 +52,27 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .hgt-blk{position:absolute;left:4px;right:4px;border-radius:4px;overflow:hidden;cursor:default;font-size:10px;font-weight:500;color:#fff;padding:3px 5px;line-height:1.3;z-index:2;transition:filter .15s,box-shadow .15s;box-sizing:border-box}
 .hgt-blk:hover{filter:brightness(1.15);box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:5}
 .hgt-gap{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,var(--color-background-warning) 0px,var(--color-background-warning) 4px,transparent 4px,transparent 10px);border:1.5px dashed var(--color-text-warning);border-radius:4px;opacity:.45;z-index:1;pointer-events:none}
+#hchat{position:fixed;top:0;right:0;width:390px;max-width:100vw;height:100vh;background:var(--color-background-primary);border-left:.5px solid var(--color-border-tertiary);box-shadow:-4px 0 24px rgba(0,0,0,.08);display:none;flex-direction:column;z-index:1100}
+#hchat.on{display:flex}
+#hchat-hd{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:.5px solid var(--color-border-tertiary);flex-shrink:0}
+#hchat-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.55rem}
+.hcmsg{font-size:13px;line-height:1.45;padding:.55rem .7rem;border-radius:var(--border-radius-md);max-width:90%;white-space:pre-wrap;overflow-wrap:anywhere}
+.hcmsg.user{background:var(--color-background-info);color:var(--color-text-primary);align-self:flex-end}
+.hcmsg.assistant{background:var(--color-background-secondary);align-self:flex-start}
+.hcmsg.sys{background:transparent;color:var(--color-text-tertiary);align-self:center;text-align:center;font-size:11px;padding:.2rem}
+#hchat-busy{display:none;align-self:flex-start;color:var(--color-text-secondary);font-size:12px;padding:.3rem .7rem}
+#hchat-busy.on{display:block}
+#hchat-preview{display:none;border-top:.5px solid var(--color-border-tertiary);padding:.75rem 1rem;font-size:12px;max-height:42vh;overflow-y:auto;flex-shrink:0;background:var(--color-background-secondary)}
+#hchat-preview.on{display:block}
+.hpv-op{font-size:12px;padding:1px 0;font-family:ui-monospace,monospace}
+.hpv-err{background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
+#hchat-ft{display:flex;gap:8px;align-items:flex-end;padding:.75rem 1rem;border-top:.5px solid var(--color-border-tertiary);flex-shrink:0}
+#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:13px;min-height:38px;max-height:120px;outline:none}
+#hset-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200;align-items:center;justify-content:center;padding:1rem}
+#hset-modal.on{display:flex}
+#hset-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:440px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.7rem}
+.hset-lbl{font-size:12px;font-weight:500;display:block;margin-bottom:3px}
+.hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:13px;outline:none}
 </style>
 
 <div id="hupl" style="padding:2.5rem 1.5rem">
@@ -68,6 +89,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
   <div style="text-align:center;display:flex;gap:8px;justify-content:center">
     <input type="file" id="hfile" accept=".json" style="display:none">
     <button onclick="document.getElementById('hfile').click()"><i class="ti ti-upload" aria-hidden="true"></i> Browse</button>
+    <button onclick="hChatOpen()"><i class="ti ti-sparkles" aria-hidden="true"></i> Create with AI</button>
   </div>
 </div>
 
@@ -78,6 +100,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
       <div id="htmeta" style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;display:flex;gap:12px"></div>
     </div>
     <div style="display:flex;gap:8px">
+      <button onclick="hChatOpen()" style="font-size:12px" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
       <button id="hedit-toggle" onclick="hToggleEdit()" style="font-size:12px" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       <button onclick="hDownload()" style="font-size:12px" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
       <button onclick="hreset()" style="font-size:12px"><i class="ti ti-refresh" aria-hidden="true"></i> New file</button>
@@ -114,6 +137,51 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
       <span id="hedit-err"></span>
       <button onclick="hCloseEdit()" style="font-size:12px">Cancel</button>
       <button onclick="hSaveEdit()" style="font-size:12px;font-weight:500">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="hchat">
+  <div id="hchat-hd">
+    <span style="font-size:13px;font-weight:500"><i class="ti ti-sparkles" aria-hidden="true"></i> AI assistant</span>
+    <span style="display:flex;gap:6px">
+      <button onclick="hSetOpen()" style="font-size:12px;padding:2px 6px" title="Settings"><i class="ti ti-settings" aria-hidden="true"></i></button>
+      <button onclick="hChatClear()" style="font-size:12px;padding:2px 6px" title="Clear conversation"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      <button onclick="hChatClose()" style="font-size:12px;padding:2px 6px" title="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </span>
+  </div>
+  <div id="hchat-msgs"></div>
+  <div id="hchat-busy"><i class="ti ti-loader-2" aria-hidden="true"></i> Thinking…</div>
+  <div id="hchat-preview"></div>
+  <div id="hchat-ft">
+    <textarea id="hchat-input" placeholder="e.g. Add a Eurostar from London to Paris on 3 July at 16:31" rows="1"></textarea>
+    <button onclick="hChatSubmit()" id="hchat-send" style="font-size:12px;font-weight:500" title="Send"><i class="ti ti-send" aria-hidden="true"></i></button>
+  </div>
+</div>
+
+<div id="hset-modal" onclick="if(event.target===this)hSetClose()">
+  <div id="hset-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;font-weight:500">AI assistant settings</span>
+      <button onclick="hSetClose()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </div>
+    <div>
+      <label class="hset-lbl" for="hset-key">OpenRouter API key</label>
+      <input class="hset-in" id="hset-key" type="password" placeholder="sk-or-v1-…" autocomplete="off">
+    </div>
+    <div>
+      <label class="hset-lbl" for="hset-model">Model</label>
+      <input class="hset-in" id="hset-model" type="text" placeholder="google/gemini-3.5-flash">
+    </div>
+    <label style="font-size:12px;display:flex;align-items:center;gap:7px;cursor:pointer">
+      <input type="checkbox" id="hset-web"> Allow web search (extra cost; model decides when to use it)
+    </label>
+    <div style="font-size:11px;color:var(--color-text-tertiary);line-height:1.4">
+      Your key is stored only in this browser (localStorage) and sent directly to OpenRouter — there is no backend. Get a key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--color-text-info)">openrouter.ai/keys</a>.
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="hSetClearKey()" style="font-size:12px">Clear key</button>
+      <button onclick="hSetSave()" style="font-size:12px;font-weight:500">Save</button>
     </div>
   </div>
 </div>
@@ -536,6 +604,7 @@ function hload(data){
 
 function hreset(){
   HD=null;localStorage.removeItem('hItinerary');if(HM){HM.remove();HM=null;}HMapReady=false;
+  HCHAT=[];HDRAFT=null;HOPS=[];if(typeof hHidePreview==='function'){hHidePreview();hRenderChat();}
   document.getElementById('hupl').style.display='block';
   document.getElementById('happ').style.display='none';
   hsw('list');
@@ -549,6 +618,227 @@ function hsw(v){
   document.getElementById('hvgantt').className='hv'+(v==='gantt'?' on':'');
   if(v==='map'&&!HMapReady&&HD){HMapReady=true;setTimeout(hrenderMap,120);}
 }
+
+/* ===== AI assistant (OpenRouter, browser-only) ===== */
+const HOR_URL='https://openrouter.ai/api/v1/chat/completions';
+const HOR_DEFAULT_MODEL='google/gemini-3.5-flash';
+let HCHAT=[];       // visible conversation: {role:'user'|'assistant'|'sys', content}
+let HDRAFT=null;    // pending edited itinerary (clone), not yet applied
+let HOPS=[];        // tracked operations for the diff preview
+let HBUSY=false;
+
+function hEmptyItin(){return{trip:{name:'',travellers:[],start:'',end:'',currency_primary:'GBP'},segments:[]};}
+function hValidateSafe(doc){return window.hValidate?window.hValidate(doc):{ok:true,errors:[],note:'validator not loaded'};}
+
+function hChatOpen(){document.getElementById('hchat').classList.add('on');if(!localStorage.getItem('hOpenRouterKey'))hSetOpen();else document.getElementById('hchat-input').focus();}
+function hChatClose(){document.getElementById('hchat').classList.remove('on');}
+function hChatClear(){HCHAT=[];HDRAFT=null;HOPS=[];hRenderChat();hHidePreview();}
+
+function hChatPush(role,content){HCHAT.push({role,content});hRenderChat();}
+function hRenderChat(){
+  const box=document.getElementById('hchat-msgs');
+  if(!HCHAT.length){box.innerHTML='<div class="hcmsg sys">Describe what to add or change. I can create a new itinerary or edit the current one — changes are previewed before they apply.</div>';return;}
+  box.innerHTML=HCHAT.map(m=>`<div class="hcmsg ${m.role}">${hEsc(m.content)}</div>`).join('');
+  box.scrollTop=box.scrollHeight;
+}
+function hEsc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function hSetBusy(b){HBUSY=b;document.getElementById('hchat-busy').classList.toggle('on',b);document.getElementById('hchat-send').disabled=b;
+  const box=document.getElementById('hchat-msgs');box.scrollTop=box.scrollHeight;}
+
+/* --- settings --- */
+function hSetOpen(){
+  document.getElementById('hset-key').value=localStorage.getItem('hOpenRouterKey')||'';
+  document.getElementById('hset-model').value=localStorage.getItem('hOpenRouterModel')||HOR_DEFAULT_MODEL;
+  document.getElementById('hset-web').checked=localStorage.getItem('hOpenRouterWeb')==='1';
+  document.getElementById('hset-modal').classList.add('on');
+}
+function hSetClose(){document.getElementById('hset-modal').classList.remove('on');}
+function hSetSave(){
+  const k=document.getElementById('hset-key').value.trim();
+  const m=document.getElementById('hset-model').value.trim()||HOR_DEFAULT_MODEL;
+  if(k)localStorage.setItem('hOpenRouterKey',k);
+  localStorage.setItem('hOpenRouterModel',m);
+  localStorage.setItem('hOpenRouterWeb',document.getElementById('hset-web').checked?'1':'0');
+  hSetClose();
+  if(localStorage.getItem('hOpenRouterKey'))document.getElementById('hchat-input').focus();
+}
+function hSetClearKey(){localStorage.removeItem('hOpenRouterKey');document.getElementById('hset-key').value='';}
+
+/* --- tool definitions --- */
+function hBuildTools(){
+  const tools=[
+    {type:'function',function:{name:'add_segment',description:'Add a new segment (transport, accommodation or event) to the itinerary.',parameters:{type:'object',properties:{segment_json:{type:'string',description:'A complete segment object, serialised as a JSON string, conforming to the HolidayItinerary schema.'}},required:['segment_json']}}},
+    {type:'function',function:{name:'update_segment',description:'Replace an existing segment (matched by id) with a new full segment object.',parameters:{type:'object',properties:{id:{type:'string',description:'id of the segment to replace'},segment_json:{type:'string',description:'The complete replacement segment object, serialised as a JSON string.'}},required:['id','segment_json']}}},
+    {type:'function',function:{name:'remove_segment',description:'Remove the segment with the given id.',parameters:{type:'object',properties:{id:{type:'string'}},required:['id']}}},
+    {type:'function',function:{name:'update_trip',description:'Replace the trip metadata (name, travellers, start, end, currency_primary).',parameters:{type:'object',properties:{trip_json:{type:'string',description:'The complete trip object, serialised as a JSON string.'}},required:['trip_json']}}}
+  ];
+  if(localStorage.getItem('hOpenRouterWeb')==='1')
+    tools.push({type:'openrouter:web_search',parameters:{engine:'auto',max_results:3}});
+  return tools;
+}
+
+function hBuildSystem(){
+  const today=new Date().toISOString().slice(0,10);
+  const cur=HD?JSON.stringify(HD,null,2):'(no itinerary loaded yet — create one from scratch using update_trip and add_segment)';
+  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (add_segment, update_segment, remove_segment, update_trip). Pass objects as JSON strings in the *_json arguments — never put the itinerary JSON in your text reply.
+
+Rules:
+- Every segment needs a unique id like "seg-1", "seg-2", … (do not reuse an existing id).
+- Follow the JSON Schema exactly: required fields, enums, "type" const per segment kind.
+- Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters (default ${HD&&HD.trip?HD.trip.currency_primary:'GBP'}).
+- For accommodation, "date" must equal checkin.date, and set "nights" consistently.
+- Provide duration_min where the schema requires it (transport).
+- Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed.
+- After your tool calls, reply with a short plain-text summary of what you changed.
+Today's date is ${today}.
+
+Current itinerary:
+${cur}
+
+JSON Schema:
+${window.hSchemaText||'(schema unavailable)'}`;
+}
+
+/* --- apply a single tool call to the draft --- */
+function hApplyTool(tc){
+  const name=tc.function&&tc.function.name;
+  let args;
+  try{args=JSON.parse(tc.function.arguments||'{}');}catch(e){return 'ERROR: could not parse tool arguments: '+e.message;}
+  try{
+    if(name==='add_segment'){
+      const seg=JSON.parse(args.segment_json);
+      HDRAFT.segments.push(seg);HOPS.push({kind:'add',after:seg});
+    }else if(name==='update_segment'){
+      const seg=JSON.parse(args.segment_json);
+      const idx=HDRAFT.segments.findIndex(s=>s.id===args.id);
+      if(idx<0)return 'ERROR: no segment with id "'+args.id+'".';
+      HOPS.push({kind:'update',id:args.id,before:HDRAFT.segments[idx],after:seg});
+      HDRAFT.segments[idx]=seg;
+    }else if(name==='remove_segment'){
+      const idx=HDRAFT.segments.findIndex(s=>s.id===args.id);
+      if(idx<0)return 'ERROR: no segment with id "'+args.id+'".';
+      HOPS.push({kind:'remove',id:args.id,before:HDRAFT.segments[idx]});
+      HDRAFT.segments.splice(idx,1);
+    }else if(name==='update_trip'){
+      const trip=JSON.parse(args.trip_json);
+      HOPS.push({kind:'trip',before:HDRAFT.trip,after:trip});HDRAFT.trip=trip;
+    }else return 'ERROR: unknown tool "'+name+'".';
+  }catch(e){return 'ERROR applying '+name+': '+e.message;}
+  const v=hValidateSafe(HDRAFT);
+  if(!v.ok)return 'Change recorded, but the itinerary is NOT yet schema-valid. Issue further tool calls to fix these errors:\n'+JSON.stringify(v.errors,null,2);
+  return 'OK — applied and the itinerary is schema-valid.';
+}
+
+async function hCallOR(messages){
+  const key=localStorage.getItem('hOpenRouterKey');
+  const model=localStorage.getItem('hOpenRouterModel')||HOR_DEFAULT_MODEL;
+  const res=await fetch(HOR_URL,{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json','HTTP-Referer':location.origin,'X-Title':'Itinerary viewer'},
+    body:JSON.stringify({model,messages,tools:hBuildTools(),tool_choice:'auto'})
+  });
+  if(!res.ok){let t='';try{t=await res.text();}catch(e){}throw new Error('OpenRouter '+res.status+': '+t.slice(0,300));}
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
+  return data;
+}
+
+function hChatSubmit(){
+  const ta=document.getElementById('hchat-input');
+  const text=ta.value.trim();
+  if(!text||HBUSY)return;
+  ta.value='';ta.style.height='auto';
+  hLLMSend(text);
+}
+
+async function hLLMSend(text){
+  if(!localStorage.getItem('hOpenRouterKey')){hChatPush('assistant','Add your OpenRouter API key in settings (the gear icon) to get started.');hSetOpen();return;}
+  hHidePreview();
+  hChatPush('user',text);
+  HDRAFT=HD?structuredClone(HD):hEmptyItin();
+  HOPS=[];
+  const working=[{role:'system',content:hBuildSystem()},...HCHAT.map(m=>({role:m.role,content:m.content}))];
+  hSetBusy(true);
+  try{
+    for(let i=0;i<6;i++){
+      const data=await hCallOR(working);
+      const msg=(data.choices&&data.choices[0]&&data.choices[0].message)||{};
+      working.push(msg);
+      if(msg.tool_calls&&msg.tool_calls.length){
+        for(const tc of msg.tool_calls){
+          if(tc.type&&tc.type!=='function')continue; // server tools resolved by OpenRouter
+          const result=hApplyTool(tc);
+          working.push({role:'tool',tool_call_id:tc.id,content:result});
+        }
+        continue;
+      }
+      if(msg.content)hChatPush('assistant',msg.content);
+      else if(!HOPS.length)hChatPush('assistant','(no changes)');
+      break;
+    }
+  }catch(e){hChatPush('assistant','⚠️ '+e.message);}
+  hSetBusy(false);
+  if(HOPS.length)hShowPreview();
+}
+
+/* --- diff preview / apply --- */
+function hOpLabel(seg){
+  if(!seg)return 'segment';
+  const id=seg.id?' ('+seg.id+')':'';
+  if(seg.type==='transport')return 'transport'+id+': '+(seg.operator||'')+' '+((seg.departs&&seg.departs.station)||'?')+' → '+((seg.arrives&&seg.arrives.station)||'?');
+  if(seg.type==='accommodation')return 'accommodation'+id+': '+(seg.name||'');
+  if(seg.type==='event')return 'event'+id+': '+(seg.name||'');
+  return 'segment'+id;
+}
+function hShowPreview(){
+  const v=hValidateSafe(HDRAFT);
+  const ops=HOPS.map(o=>{
+    if(o.kind==='add')return `<div class="hpv-op" style="color:var(--color-text-success)">+ Added ${hEsc(hOpLabel(o.after))}</div>`;
+    if(o.kind==='remove')return `<div class="hpv-op" style="color:var(--color-text-danger)">− Removed ${hEsc(hOpLabel(o.before))}</div>`;
+    if(o.kind==='update')return `<div class="hpv-op" style="color:var(--color-text-warning)">~ Updated ${hEsc(hOpLabel(o.after))}</div>`;
+    if(o.kind==='trip')return `<div class="hpv-op" style="color:var(--color-text-warning)">~ Updated trip details</div>`;
+    return '';
+  }).join('');
+  const details=HOPS.map((o,i)=>{
+    const after=o.kind==='trip'?o.after:o.after;
+    const before=o.before;
+    const body=(o.kind==='remove')
+      ?JSON.stringify(before,null,2)
+      :(before?JSON.stringify(before,null,2)+'\n\n→\n\n':'')+JSON.stringify(after,null,2);
+    return `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px;color:var(--color-text-secondary)">details ${i+1}</summary><pre style="font-size:10px;overflow-x:auto;margin:4px 0">${hEsc(body)}</pre></details>`;
+  }).join('');
+  const err=v.ok?'':`<div class="hpv-err"><strong>Cannot apply — schema errors remain:</strong>\n${hEsc(JSON.stringify(v.errors,null,2))}</div>`;
+  const btns=`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.6rem">
+      <button onclick="hDiscardDraft()" style="font-size:12px">Discard</button>
+      <button onclick="hApplyDraft()" style="font-size:12px;font-weight:500" ${v.ok?'':'disabled'}>Apply changes</button>
+    </div>`;
+  const pv=document.getElementById('hchat-preview');
+  pv.innerHTML=`<div style="font-weight:500;margin-bottom:.35rem">Proposed changes</div>${ops}${details}${err}${btns}`;
+  pv.classList.add('on');
+}
+function hHidePreview(){const pv=document.getElementById('hchat-preview');pv.classList.remove('on');pv.innerHTML='';}
+function hDiscardDraft(){HDRAFT=null;HOPS=[];hHidePreview();hChatPush('assistant','Changes discarded.');}
+function hApplyDraft(){
+  if(!HDRAFT)return;
+  const v=hValidateSafe(HDRAFT);if(!v.ok)return;
+  HD=HDRAFT;HDRAFT=null;HOPS=[];
+  localStorage.setItem('hItinerary',JSON.stringify(HD));
+  document.getElementById('hupl').style.display='none';
+  document.getElementById('happ').style.display='block';
+  hUpdateHeader();hrenderList();hrenderBudget();hrenderGantt();
+  if(document.getElementById('hvmap').classList.contains('on')){hrenderMap();}
+  else{if(HM){HM.remove();HM=null;}HMapReady=false;}
+  hHidePreview();
+  hChatPush('assistant','✅ Changes applied.');
+}
+
+/* chat input UX: Enter to send, Shift+Enter for newline, auto-grow */
+(function(){
+  const ta=document.getElementById('hchat-input');
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();hChatSubmit();}});
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,120)+'px';});
+})();
+hRenderChat();
 
 document.getElementById('hfile').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;
@@ -568,4 +858,24 @@ dz.addEventListener('drop',e=>{
 });
 const _saved=localStorage.getItem('hItinerary');
 if(_saved){try{hload(JSON.parse(_saved));}catch(e){localStorage.removeItem('hItinerary');}}
+</script>
+
+<script type="module">
+/* Load ajv + the itinerary schema for client-side validation of AI edits.
+   Exposes window.hValidate(doc)->{ok,errors} and window.hSchemaText (raw schema). */
+try{
+  const [{default:Ajv},{default:addFormats}]=await Promise.all([
+    import('https://esm.sh/ajv@8?bundle'),
+    import('https://esm.sh/ajv-formats@3?bundle')
+  ]);
+  const schema=await (await fetch('holiday_itinerary_schema.json')).json();
+  window.hSchemaText=JSON.stringify(schema);
+  const ajv=new Ajv({allErrors:true,strict:false});
+  addFormats(ajv);
+  const validate=ajv.compile(schema);
+  window.hValidate=function(doc){
+    const ok=validate(doc);
+    return{ok,errors:ok?[]:(validate.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};
+  };
+}catch(e){console.error('AI validation unavailable (ajv/schema failed to load):',e);}
 </script>
