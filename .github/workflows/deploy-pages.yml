@@ -1,0 +1,37 @@
+name: Deploy site
+
+# Publishes the production itinerary viewer to the root of the gh-pages branch on
+# every push to main. Uses keep_files so the previews/ subfolders created by the
+# PR Preview workflow are preserved. Set GitHub Pages → Source to the gh-pages branch.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage site files
+        run: |
+          mkdir -p site
+          cp holiday_itinerary_viewer.html holiday_itinerary_schema.json site/
+          # Serve the viewer as the folder's default page.
+          cp holiday_itinerary_viewer.html site/index.html
+
+      - name: Publish to gh-pages root
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          keep_files: true
