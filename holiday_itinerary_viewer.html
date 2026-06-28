@@ -81,6 +81,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
     <div style="font-size:13px;color:var(--color-text-secondary)">Load any <code>HolidayItinerary</code> JSON file to view timeline, budget and map</div>
     <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:6px"><a href="holiday_itinerary_schema.json" style="color:var(--color-text-info)" target="_blank"><i class="ti ti-file-code" aria-hidden="true"></i> JSON Schema</a> — use this to create and validate your own itinerary files</div>
   </div>
+  <div id="hverwarn" style="display:none;max-width:460px;margin:0 auto 1rem;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-lg);padding:.85rem 1rem;font-size:12px;line-height:1.45"></div>
   <div class="hdrop" id="hdz" onclick="document.getElementById('hfile').click()">
     <i class="ti ti-file-import" style="font-size:28px;color:var(--color-text-secondary);display:block;margin-bottom:10px" aria-hidden="true"></i>
     <p style="font-size:14px;font-weight:500;margin-bottom:4px">Drop your itinerary JSON here</p>
@@ -189,6 +190,16 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 <script>
 
 let HD=null,HM=null,HMapReady=false,hGanttCompact=false;
+
+/* Schema version this build of the app expects. Keep in sync with the "version"
+   field in holiday_itinerary_schema.json; the ajv module warns if they drift.
+   Bump the MAJOR part on any breaking change to the stored itinerary shape so
+   data written by a different deployment (same origin → shared localStorage) is
+   not loaded blindly. */
+const H_SCHEMA_VERSION='2.0.0';
+window.H_SCHEMA_VERSION=H_SCHEMA_VERSION;
+function hMajor(v){return String(v||'').split('.')[0];}
+function hPersist(){localStorage.setItem('hItinerary',JSON.stringify(HD));localStorage.setItem('hSchemaVersion',H_SCHEMA_VERSION);}
 
 function hfmtD(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 function hfmtDs(iso){return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long'});}
@@ -570,7 +581,7 @@ function hSaveEdit(){
     HD.trip=val;
     hUpdateHeader();
   }
-  localStorage.setItem('hItinerary',JSON.stringify(HD));
+  hPersist();
   hCloseEdit();
   hrenderList();hrenderBudget();hrenderGantt();
   if(document.getElementById('hvmap').classList.contains('on')){hrenderMap();}
@@ -595,7 +606,7 @@ function hUpdateHeader(){
 
 function hload(data){
   HD=typeof data==='string'?JSON.parse(data):data;
-  localStorage.setItem('hItinerary',JSON.stringify(HD));
+  hPersist();
   document.getElementById('hupl').style.display='none';
   document.getElementById('happ').style.display='block';
   hUpdateHeader();
@@ -603,7 +614,7 @@ function hload(data){
 }
 
 function hreset(){
-  HD=null;localStorage.removeItem('hItinerary');if(HM){HM.remove();HM=null;}HMapReady=false;
+  HD=null;localStorage.removeItem('hItinerary');localStorage.removeItem('hSchemaVersion');if(HM){HM.remove();HM=null;}HMapReady=false;
   HCHAT=[];HDRAFT=null;HOPS=[];if(typeof hHidePreview==='function'){hHidePreview();hRenderChat();}
   document.getElementById('hupl').style.display='block';
   document.getElementById('happ').style.display='none';
@@ -822,7 +833,7 @@ function hApplyDraft(){
   if(!HDRAFT)return;
   const v=hValidateSafe(HDRAFT);if(!v.ok)return;
   HD=HDRAFT;HDRAFT=null;HOPS=[];
-  localStorage.setItem('hItinerary',JSON.stringify(HD));
+  hPersist();
   document.getElementById('hupl').style.display='none';
   document.getElementById('happ').style.display='block';
   hUpdateHeader();hrenderList();hrenderBudget();hrenderGantt();
@@ -856,8 +867,38 @@ dz.addEventListener('drop',e=>{
   r.onload=ev=>{try{hload(JSON.parse(ev.target.result));}catch(err){alert('Invalid JSON: '+err.message);}};
   r.readAsText(f);
 });
-const _saved=localStorage.getItem('hItinerary');
-if(_saved){try{hload(JSON.parse(_saved));}catch(e){localStorage.removeItem('hItinerary');}}
+function hDownloadSaved(){
+  const raw=localStorage.getItem('hItinerary');if(!raw)return;
+  const blob=new Blob([raw],{type:'application/json'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='itinerary_backup.json';a.click();URL.revokeObjectURL(url);
+}
+function hForceLoadSaved(){
+  const raw=localStorage.getItem('hItinerary');if(!raw)return;
+  document.getElementById('hverwarn').style.display='none';
+  try{hload(JSON.parse(raw));}catch(e){alert('Could not load saved itinerary: '+e.message);}
+}
+function hDiscardSaved(){
+  localStorage.removeItem('hItinerary');localStorage.removeItem('hSchemaVersion');
+  document.getElementById('hverwarn').style.display='none';
+}
+function hLoadSaved(){
+  const raw=localStorage.getItem('hItinerary');if(!raw)return;
+  const ver=localStorage.getItem('hSchemaVersion');
+  if(ver&&hMajor(ver)!==hMajor(H_SCHEMA_VERSION)){
+    const w=document.getElementById('hverwarn');
+    w.innerHTML=`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Saved itinerary is from a different version</div>
+      It was saved for schema <code>${ver}</code> but this version expects <code>${H_SCHEMA_VERSION}</code>, so it was not loaded automatically.
+      <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">
+        <button onclick="hDownloadSaved()" style="font-size:12px">Download backup</button>
+        <button onclick="hForceLoadSaved()" style="font-size:12px">Load anyway</button>
+        <button onclick="hDiscardSaved()" style="font-size:12px">Discard</button>
+      </div>`;
+    w.style.display='block';
+    return;
+  }
+  try{hload(JSON.parse(raw));}catch(e){localStorage.removeItem('hItinerary');localStorage.removeItem('hSchemaVersion');}
+}
+hLoadSaved();
 </script>
 
 <script type="module">
@@ -870,6 +911,9 @@ try{
   ]);
   const schema=await (await fetch('holiday_itinerary_schema.json')).json();
   window.hSchemaText=JSON.stringify(schema);
+  window.hSchemaVersion=schema.version;
+  if(schema.version&&window.H_SCHEMA_VERSION&&schema.version!==window.H_SCHEMA_VERSION)
+    console.warn(`H_SCHEMA_VERSION (${window.H_SCHEMA_VERSION}) is out of sync with schema.version (${schema.version}). Update the constant in the main script.`);
   const ajv=new Ajv({allErrors:true,strict:false});
   addFormats(ajv);
   const validate=ajv.compile(schema);

@@ -140,3 +140,41 @@ test.describe('AI assistant (OpenRouter)', () => {
     expect(stored.segments.map(s => s.id)).not.toContain('seg-2');
   });
 });
+
+test.describe('Schema version guard', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
+    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
+  });
+
+  test('does not auto-load saved data from an incompatible major version', async ({ page }) => {
+    await page.addInitScript((itin) => {
+      localStorage.setItem('hItinerary', JSON.stringify(itin));
+      localStorage.setItem('hSchemaVersion', '1.0.0');
+    }, baseItinerary);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    // App stays on the upload screen with a version warning instead of loading.
+    await expect(page.locator('#hverwarn')).toBeVisible();
+    await expect(page.locator('#hverwarn')).toContainText('different version');
+    await expect(page.locator('#hverwarn')).toContainText('1.0.0');
+    await expect(page.locator('#happ')).toBeHidden();
+
+    // "Load anyway" overrides the guard and loads the data.
+    await page.getByRole('button', { name: 'Load anyway' }).click();
+    await expect(page.locator('#happ')).toBeVisible();
+    await expect(page.locator('#hvlist')).toContainText('AB1234');
+  });
+
+  test('auto-loads saved data from a compatible major version', async ({ page }) => {
+    await page.addInitScript((itin) => {
+      localStorage.setItem('hItinerary', JSON.stringify(itin));
+      localStorage.setItem('hSchemaVersion', '2.0.0');
+    }, baseItinerary);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await expect(page.locator('#hverwarn')).toBeHidden();
+    await expect(page.locator('#happ')).toBeVisible();
+    await expect(page.locator('#hvlist')).toContainText('AB1234');
+  });
+});
