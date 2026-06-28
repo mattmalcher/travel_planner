@@ -196,7 +196,7 @@ let HD=null,HM=null,HMapReady=false,hGanttCompact=false;
    Bump the MAJOR part on any breaking change to the stored itinerary shape so
    data written by a different deployment (same origin → shared localStorage) is
    not loaded blindly. */
-const H_SCHEMA_VERSION='2.0.0';
+const H_SCHEMA_VERSION='2.1.0';
 window.H_SCHEMA_VERSION=H_SCHEMA_VERSION;
 function hMajor(v){return String(v||'').split('.')[0];}
 function hPersist(){localStorage.setItem('hItinerary',JSON.stringify(HD));localStorage.setItem('hSchemaVersion',H_SCHEMA_VERSION);}
@@ -699,7 +699,7 @@ Rules:
 - Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters (default ${HD&&HD.trip?HD.trip.currency_primary:'GBP'}).
 - For accommodation, "date" must equal checkin.date, and set "nights" consistently.
 - Provide duration_min where the schema requires it (transport).
-- Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed.
+- Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed. If a choice between valid options genuinely depends on user preference, ask in your text reply before calling tools.
 - After your tool calls, reply with a short plain-text summary of what you changed.
 Today's date is ${today}.
 
@@ -718,9 +718,11 @@ function hApplyTool(tc){
   try{
     if(name==='add_segment'){
       const seg=JSON.parse(args.segment_json);
+      if(window.hValidateSegment){const v=window.hValidateSegment(seg);if(!v.ok)return 'ERROR — segment failed schema validation. Fix and retry:\n'+JSON.stringify(v.errors,null,2);}
       HDRAFT.segments.push(seg);HOPS.push({kind:'add',after:seg});
     }else if(name==='update_segment'){
       const seg=JSON.parse(args.segment_json);
+      if(window.hValidateSegment){const v=window.hValidateSegment(seg);if(!v.ok)return 'ERROR — replacement segment failed schema validation. Fix and retry:\n'+JSON.stringify(v.errors,null,2);}
       const idx=HDRAFT.segments.findIndex(s=>s.id===args.id);
       if(idx<0)return 'ERROR: no segment with id "'+args.id+'".';
       HOPS.push({kind:'update',id:args.id,before:HDRAFT.segments[idx],after:seg});
@@ -735,9 +737,7 @@ function hApplyTool(tc){
       HOPS.push({kind:'trip',before:HDRAFT.trip,after:trip});HDRAFT.trip=trip;
     }else return 'ERROR: unknown tool "'+name+'".';
   }catch(e){return 'ERROR applying '+name+': '+e.message;}
-  const v=hValidateSafe(HDRAFT);
-  if(!v.ok)return 'Change recorded, but the itinerary is NOT yet schema-valid. Issue further tool calls to fix these errors:\n'+JSON.stringify(v.errors,null,2);
-  return 'OK — applied and the itinerary is schema-valid.';
+  return 'OK — change recorded.';
 }
 
 async function hCallOR(messages){
@@ -921,5 +921,8 @@ try{
     const ok=validate(doc);
     return{ok,errors:ok?[]:(validate.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};
   };
+  const segSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"oneOf":[{"$ref":"#/definitions/TransportSegment"},{"$ref":"#/definitions/AccommodationSegment"},{"$ref":"#/definitions/EventSegment"}]};
+  const validateSeg=ajv.compile(segSchema);
+  window.hValidateSegment=function(seg){const ok=validateSeg(seg);return{ok,errors:ok?[]:(validateSeg.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
 }catch(e){console.error('AI validation unavailable (ajv/schema failed to load):',e);}
 </script>

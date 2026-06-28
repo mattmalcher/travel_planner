@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "title": "HolidayItinerary",
   "description": "Structured holiday itinerary with transport, accommodation and events (gigs, walks, festivals, etc.)",
   "type": "object",
@@ -77,7 +77,8 @@
             "paid",
             "pending",
             "free",
-            "not_booked"
+            "not_booked",
+            "included"
           ]
         },
         "paid_by": {
@@ -323,6 +324,7 @@
             "walk",
             "tour",
             "activity",
+            "meal",
             "other"
           ],
           "description": "Distinguishes the kind of event for UI rendering and filtering"
@@ -493,7 +495,8 @@
             "train",
             "bus",
             "ferry",
-            "flight"
+            "flight",
+            "taxi"
           ]
         },
         "operator": {
