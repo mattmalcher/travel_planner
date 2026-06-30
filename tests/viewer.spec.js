@@ -220,6 +220,56 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(segs.nth(1)).toContainText('Cosy Studio near Sacré-Cœur');
   });
 
+  test('should render timeline blocks at accurate heights with text in a popover', async ({ page }) => {
+    // A 15-minute event would previously be inflated to the old 28px minimum,
+    // pushing its end position past the true time. It should now render short.
+    const shortEventItinerary = {
+      trip: {
+        name: "Short Event Trip",
+        travellers: ["Alice"],
+        start: "2026-08-01",
+        end: "2026-08-02",
+        currency_primary: "GBP"
+      },
+      segments: [
+        {
+          id: "evt-short",
+          type: "event",
+          name: "Quick Coffee",
+          subtype: "other",
+          date: "2026-08-01",
+          time: "10:00",
+          duration_min: 15,
+          cost: { amount: 5, currency: "GBP", status: "paid", paid_by: "Alice" }
+        }
+      ]
+    };
+
+    await page.setInputFiles('#hfile', {
+      name: 'short_event.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(shortEventItinerary))
+    });
+    await page.click('.htab[data-v="gantt"]');
+
+    const blk = page.locator('#hvgantt .hgt-blk');
+    await expect(blk).toHaveCount(1);
+
+    // Accurate height: a 15-min block must be far shorter than the old 28px floor.
+    const h = await blk.evaluate(el => el.getBoundingClientRect().height);
+    expect(h).toBeLessThan(20);
+
+    // Text is no longer baked into the block.
+    await expect(blk).toHaveText('');
+
+    // Hovering reveals the label and times via the popover.
+    await blk.hover();
+    const pop = page.locator('.hgt-pop');
+    await expect(pop).toBeVisible();
+    await expect(pop).toContainText('Quick Coffee');
+    await expect(pop).toContainText('10:00');
+  });
+
   test('should successfully load a custom uploaded JSON itinerary', async ({ page }) => {
     const customItinerary = {
       trip: {
