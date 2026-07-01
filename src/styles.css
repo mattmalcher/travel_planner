@@ -74,9 +74,10 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .hpv-op{font-size:12px;padding:1px 0;font-family:ui-monospace,monospace}
 .hpv-err{background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
 #hchat-ft{display:flex;gap:8px;align-items:flex-end;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom));border-top:.5px solid var(--color-border-tertiary);flex-shrink:0}
-#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:13px;min-height:38px;max-height:120px;outline:none}
+/* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25). */
+#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;min-height:38px;max-height:120px;outline:none}
 #hset-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200;align-items:center;justify-content:center;padding:1rem}
 #hset-modal.on{display:flex}
 #hset-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:440px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.7rem}
 .hset-lbl{font-size:12px;font-weight:500;display:block;margin-bottom:3px}
-.hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:13px;outline:none}
+.hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:16px;outline:none}

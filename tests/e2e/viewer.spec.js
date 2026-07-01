@@ -431,6 +431,11 @@ test.describe('Holiday Itinerary Viewer', () => {
     expect(m.panelHeight).toBe(m.vvHeight);
     expect(m.footerBottom).toBeLessThanOrEqual(m.winH + 0.5);
 
+    // The input font must be >= 16px or iOS Safari auto-zooms to it on focus.
+    const inputFont = await page.evaluate(() => parseFloat(
+      globalThis.getComputedStyle(globalThis.document.getElementById('hchat-input')).fontSize));
+    expect(inputFont).toBeGreaterThanOrEqual(16);
+
     // Closing releases the inline sizing back to the CSS dvh/vh rules.
     await page.evaluate(() => globalThis.hChatClose());
     const cleared = await page.evaluate(() => globalThis.document.getElementById('hchat').style.height);
