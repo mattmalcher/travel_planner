@@ -2,6 +2,7 @@
 // vertical time axis, in proportional or compact mode. Geometry comes from
 // lib/gantt-layout.js; this file builds blocks and renders them.
 import { state } from '../state.js';
+import { revealSegment } from '../app.js';
 import { esc } from '../lib/escape.js';
 import { toMs, msToIso, fmtMinutes, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../lib/dates.js';
 import { PX_PER_MIN, MIN_BLOCK_PX, linearScale, compactPoints, compactScale, coverageGaps } from '../lib/gantt-layout.js';
@@ -29,12 +30,14 @@ export function renderGantt() {
   const totalPx = scale.totalPx;
   const toPx = (dateStr, timeStr) => scale.toPx(toMs(dateStr, timeStr));
 
+  // segIdx ties a block back to its segment so the popover can jump to the
+  // segment's timeline card (issue #21).
   const accomBlocks = [], travelBlocks = [], eventBlocks = [];
-  for (const s of HD.segments) {
+  HD.segments.forEach((s, segIdx) => {
     if (s.type === 'accommodation') {
       const top = toPx(s.checkin.date, s.checkin.from || DEFAULT_CHECKIN_FROM);
       const bot = toPx(s.checkout.date, s.checkout.by || DEFAULT_CHECKOUT_BY);
-      accomBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: ACCOM_COLOR, label: s.name, sub: `${s.checkin.from || '?'} → ${s.checkout.by || '?'}` });
+      accomBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: ACCOM_COLOR, label: s.name, sub: `${s.checkin.from || '?'} → ${s.checkout.by || '?'}`, segIdx });
     } else if (s.type === 'transport') {
       const depMs = toMs(s.date, s.departs.time);
       const arr = msToIso(depMs + s.duration_min * 60000);
@@ -43,15 +46,15 @@ export function renderGantt() {
       travelBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: TRANSPORT_COLOR[s.mode] || '#64748b',
         label: s.operator + (s.service ? ' · ' + s.service : ''),
         times: `${s.departs.time} → ${arr.time} (${fmtMinutes(s.duration_min)})`,
-        sub: `${s.departs.station} → ${s.arrives.station}` });
+        sub: `${s.departs.station} → ${s.arrives.station}`, segIdx });
     } else if (s.type === 'event') {
       const evMs = toMs(s.date, s.time || DEFAULT_EVENT_TIME);
       const end = msToIso(evMs + (s.duration_min || DEFAULT_EVENT_DURATION_MIN) * 60000);
       const top = toPx(s.date, s.time || DEFAULT_EVENT_TIME);
       const bot = toPx(end.date, end.time);
-      eventBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: EVENT_COLOR[s.subtype] || EVENT_COLOR.other, label: s.name, times: `${s.time || DEFAULT_EVENT_TIME} → ${end.time} (${fmtMinutes(s.duration_min || DEFAULT_EVENT_DURATION_MIN)})`, sub: s.subtype || 'event' });
+      eventBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: EVENT_COLOR[s.subtype] || EVENT_COLOR.other, label: s.name, times: `${s.time || DEFAULT_EVENT_TIME} → ${end.time} (${fmtMinutes(s.duration_min || DEFAULT_EVENT_DURATION_MIN)})`, sub: s.subtype || 'event', segIdx });
     }
-  }
+  });
 
   const coveredIntervals = HD.segments.filter(s => s.type === 'accommodation').map(s => ({
     startMs: toMs(s.checkin.date, s.checkin.from || DEFAULT_CHECKIN_FROM),
@@ -137,6 +140,11 @@ function setupPopover() {
     pop.appendChild(ttl);
     if (b.times) { const r = document.createElement('div'); r.className = 'hgt-pop-row'; r.textContent = b.times; pop.appendChild(r); }
     if (b.sub) { const r = document.createElement('div'); r.className = 'hgt-pop-row'; r.textContent = b.sub; pop.appendChild(r); }
+    const link = document.createElement('button');
+    link.className = 'hgt-pop-link';
+    link.innerHTML = '<i class="ti ti-list-details" aria-hidden="true"></i> Open in timeline';
+    link.onclick = () => { hide(); revealSegment(b.segIdx); };
+    pop.appendChild(link);
     pop.style.display = 'block';
     const rc = blk.getBoundingClientRect(), pr = pop.getBoundingClientRect();
     let left = rc.right + 8;
@@ -147,9 +155,16 @@ function setupPopover() {
     if (top < 8) top = 8;
     pop.style.left = left + 'px'; pop.style.top = top + 'px';
   }
-  function hide() { pop.style.display = 'none'; }
-  host.addEventListener('mouseover', e => { const blk = e.target.closest('.hgt-blk'); if (blk) show(blk); });
-  host.addEventListener('mouseout', e => { const blk = e.target.closest('.hgt-blk'); if (!blk) return; const to = e.relatedTarget; if (to && to.closest && to.closest('.hgt-blk')) return; hide(); });
+  // Hiding is briefly deferred on mouseout so the cursor can cross the gap
+  // between a block and the popover to reach its "Open in timeline" action.
+  let hideTimer;
+  function hide() { clearTimeout(hideTimer); pop.style.display = 'none'; }
+  function scheduleHide() { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 250); }
+  function cancelHide() { clearTimeout(hideTimer); }
+  host.addEventListener('mouseover', e => { const blk = e.target.closest('.hgt-blk'); if (blk) { cancelHide(); show(blk); } });
+  host.addEventListener('mouseout', e => { const blk = e.target.closest('.hgt-blk'); if (!blk) return; const to = e.relatedTarget; if (to && to.closest && (to.closest('.hgt-blk') || to.closest('.hgt-pop'))) return; scheduleHide(); });
+  pop.addEventListener('mouseenter', cancelHide);
+  pop.addEventListener('mouseleave', scheduleHide);
   host.addEventListener('click', e => { const blk = e.target.closest('.hgt-blk'); blk ? show(blk) : hide(); });
   host.addEventListener('scroll', hide, true);
 }

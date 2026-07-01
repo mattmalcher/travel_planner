@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fmtDate, fmtDayLong, fmtMinutes, toMs, msToIso } from '../../src/lib/dates.js';
+import { fmtDate, fmtDayLong, fmtDayShort, fmtMinutes, toMs, msToIso } from '../../src/lib/dates.js';
 
 test('fmtDate renders day, short month and year', () => {
   assert.equal(fmtDate('2026-09-18'), '18 Sept 2026');
@@ -8,6 +8,10 @@ test('fmtDate renders day, short month and year', () => {
 
 test('fmtDayLong renders weekday, day and long month', () => {
   assert.equal(fmtDayLong('2026-09-18'), 'Fri 18 September');
+});
+
+test('fmtDayShort renders weekday and day only', () => {
+  assert.equal(fmtDayShort('2026-09-18'), 'Fri 18');
 });
 
 test('fmtMinutes renders hours and minutes, dropping zero minutes', () => {
