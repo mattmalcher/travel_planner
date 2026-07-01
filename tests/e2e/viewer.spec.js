@@ -406,4 +406,57 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(pop).toBeHidden();
     await expect(page.locator('#hvlist .hseg.hl')).toContainText('Cosy Studio near Sacré-Cœur');
   });
+
+  test('should keep the chat input footer within the visual viewport on mobile (issue #25)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 640 });
+    // A stored key makes chatOpen focus the input instead of popping settings.
+    await page.evaluate(() => localStorage.setItem('hOpenRouterKey', 'test-key'));
+    await page.reload();
+
+    await page.evaluate(() => globalThis.hChatOpen());
+    await expect(page.locator('#hchat')).toBeVisible();
+
+    // The panel is pinned to the visual viewport, so its footer (the input box)
+    // must sit inside the visible area rather than off the bottom of the page.
+    const m = await page.evaluate(() => {
+      const el = globalThis.document.getElementById('hchat');
+      const ft = globalThis.document.getElementById('hchat-ft');
+      return {
+        panelHeight: el.style.height,
+        vvHeight: globalThis.visualViewport.height + 'px',
+        footerBottom: ft.getBoundingClientRect().bottom,
+        winH: globalThis.innerHeight,
+      };
+    });
+    expect(m.panelHeight).toBe(m.vvHeight);
+    expect(m.footerBottom).toBeLessThanOrEqual(m.winH + 0.5);
+
+    // The input font must be >= 16px or iOS Safari auto-zooms to it on focus.
+    const inputFont = await page.evaluate(() => parseFloat(
+      globalThis.getComputedStyle(globalThis.document.getElementById('hchat-input')).fontSize));
+    expect(inputFont).toBeGreaterThanOrEqual(16);
+
+    // A touch drag on the panel background can't scroll the itinerary behind
+    // it: the message list contains its own overscroll, and any drag outside a
+    // scroll region is cancelled so it never reaches the page.
+    const lock = await page.evaluate(() => {
+      const panel = globalThis.document.getElementById('hchat');
+      const T = globalThis.Touch, TE = globalThis.TouchEvent;
+      const touch = new T({ identifier: 1, target: panel, clientX: 40, clientY: 30 });
+      const ev = new TE('touchmove', { cancelable: true, bubbles: true, touches: [touch] });
+      panel.dispatchEvent(ev);
+      return {
+        prevented: ev.defaultPrevented,
+        overscroll: globalThis.getComputedStyle(
+          globalThis.document.getElementById('hchat-msgs')).overscrollBehaviorY,
+      };
+    });
+    expect(lock.prevented).toBe(true);
+    expect(lock.overscroll).toBe('contain');
+
+    // Closing releases the inline sizing back to the CSS dvh/vh rules.
+    await page.evaluate(() => globalThis.hChatClose());
+    const cleared = await page.evaluate(() => globalThis.document.getElementById('hchat').style.height);
+    expect(cleared).toBe('');
+  });
 });

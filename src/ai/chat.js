@@ -20,12 +20,58 @@ export function validateSafe(doc) {
 
 export function chatOpen() {
   document.getElementById('hchat').classList.add('on');
+  syncChatViewport();
   if (!localStorage.getItem('hOpenRouterKey')) settingsOpen();
   else document.getElementById('hchat-input').focus();
 }
 
 export function chatClose() {
   document.getElementById('hchat').classList.remove('on');
+  syncChatViewport();
+}
+
+// Stop touch drags inside the panel from scrolling the itinerary behind it
+// (issue #25). The app scrolls the window; overscroll-behavior only contains
+// chaining at a scroll region's own edges, and a fixed-body lock stops holding
+// once the on-screen keyboard is up (iOS lets you pan the visual viewport over
+// fixed content). So cancel the gesture directly: allow native scrolling only
+// inside the panel's own scroll regions, and only while they can still move in
+// the drag direction — otherwise preventDefault so nothing reaches the page.
+// Bound to the panel, so touches on the itinerary itself (desktop side strip)
+// are untouched.
+export function installChatScrollLock() {
+  const panel = document.getElementById('hchat');
+  let startY = 0;
+  panel.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+  panel.addEventListener('touchmove', e => {
+    if (e.touches.length > 1) return; // leave pinch-zoom alone
+    const scroller = e.target.closest ? e.target.closest('#hchat-msgs,#hchat-preview,#hchat-input') : null;
+    if (!scroller) { e.preventDefault(); return; }
+    const dy = e.touches[0].clientY - startY;
+    const canScroll = scroller.scrollHeight > scroller.clientHeight;
+    const atTop = scroller.scrollTop <= 0;
+    const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
+    if (!canScroll || (dy > 0 && atTop) || (dy < 0 && atBottom)) e.preventDefault();
+  }, { passive: false });
+}
+
+// Pin the fixed chat panel to the *visual* viewport. CSS dvh only tracks the
+// mobile URL bar — by spec it ignores the on-screen keyboard — so the input
+// footer still ends up behind the keyboard (issue #25), and iOS Safari has no
+// CSS lever for it at all. visualViewport is the one API that reflects the
+// keyboard on every mobile browser: match the panel's height to it and follow
+// its offset so the footer stays above the keyboard. Cleared when closed so
+// the CSS dvh/vh rules take over again.
+export function syncChatViewport() {
+  const el = document.getElementById('hchat');
+  const vv = window.visualViewport;
+  if (!vv || !el.classList.contains('on')) {
+    el.style.height = '';
+    el.style.transform = '';
+    return;
+  }
+  el.style.height = vv.height + 'px';
+  el.style.transform = `translateY(${vv.offsetTop}px)`;
 }
 
 export function chatClear() {

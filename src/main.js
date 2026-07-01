@@ -5,7 +5,7 @@ import { state, H_SCHEMA_VERSION } from './state.js';
 import { load, reset, switchView, download, toggleEdit, openEdit, openEditTrip, closeEdit, saveEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
-import { chatOpen, chatClose, chatClear, chatSubmit, renderChat } from './ai/chat.js';
+import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport, installChatScrollLock } from './ai/chat.js';
 import { discardDraft, applyDraft } from './ai/preview.js';
 import { settingsOpen, settingsClose, settingsSave, settingsClearKey } from './ai/settings.js';
 
@@ -66,6 +66,14 @@ dz.addEventListener('drop', e => {
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSubmit(); } });
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
 }
+
+/* keep the fixed chat panel matched to the visual viewport (mobile URL bar +
+   on-screen keyboard) — see syncChatViewport in ai/chat.js (issue #25) */
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncChatViewport);
+  window.visualViewport.addEventListener('scroll', syncChatViewport);
+}
+installChatScrollLock();
 
 renderChat();
 loadSaved();
