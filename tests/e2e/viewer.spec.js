@@ -339,4 +339,71 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('#hvlist')).toContainText('Cozy Cabin in the Woods');
     await expect(page.locator('#hvlist')).toContainText('Host Dave');
   });
+
+  test('should show a sticky date strip that jumps to a day (issue #21)', async ({ page }) => {
+    // A multi-day itinerary with enough cards that later days start off-screen.
+    const days = ['2026-08-01', '2026-08-02', '2026-08-03'];
+    const segments = days.flatMap((date, di) => [0, 1, 2, 3, 4, 5].map(i => ({
+      id: `evt-${di}-${i}`,
+      type: 'event',
+      name: `Activity ${di + 1}.${i + 1}`,
+      subtype: 'activity',
+      date,
+      time: `${String(8 + i * 2).padStart(2, '0')}:00`,
+      duration_min: 60,
+      notes: 'A note to give each card a little more height for scrolling.',
+      cost: { amount: 10, currency: 'GBP', status: 'paid', paid_by: 'Alice' }
+    })));
+    const multiDay = {
+      trip: { name: 'Strip Test', travellers: ['Alice'], start: '2026-08-01', end: '2026-08-03', currency_primary: 'GBP' },
+      segments
+    };
+    await page.setInputFiles('#hfile', {
+      name: 'multi_day.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(multiDay))
+    });
+
+    // One chip per day, labelled with weekday + day of month.
+    const chips = page.locator('#hvlist .hday-chip');
+    await expect(chips).toHaveCount(3);
+    await expect(chips.nth(0)).toHaveText('Sat 1');
+    await expect(chips.nth(2)).toHaveText('Mon 3');
+
+    // Clicking the last chip smooth-scrolls that day's section up under the
+    // strip, so poll until the scroll animation lands it there.
+    await chips.nth(2).click();
+    await expect.poll(() => page.locator('#hvlist .hday[data-d="2026-08-03"]')
+      .evaluate(el => el.getBoundingClientRect().top)).toBeLessThan(120);
+    expect(await page.evaluate(() => globalThis.scrollY)).toBeGreaterThan(200);
+
+    // The scroll-spy marks the jumped-to day's chip as active.
+    await expect(chips.nth(2)).toHaveClass(/on/);
+  });
+
+  test('should link from a gantt block popover to the timeline (issue #21)', async ({ page }) => {
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
+
+    // Single-day itineraries get no date strip.
+    await expect(page.locator('#hvlist .hday-nav')).toHaveCount(0);
+
+    await page.click('.htab[data-v="gantt"]');
+    const blk = page.locator('#hvgantt .hgt-blk').first(); // accommodation lane
+    await blk.hover();
+    const pop = page.locator('.hgt-pop');
+    await expect(pop).toBeVisible();
+    const link = pop.locator('.hgt-pop-link');
+    await expect(link).toContainText('Open in timeline');
+
+    await link.click();
+    // Back on the timeline with the segment's card flashed for orientation.
+    await expect(page.locator('.htab[data-v="list"]')).toHaveClass(/on/);
+    await expect(page.locator('#hvlist')).toBeVisible();
+    await expect(pop).toBeHidden();
+    await expect(page.locator('#hvlist .hseg.hl')).toContainText('Cosy Studio near Sacré-Cœur');
+  });
 });

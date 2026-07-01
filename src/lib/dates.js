@@ -19,6 +19,11 @@ export function fmtDayLong(iso) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long' });
 }
 
+/** "2026-09-18" → "Fri 18" (timeline date-strip chips, issue #21) */
+export function fmtDayShort(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+}
+
 /** 138 → "2h 18m", 120 → "2h" */
 export function fmtMinutes(m) {
   const h = Math.floor(m / 60), mn = m % 60;
