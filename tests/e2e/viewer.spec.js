@@ -406,4 +406,34 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(pop).toBeHidden();
     await expect(page.locator('#hvlist .hseg.hl')).toContainText('Cosy Studio near Sacré-Cœur');
   });
+
+  test('should keep the chat input footer within the visual viewport on mobile (issue #25)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 640 });
+    // A stored key makes chatOpen focus the input instead of popping settings.
+    await page.evaluate(() => localStorage.setItem('hOpenRouterKey', 'test-key'));
+    await page.reload();
+
+    await page.evaluate(() => globalThis.hChatOpen());
+    await expect(page.locator('#hchat')).toBeVisible();
+
+    // The panel is pinned to the visual viewport, so its footer (the input box)
+    // must sit inside the visible area rather than off the bottom of the page.
+    const m = await page.evaluate(() => {
+      const el = globalThis.document.getElementById('hchat');
+      const ft = globalThis.document.getElementById('hchat-ft');
+      return {
+        panelHeight: el.style.height,
+        vvHeight: globalThis.visualViewport.height + 'px',
+        footerBottom: ft.getBoundingClientRect().bottom,
+        winH: globalThis.innerHeight,
+      };
+    });
+    expect(m.panelHeight).toBe(m.vvHeight);
+    expect(m.footerBottom).toBeLessThanOrEqual(m.winH + 0.5);
+
+    // Closing releases the inline sizing back to the CSS dvh/vh rules.
+    await page.evaluate(() => globalThis.hChatClose());
+    const cleared = await page.evaluate(() => globalThis.document.getElementById('hchat').style.height);
+    expect(cleared).toBe('');
+  });
 });
