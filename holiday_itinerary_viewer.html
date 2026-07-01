@@ -49,8 +49,15 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .hgt-tick{position:absolute;left:0;right:0;border-top:.5px dashed var(--color-border-tertiary);pointer-events:none;z-index:1}
 .hgt-day-lbl{position:absolute;left:0;width:60px;font-size:9px;font-weight:500;color:var(--color-text-secondary);padding-left:4px;line-height:1;text-transform:uppercase;letter-spacing:.04em}
 .hgt-tick-lbl{position:absolute;left:0;width:60px;font-size:9px;color:var(--color-text-tertiary);padding-left:4px;line-height:1}
-.hgt-blk{position:absolute;left:4px;right:4px;border-radius:4px;overflow:hidden;cursor:default;font-size:10px;font-weight:500;color:#fff;padding:3px 5px;line-height:1.3;z-index:2;transition:filter .15s,box-shadow .15s;box-sizing:border-box}
+.hgt-blk{position:absolute;left:4px;right:4px;min-height:2px;border-radius:3px;overflow:hidden;cursor:pointer;font-size:10px;font-weight:500;color:#fff;padding:3px 5px;line-height:1.3;z-index:2;transition:filter .15s,box-shadow .15s;box-sizing:border-box}
 .hgt-blk:hover{filter:brightness(1.15);box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:5}
+.hgt-blk-t{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.hgt-blk-t.sm{font-size:9px;font-weight:600;opacity:.9}
+.hgt-blk-t.dim{font-weight:400;opacity:.75}
+.hgt-pop{position:fixed;z-index:2000;background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);box-shadow:0 4px 16px rgba(0,0,0,.18);padding:.45rem .6rem;font-size:12px;max-width:260px;pointer-events:none;display:none;line-height:1.45;color:var(--color-text-primary)}
+.hgt-pop-ttl{font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.hgt-pop-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.hgt-pop-row{color:var(--color-text-secondary);font-size:11px}
 .hgt-gap{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,var(--color-background-warning) 0px,var(--color-background-warning) 4px,transparent 4px,transparent 10px);border:1.5px dashed var(--color-text-warning);border-radius:4px;opacity:.45;z-index:1;pointer-events:none}
 #hchat{position:fixed;top:0;right:0;width:390px;max-width:100vw;height:100vh;background:var(--color-background-primary);border-left:.5px solid var(--color-border-tertiary);box-shadow:-4px 0 24px rgba(0,0,0,.08);display:none;flex-direction:column;z-index:1100}
 #hchat.on{display:flex}
@@ -189,7 +196,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 
 <script>
 
-let HD=null,HM=null,HMapReady=false,hGanttCompact=false;
+let HD=null,HM=null,HMapReady=false,hGanttCompact=false,hGanttBlocks=[];
 
 /* Schema version this build of the app expects. Keep in sync with the "version"
    field in holiday_itinerary_schema.json; the ajv module warns if they drift.
@@ -419,7 +426,12 @@ function hrenderMap(){
 
 function hrenderGantt(){
   if(!HD)return;
+  hGanttBlocks=[];
   const PX_PER_MIN=0.25;
+  // Minimum rendered block height. Kept small so blocks stay true to their
+  // duration (the end position is accurate) rather than being inflated; the
+  // text that used to need the extra height now lives in a hover popover.
+  const MIN_BLK_PX=4;
   const tripStartMs=new Date(HD.trip.start+'T00:00:00').getTime();
   const tripEndMs=new Date(HD.trip.end+'T23:59:59').getTime();
   const totalMins=(tripEndMs-tripStartMs)/60000;
@@ -469,13 +481,13 @@ function hrenderGantt(){
     if(s.type==='accommodation'){
       const top=toPx(s.checkin.date,s.checkin.from||'14:00');
       const bot=toPx(s.checkout.date,s.checkout.by||'11:00');
-      accomBlocks.push({top,h:Math.max(bot-top,28),color:ACCOM_COLOR,label:s.name,sub:`${s.checkin.from||'?'} → ${s.checkout.by||'?'}`});
+      accomBlocks.push({top,h:Math.max(bot-top,MIN_BLK_PX),color:ACCOM_COLOR,label:s.name,sub:`${s.checkin.from||'?'} → ${s.checkout.by||'?'}`});
     } else if(s.type==='transport'){
       const depMs=new Date(s.date+'T'+s.departs.time+':00').getTime();
       const arr=msToIso(depMs+s.duration_min*60000);
       const top=toPx(s.date,s.departs.time);
       const bot=toPx(arr.date,arr.time);
-      travelBlocks.push({top,h:Math.max(bot-top,28),color:TRANSPORT_COLOR[s.mode]||'#64748b',
+      travelBlocks.push({top,h:Math.max(bot-top,MIN_BLK_PX),color:TRANSPORT_COLOR[s.mode]||'#64748b',
         label:s.operator+(s.service?' · '+s.service:''),
         times:`${s.departs.time} → ${arr.time} (${hfmtMin(s.duration_min)})`,
         sub:`${s.departs.station} → ${s.arrives.station}`});
@@ -484,7 +496,7 @@ function hrenderGantt(){
       const end=msToIso(evMs+(s.duration_min||120)*60000);
       const top=toPx(s.date,s.time||'10:00');
       const bot=toPx(end.date,end.time);
-      eventBlocks.push({top,h:Math.max(bot-top,28),color:EVENT_COLOR[s.subtype]||EVENT_COLOR.other,label:s.name,times:`${s.time||'10:00'} → ${end.time} (${hfmtMin(s.duration_min||120)})`,sub:s.subtype||'event'});
+      eventBlocks.push({top,h:Math.max(bot-top,MIN_BLK_PX),color:EVENT_COLOR[s.subtype]||EVENT_COLOR.other,label:s.name,times:`${s.time||'10:00'} → ${end.time} (${hfmtMin(s.duration_min||120)})`,sub:s.subtype||'event'});
     }
   }
   const coveredIntervals=HD.segments.filter(s=>s.type==='accommodation').map(s=>({
@@ -513,12 +525,20 @@ function hrenderGantt(){
       }
     }
   }
+  // Blocks render at their true height. Inline text is shown progressively as
+  // the block grows tall enough to fit each line (glanceability); the full
+  // detail always lives in the hover popover, keyed by the block's index into
+  // hGanttBlocks (see hGanttPopSetup), which also covers blocks too short for
+  // any text at all.
   function blkHtml(blocks){
-    return blocks.map(b=>`<div class="hgt-blk" style="top:${b.top.toFixed(1)}px;height:${b.h.toFixed(1)}px;background:${b.color}" title="${b.label}${b.times?' — '+b.times:''}${b.sub?' · '+b.sub:''}">
-      <div style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${b.label}</div>
-      ${b.times&&b.h>=28?`<div style="font-weight:600;opacity:.9;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px">${b.times}</div>`:''}
-      ${b.sub&&b.h>=44?`<div style="font-weight:400;opacity:.75;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px">${b.sub}</div>`:''}
-    </div>`).join('');
+    return blocks.map(b=>{
+      const bi=hGanttBlocks.push(b)-1;
+      let inner='';
+      if(b.h>=18)inner+=`<div class="hgt-blk-t">${hEsc(b.label)}</div>`;
+      if(b.times&&b.h>=32)inner+=`<div class="hgt-blk-t sm">${hEsc(b.times)}</div>`;
+      if(b.sub&&b.h>=46)inner+=`<div class="hgt-blk-t sm dim">${hEsc(b.sub)}</div>`;
+      return `<div class="hgt-blk" data-bi="${bi}" style="top:${b.top.toFixed(1)}px;height:${b.h.toFixed(1)}px;background:${b.color}">${inner}</div>`;
+    }).join('');
   }
   const gapHtml=gapBlocks.map(g=>`<div class="hgt-gap" style="top:${g.top.toFixed(1)}px;height:${Math.max(g.bot-g.top,4).toFixed(1)}px" title="No accommodation booked"></div>`).join('');
   const toggleBtn=`<button onclick="hGanttCompact=!hGanttCompact;hrenderGantt()" style="font-size:10px;padding:2px 6px;line-height:1.4" title="${hGanttCompact?'Switch to proportional time':'Switch to compact view'}">${hGanttCompact?'<i class="ti ti-clock" aria-hidden="true"></i> Time':'<i class="ti ti-layout-list" aria-hidden="true"></i> Compact'}</button>`;
@@ -540,6 +560,44 @@ function hrenderGantt(){
         </div>
       </div>
     </div>`;
+  hGanttPopSetup();
+}
+
+// Lazily wire up the timeline popover. A single shared element is positioned
+// next to whichever block is hovered (or tapped); content is read from
+// hGanttBlocks so nothing needs to be escaped into markup.
+function hGanttPopSetup(){
+  if(hGanttPopSetup._done)return;
+  hGanttPopSetup._done=true;
+  const host=document.getElementById('hvgantt');
+  const pop=document.createElement('div');
+  pop.className='hgt-pop';
+  document.body.appendChild(pop);
+  function show(blk){
+    const b=hGanttBlocks[+blk.dataset.bi];
+    if(!b)return;
+    pop.textContent='';
+    const ttl=document.createElement('div');ttl.className='hgt-pop-ttl';
+    const dot=document.createElement('span');dot.className='hgt-pop-dot';dot.style.background=b.color;
+    ttl.appendChild(dot);ttl.appendChild(document.createTextNode(b.label||''));
+    pop.appendChild(ttl);
+    if(b.times){const r=document.createElement('div');r.className='hgt-pop-row';r.textContent=b.times;pop.appendChild(r);}
+    if(b.sub){const r=document.createElement('div');r.className='hgt-pop-row';r.textContent=b.sub;pop.appendChild(r);}
+    pop.style.display='block';
+    const rc=blk.getBoundingClientRect(),pr=pop.getBoundingClientRect();
+    let left=rc.right+8;
+    if(left+pr.width>window.innerWidth-8)left=rc.left-pr.width-8;
+    if(left<8)left=8;
+    let top=rc.top;
+    if(top+pr.height>window.innerHeight-8)top=window.innerHeight-pr.height-8;
+    if(top<8)top=8;
+    pop.style.left=left+'px';pop.style.top=top+'px';
+  }
+  function hide(){pop.style.display='none';}
+  host.addEventListener('mouseover',e=>{const blk=e.target.closest('.hgt-blk');if(blk)show(blk);});
+  host.addEventListener('mouseout',e=>{const blk=e.target.closest('.hgt-blk');if(!blk)return;const to=e.relatedTarget;if(to&&to.closest&&to.closest('.hgt-blk'))return;hide();});
+  host.addEventListener('click',e=>{const blk=e.target.closest('.hgt-blk');blk?show(blk):hide();});
+  host.addEventListener('scroll',hide,true);
 }
 
 let _editTarget=null;
