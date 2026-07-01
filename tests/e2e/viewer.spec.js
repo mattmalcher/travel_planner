@@ -436,22 +436,27 @@ test.describe('Holiday Itinerary Viewer', () => {
       globalThis.getComputedStyle(globalThis.document.getElementById('hchat-input')).fontSize));
     expect(inputFont).toBeGreaterThanOrEqual(16);
 
-    // The itinerary behind the panel is frozen so a drag in the chat can't
-    // scroll it. The message list also contains its own overscroll.
-    const locked = await page.evaluate(() => ({
-      bodyPos: globalThis.getComputedStyle(globalThis.document.body).position,
-      overscroll: globalThis.getComputedStyle(globalThis.document.getElementById('hchat-msgs')).overscrollBehaviorY,
-    }));
-    expect(locked.bodyPos).toBe('fixed');
-    expect(locked.overscroll).toBe('contain');
+    // A touch drag on the panel background can't scroll the itinerary behind
+    // it: the message list contains its own overscroll, and any drag outside a
+    // scroll region is cancelled so it never reaches the page.
+    const lock = await page.evaluate(() => {
+      const panel = globalThis.document.getElementById('hchat');
+      const T = globalThis.Touch, TE = globalThis.TouchEvent;
+      const touch = new T({ identifier: 1, target: panel, clientX: 40, clientY: 30 });
+      const ev = new TE('touchmove', { cancelable: true, bubbles: true, touches: [touch] });
+      panel.dispatchEvent(ev);
+      return {
+        prevented: ev.defaultPrevented,
+        overscroll: globalThis.getComputedStyle(
+          globalThis.document.getElementById('hchat-msgs')).overscrollBehaviorY,
+      };
+    });
+    expect(lock.prevented).toBe(true);
+    expect(lock.overscroll).toBe('contain');
 
-    // Closing releases the sizing back to CSS and unfreezes the background.
+    // Closing releases the inline sizing back to the CSS dvh/vh rules.
     await page.evaluate(() => globalThis.hChatClose());
-    const closed = await page.evaluate(() => ({
-      height: globalThis.document.getElementById('hchat').style.height,
-      bodyPos: globalThis.getComputedStyle(globalThis.document.body).position,
-    }));
-    expect(closed.height).toBe('');
-    expect(closed.bodyPos).toBe('static');
+    const cleared = await page.evaluate(() => globalThis.document.getElementById('hchat').style.height);
+    expect(cleared).toBe('');
   });
 });

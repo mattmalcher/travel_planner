@@ -5,7 +5,7 @@ import { state, H_SCHEMA_VERSION } from './state.js';
 import { load, reset, switchView, download, toggleEdit, openEdit, openEditTrip, closeEdit, saveEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
-import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport } from './ai/chat.js';
+import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport, installChatScrollLock } from './ai/chat.js';
 import { discardDraft, applyDraft } from './ai/preview.js';
 import { settingsOpen, settingsClose, settingsSave, settingsClearKey } from './ai/settings.js';
 
@@ -73,6 +73,7 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', syncChatViewport);
   window.visualViewport.addEventListener('scroll', syncChatViewport);
 }
+installChatScrollLock();
 
 renderChat();
 loadSaved();
