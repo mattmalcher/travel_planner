@@ -117,6 +117,33 @@ test.describe('AI assistant (OpenRouter)', () => {
     await expect(preview).toBeHidden();
   });
 
+  test('patches a segment via patch_segment, merging changes into the original', async ({ page }) => {
+    await mockOpenRouter(page, [{
+      id: 'call_1',
+      type: 'function',
+      function: { name: 'patch_segment', arguments: JSON.stringify({ id: 'seg-1', changes_json: JSON.stringify({ departs: { time: '17:01' }, cost: { status: 'pending' } }) }) }
+    }]);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await page.getByRole('button', { name: 'AI' }).click();
+    await page.locator('#hchat-input').fill('The outbound train now leaves at 17:01 and the payment is pending');
+    await page.locator('#hchat-send').click();
+
+    const preview = page.locator('#hchat-preview');
+    await expect(preview).toBeVisible();
+    await expect(preview).toContainText('Updated transport (seg-1)');
+    await preview.getByRole('button', { name: 'Apply changes' }).click();
+
+    // Patched fields changed; everything else on the segment survived the merge.
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const seg = stored.segments.find(s => s.id === 'seg-1');
+    expect(seg.departs.time).toBe('17:01');
+    expect(seg.departs.station).toBe("London St Pancras Int'l");
+    expect(seg.cost.status).toBe('pending');
+    expect(seg.cost.total).toBe(156.0);
+    expect(seg.ref).toBe('AB1234');
+  });
+
   test('blocks apply and surfaces errors when the result is not schema-valid', async ({ page }) => {
     await mockOpenRouter(page, [{
       id: 'call_1',
