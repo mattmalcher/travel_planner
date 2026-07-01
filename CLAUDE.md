@@ -59,8 +59,9 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   schema's MAJOR version on any breaking change to the stored itinerary
   shape (localStorage is shared across deployments on the same origin).
 - **Escape everything** interpolated into HTML that comes from an itinerary
-  file or an AI reply — use `esc()` from `lib/escape.js` (issue #9 tracks
-  remaining gaps in the older views).
+  file or an AI reply — use `esc()` from `lib/escape.js` (issue #9). For any
+  URL going into an `href`/`src`, gate it through `safeUrl()` first so only
+  absolute `http(s)` links survive.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add
