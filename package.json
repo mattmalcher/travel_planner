@@ -1,15 +1,23 @@
 {
-  "name": "travel-planner-viewer-tests",
+  "name": "travel-planner-viewer",
   "version": "1.0.0",
-  "description": "E2E tests and hosting for holiday itinerary viewer",
+  "description": "Holiday itinerary viewer: modular source, single-file build, unit + E2E tests",
   "type": "module",
   "scripts": {
-    "host": "http-server . -p 8345",
-    "test": "playwright test",
-    "test:ui": "playwright test --ui"
+    "build": "node scripts/build.mjs",
+    "host": "npm run build && http-server dist -p 8345",
+    "lint": "eslint .",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:e2e": "npm run build && playwright test",
+    "test:ui": "npm run build && playwright test --ui"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.56.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
     "http-server": "^14.1.1"
   }
 }
