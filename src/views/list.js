@@ -2,7 +2,7 @@
 import { state } from '../state.js';
 import { costInfo } from '../lib/cost.js';
 import { sortSegments, segDate } from '../lib/sort.js';
-import { fmtDayLong, fmtMinutes } from '../lib/dates.js';
+import { fmtDayLong, fmtDayShort, fmtMinutes } from '../lib/dates.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
 
@@ -63,13 +63,41 @@ function renderNotes(s) {
   ).join('');
 }
 
+/** Scroll the timeline to a day's section (date strip chips, issue #21).
+    Days are matched on data-d rather than an id so no selector escaping of
+    itinerary-supplied dates is needed. */
+export function jumpToDay(date) {
+  const day = [...document.querySelectorAll('#hvlist .hday')].find(el => el.dataset.d === date);
+  if (day) day.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Scroll-spy: mark the chip of the day currently under the sticky strip.
+function updateActiveChip() {
+  const nav = document.querySelector('#hvlist .hday-nav');
+  if (!nav || !document.getElementById('hvlist').classList.contains('on')) return;
+  const days = [...document.querySelectorAll('#hvlist .hday')];
+  let cur = days[0];
+  for (const d of days) if (d.getBoundingClientRect().top <= 64) cur = d;
+  nav.querySelectorAll('.hday-chip').forEach(c => c.classList.toggle('on', !!cur && c.dataset.d === cur.dataset.d));
+}
+
+let spyBound = false;
+function bindSpy() {
+  if (spyBound) return;
+  spyBound = true;
+  addEventListener('scroll', updateActiveChip, { passive: true });
+}
+
 export function renderList() {
   const HD = state.HD;
   const sorted = sortSegments(HD.segments);
   const grp = {};
   sorted.forEach(s => { const d = segDate(s); (grp[d] = grp[d] || []).push(s); });
-  document.getElementById('hvlist').innerHTML = Object.entries(grp).map(([date, segs]) => `
-    <div style="margin-bottom:1.75rem">
+  const days = Object.keys(grp);
+  const nav = days.length > 1 ? `<div class="hday-nav">${days.map(d =>
+    `<button class="hday-chip" data-d="${esc(d)}" onclick="hJumpDay(this.dataset.d)">${fmtDayShort(d)}</button>`).join('')}</div>` : '';
+  document.getElementById('hvlist').innerHTML = nav + Object.entries(grp).map(([date, segs]) => `
+    <div class="hday" data-d="${esc(date)}" style="margin-bottom:1.75rem">
       <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;display:flex;align-items:center;gap:8px">
         ${fmtDayLong(date)}<span style="flex:1;height:.5px;background:var(--color-border-tertiary);display:block"></span>
       </div>
@@ -79,7 +107,7 @@ export function renderList() {
         const sub = s.type === 'transport' ? `${esc(s.departs.station)} → ${esc(s.arrives.station)}` : s.type === 'accommodation' ? esc(s.address) : (s.subtype ? esc(s.subtype.charAt(0).toUpperCase() + s.subtype.slice(1)) : '');
         const costStr = ci && ci.t === 'amt' ? `${ci.sym}${ci.tot.toFixed(2)}` : '';
         const detail = s.type === 'transport' ? renderTransport(s) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s);
-        return `<div class="hseg">
+        return `<div class="hseg" data-seg="${HD.segments.indexOf(s)}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0">
               <i class="ti ${ic}" style="font-size:17px;color:var(--color-text-secondary);flex-shrink:0;margin-top:2px" aria-hidden="true"></i>
@@ -95,4 +123,6 @@ export function renderList() {
         </div>`;
       }).join('')}
     </div>`).join('');
+  bindSpy();
+  updateActiveChip();
 }
