@@ -50,7 +50,13 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
-            const url = `https://${owner}.github.io/${repo}/previews/pr-${issue_number}/holiday_itinerary_viewer.html`;
+            const sha = context.sha.slice(0, 7);
+            // Re-deploys overwrite the file at a stable path, but GitHub Pages
+            // serves HTML with Cache-Control: max-age=600 behind a CDN, so the
+            // old build keeps loading from cache after review changes. The ?v=
+            // commit stamp gives every redeploy a fresh URL that can't be
+            // served stale (issue #29).
+            const url = `https://${owner}.github.io/${repo}/previews/pr-${issue_number}/holiday_itinerary_viewer.html?v=${sha}`;
             const marker = '<!-- pr-preview-url -->';
             const body = [
               marker,
@@ -58,7 +64,7 @@ jobs:
               ``,
               `**[Open the itinerary viewer](${url})**`,
               ``,
-              `Built from \`${context.sha.slice(0, 7)}\`. Note: previews share the \`github.io\` origin, so they share browser localStorage (API key + saved itinerary) with each other and the live site.`,
+              `Built from \`${sha}\`. Note: previews share the \`github.io\` origin, so they share browser localStorage (API key + saved itinerary) with each other and the live site.`,
             ].join('\n');
             const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
             const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
