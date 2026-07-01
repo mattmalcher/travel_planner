@@ -21,7 +21,7 @@ export function proposalBadge(s) {
 
 /** Tabler icon class for a segment. */
 export function segIcon(s) {
-  if (s.type === 'transport') return { train: 'ti-train', bus: 'ti-bus', ferry: 'ti-sailboat', flight: 'ti-plane' }[s.mode] || 'ti-route';
+  if (s.type === 'transport') return { train: 'ti-train', bus: 'ti-bus', ferry: 'ti-sailboat', flight: 'ti-plane', taxi: 'ti-car' }[s.mode] || 'ti-route';
   if (s.type === 'accommodation') return 'ti-home';
   return { festival: 'ti-music', gig: 'ti-microphone-2', walk: 'ti-walk', tour: 'ti-flag-2', activity: 'ti-activity', other: 'ti-calendar-event' }[s.subtype] || 'ti-calendar-event';
 }

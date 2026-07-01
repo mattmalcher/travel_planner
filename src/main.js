@@ -41,21 +41,21 @@ Object.assign(window, {
 });
 
 /* file picker + drag-and-drop upload */
-document.getElementById('hfile').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return;
+function loadFile(f) {
+  if (!f) return;
   const r = new FileReader();
   r.onload = ev => { try { load(JSON.parse(ev.target.result)); } catch (err) { alert('Invalid JSON: ' + err.message); } };
-  r.readAsText(f); e.target.value = '';
+  r.readAsText(f);
+}
+document.getElementById('hfile').addEventListener('change', e => {
+  loadFile(e.target.files[0]); e.target.value = '';
 });
 const dz = document.getElementById('hdz');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('over'));
 dz.addEventListener('drop', e => {
   e.preventDefault(); dz.classList.remove('over');
-  const f = e.dataTransfer.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = ev => { try { load(JSON.parse(ev.target.result)); } catch (err) { alert('Invalid JSON: ' + err.message); } };
-  r.readAsText(f);
+  loadFile(e.dataTransfer.files[0]);
 });
 
 /* chat input UX: Enter to send, Shift+Enter for newline, auto-grow */
