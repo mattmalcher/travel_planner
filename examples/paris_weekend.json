@@ -1,0 +1,59 @@
+{
+  "trip": {
+    "name": "Paris Weekend (example)",
+    "travellers": ["Judy Jetson", "George Jetson"],
+    "start": "2026-09-18",
+    "end": "2026-09-20",
+    "currency_primary": "GBP"
+  },
+  "segments": [
+    {
+      "id": "seg-1",
+      "type": "transport",
+      "mode": "train",
+      "operator": "Eurostar",
+      "ref": "AB1234",
+      "date": "2026-09-18",
+      "departs": { "station": "London St Pancras Int'l", "time": "16:31", "lat": 51.5322, "lng": -0.1270 },
+      "arrives": { "station": "Paris Gare du Nord", "time": "19:49", "lat": 48.8809, "lng": 2.3553 },
+      "duration_min": 138,
+      "class": "Standard",
+      "seats": [
+        { "traveller": "Judy Jetson", "coach": 5, "seat": 84 },
+        { "traveller": "George Jetson", "coach": 5, "seat": 83 }
+      ],
+      "cost": { "total": 156.0, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" }
+    },
+    {
+      "id": "seg-2",
+      "type": "accommodation",
+      "name": "Cosy Studio near Sacré-Cœur",
+      "host": "Pierre",
+      "ref": "XY9876Z",
+      "address": "42 Rue de l'Exemple, 75018 Paris, France",
+      "lat": 48.8867,
+      "lng": 2.3431,
+      "checkin": { "date": "2026-09-18", "from": "14:00" },
+      "checkout": { "date": "2026-09-20", "by": "11:00" },
+      "guests": 2,
+      "nights": 2,
+      "self_checkin": true,
+      "cost": { "amount": 174.48, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" },
+      "notes": "Smart lock check-in. ***Code arrives by SMS on the day.***",
+      "date": "2026-09-18"
+    },
+    {
+      "id": "seg-3",
+      "type": "event",
+      "subtype": "gig",
+      "name": "Jazz at Le Petit Exemple",
+      "venue": "Le Petit Exemple, Montmartre",
+      "date": "2026-09-19",
+      "time": "20:30",
+      "duration_min": 120,
+      "lat": 48.8842,
+      "lng": 2.3388,
+      "cost": { "amount": 40.0, "currency": "EUR", "status": "pending", "due": "2026-09-16" }
+    }
+  ]
+}

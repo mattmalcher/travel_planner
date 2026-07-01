@@ -1,8 +1,12 @@
-# Holiday Itinerary Viewer - Development & Test Harness
+# Holiday Itinerary Viewer
 
 **[Open the viewer](https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html)**
 
-This workspace contains the static HTML viewer for `HolidayItinerary` JSON files (`holiday_itinerary_viewer.html`), accompanied by a local development server and a Playwright-based End-to-End (E2E) integration test suite.
+A standalone HTML viewer for `HolidayItinerary` JSON files: timeline, budget,
+map and gantt views, plus an optional AI editor (bring your own OpenRouter
+key). The app is developed as modular source in `src/` and built into a
+single self-contained `dist/holiday_itinerary_viewer.html` — the built file
+is produced by CI for deployment and is not committed.
 
 ## Getting Started
 
@@ -13,53 +17,49 @@ This workspace contains the static HTML viewer for `HolidayItinerary` JSON files
 
 ### Installation
 
-Install the required node dependencies (Playwright and local static server):
-
 ```bash
-make install
+make install                      # node dependencies
+npx playwright install chromium   # browser for the E2E suite
 ```
-
-Make sure Playwright's local browser binaries are installed:
-
-```bash
-npx playwright install chromium
-```
-
----
 
 ## Usage
 
-A `Makefile` is provided to simplify hosting and running tests.
-
 | Command | Description |
 |---|---|
-| `make host` | Starts a local static file server at `http://localhost:8345` |
-| `make test` | Runs the full Playwright E2E integration test suite (headless) |
-| `make test-ui` | Opens Playwright's interactive UI test runner |
-
----
+| `make build` | Build `dist/holiday_itinerary_viewer.html` from `src/` |
+| `make host` | Build, then serve the app at `http://localhost:8345` |
+| `make lint` | Run ESLint |
+| `make test-unit` | Fast unit tests for the pure `src/lib/` modules |
+| `make test-e2e` | Build, then run the Playwright E2E suite (headless) |
+| `make test` | Unit tests followed by E2E tests |
+| `make test-ui` | Playwright interactive UI runner |
 
 ## Directory Structure
 
 ```text
 .
-├── holiday_itinerary_schema.json  # JSON schema defining the HolidayItinerary schema
-├── holiday_itinerary_viewer.html  # The standalone interactive HTML application
-├── playwright.config.js           # Playwright test configuration & web server setup
-├── Makefile                       # Developer-friendly shortcut targets
-├── package.json                   # Project metadata and script definition
-└── tests/
-    └── viewer.spec.js             # End-to-End integration tests
+├── src/                    # modular app source (built into a single file)
+│   ├── index.html          #   markup skeleton with build placeholders
+│   ├── styles.css          #   all CSS
+│   ├── main.js             #   entry point / bootstrap
+│   ├── lib/                #   pure logic (cost, sort, dates, gantt geometry…)
+│   ├── views/              #   DOM rendering (list, budget, map, gantt)
+│   └── ai/                 #   OpenRouter assistant
+├── schema/
+│   └── holiday_itinerary_schema.json   # JSON Schema for itinerary files
+├── examples/               # anonymised example itineraries
+├── scripts/build.mjs       # esbuild single-file bundler
+├── tests/
+│   ├── unit/               # node --test unit tests (milliseconds)
+│   └── e2e/                # Playwright tests against the built artifact
+├── playwright.config.js
+├── Makefile
+└── CLAUDE.md               # commands, architecture map and invariants
 ```
-
----
 
 ## Guidance for AI Models & Developers
 
-When making changes to the itinerary viewer (`holiday_itinerary_viewer.html`):
-1. Keep the HTML standalone (inline CSS and JS) unless refactoring is requested.
-2. Ensure you run the E2E test suite to verify your changes did not introduce regressions:
-   ```bash
-   make test
-   ```
-3. If new features are added, update or extend the tests in `tests/viewer.spec.js` to cover them.
+See [CLAUDE.md](CLAUDE.md) for the architecture map, project invariants
+(single-file build output, schema-version rules, escaping rules) and testing
+conventions. In short: put logic in `src/lib/` with unit tests, keep views
+DOM-only, run `make lint test` before pushing, and never commit `dist/`.

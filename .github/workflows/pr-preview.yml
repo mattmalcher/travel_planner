@@ -24,18 +24,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Stage preview files
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build preview
+        # Emits dist/holiday_itinerary_viewer.html (+ index.html copy) and
+        # copies the schema alongside it.
         run: |
-          mkdir -p preview
-          cp holiday_itinerary_viewer.html holiday_itinerary_schema.json preview/
-          # Open the viewer by default when visiting the preview folder.
-          cp holiday_itinerary_viewer.html preview/index.html
+          npm ci
+          npm run build
 
       - name: Deploy to gh-pages subfolder
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./preview
+          publish_dir: ./dist
           destination_dir: previews/pr-${{ github.event.pull_request.number }}
           keep_files: true
 

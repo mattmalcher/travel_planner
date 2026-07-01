@@ -22,16 +22,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Stage site files
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build site
+        # Emits dist/holiday_itinerary_viewer.html (+ index.html copy) and
+        # copies the schema alongside it.
         run: |
-          mkdir -p site
-          cp holiday_itinerary_viewer.html holiday_itinerary_schema.json site/
-          # Serve the viewer as the folder's default page.
-          cp holiday_itinerary_viewer.html site/index.html
+          npm ci
+          npm run build
 
       - name: Publish to gh-pages root
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          publish_dir: ./dist
           keep_files: true
