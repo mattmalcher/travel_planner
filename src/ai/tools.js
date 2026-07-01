@@ -2,10 +2,12 @@
 // tool call to the draft itinerary (state.draft) while recording the
 // operation (state.ops) for the diff preview.
 import { state } from '../state.js';
+import { mergePatch } from '../lib/merge-patch.js';
 
 export function buildTools() {
   const tools = [
     { type: 'function', function: { name: 'add_segment', description: 'Add a new segment (transport, accommodation or event) to the itinerary.', parameters: { type: 'object', properties: { segment_json: { type: 'string', description: 'A complete segment object, serialised as a JSON string, conforming to the HolidayItinerary schema.' } }, required: ['segment_json'] } } },
+    { type: 'function', function: { name: 'patch_segment', description: 'Update part of an existing segment (matched by id) via JSON Merge Patch: nested objects merge, arrays and scalars replace, null removes a field. Preferred over update_segment for partial edits.', parameters: { type: 'object', properties: { id: { type: 'string', description: 'id of the segment to modify' }, changes_json: { type: 'string', description: 'An object containing only the fields to change, serialised as a JSON string.' } }, required: ['id', 'changes_json'] } } },
     { type: 'function', function: { name: 'update_segment', description: 'Replace an existing segment (matched by id) with a new full segment object.', parameters: { type: 'object', properties: { id: { type: 'string', description: 'id of the segment to replace' }, segment_json: { type: 'string', description: 'The complete replacement segment object, serialised as a JSON string.' } }, required: ['id', 'segment_json'] } } },
     { type: 'function', function: { name: 'remove_segment', description: 'Remove the segment with the given id.', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } },
     { type: 'function', function: { name: 'update_trip', description: 'Replace the trip metadata (name, travellers, start, end, currency_primary).', parameters: { type: 'object', properties: { trip_json: { type: 'string', description: 'The complete trip object, serialised as a JSON string.' } }, required: ['trip_json'] } } },
@@ -27,6 +29,13 @@ export function applyTool(tc) {
       const seg = JSON.parse(args.segment_json);
       if (window.hValidateSegment) { const v = window.hValidateSegment(seg); if (!v.ok) return 'ERROR — segment failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2); }
       state.draft.segments.push(seg); state.ops.push({ kind: 'add', after: seg });
+    } else if (name === 'patch_segment') {
+      const idx = state.draft.segments.findIndex(s => s.id === args.id);
+      if (idx < 0) return 'ERROR: no segment with id "' + args.id + '".';
+      const seg = mergePatch(state.draft.segments[idx], JSON.parse(args.changes_json));
+      if (window.hValidateSegment) { const v = window.hValidateSegment(seg); if (!v.ok) return 'ERROR — patched segment failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2); }
+      state.ops.push({ kind: 'update', id: args.id, before: state.draft.segments[idx], after: seg });
+      state.draft.segments[idx] = seg;
     } else if (name === 'update_segment') {
       const seg = JSON.parse(args.segment_json);
       if (window.hValidateSegment) { const v = window.hValidateSegment(seg); if (!v.ok) return 'ERROR — replacement segment failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2); }

@@ -1,24 +1,35 @@
-// System prompt for the itinerary-editing assistant.
+// System prompt for the itinerary-editing assistant. Static content
+// (instructions + condensed schema) comes first and the per-request parts
+// (date, itinerary) last, so providers with implicit prompt caching can
+// reuse the stable prefix across the tool loop's repeated calls (issue #24).
 import { state } from '../state.js';
+import { condenseSchema } from '../lib/schema-brief.js';
+
+function schemaBrief() {
+  try { if (window.hSchemaText) return condenseSchema(JSON.parse(window.hSchemaText)); } catch (e) { /* fall back below */ }
+  return '(schema unavailable)';
+}
 
 export function buildSystem() {
   const today = new Date().toISOString().slice(0, 10);
-  const cur = state.HD ? JSON.stringify(state.HD, null, 2) : '(no itinerary loaded yet — create one from scratch using update_trip and add_segment)';
-  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (add_segment, update_segment, remove_segment, update_trip). Pass objects as JSON strings in the *_json arguments — never put the itinerary JSON in your text reply.
+  const cur = state.HD ? JSON.stringify(state.HD) : '(no itinerary loaded yet — create one from scratch using update_trip and add_segment)';
+  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (add_segment, patch_segment, update_segment, remove_segment, update_trip). Pass objects as JSON strings in the *_json arguments — never put the itinerary JSON in your text reply.
 
 Rules:
+- Prefer patch_segment for partial edits to an existing segment (send only the fields that change; null removes a field); use update_segment only when replacing most of a segment.
 - Every segment needs a unique id like "seg-1", "seg-2", … (do not reuse an existing id).
-- Follow the JSON Schema exactly: required fields, enums, "type" const per segment kind.
-- Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters (default ${state.HD && state.HD.trip ? state.HD.trip.currency_primary : 'GBP'}).
+- Follow the schema reference below exactly: required fields (marked *), enums, "type" const per segment kind. Every tool payload is validated against the full JSON Schema and any errors are returned to you to fix.
+- Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters; default to the trip's currency_primary (GBP for a new trip).
 - For accommodation, "date" must equal checkin.date, and set "nights" consistently.
 - Provide duration_min where the schema requires it (transport).
 - Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed. If a choice between valid options genuinely depends on user preference, ask in your text reply before calling tools.
 - After your tool calls, reply with a short plain-text summary of what you changed.
+
+Schema reference (* = required):
+${schemaBrief()}
+
 Today's date is ${today}.
 
 Current itinerary:
-${cur}
-
-JSON Schema:
-${window.hSchemaText || '(schema unavailable)'}`;
+${cur}`;
 }
