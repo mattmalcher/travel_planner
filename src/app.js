@@ -27,11 +27,11 @@ export function reset() {
 }
 
 export function switchView(v) {
-  document.querySelectorAll('.htab').forEach(t => t.classList.toggle('on', t.dataset.v === v));
-  document.getElementById('hvlist').className = 'hv' + (v === 'list' ? ' on' : '');
-  document.getElementById('hvbudget').className = 'hv' + (v === 'budget' ? ' on' : '');
-  document.getElementById('hvmap').className = 'hv' + (v === 'map' ? ' on' : '');
-  document.getElementById('hvgantt').className = 'hv' + (v === 'gantt' ? ' on' : '');
+  document.querySelectorAll('.htab').forEach(t => {
+    const on = t.dataset.v === v;
+    t.classList.toggle('on', on);
+    document.getElementById('hv' + t.dataset.v).className = 'hv' + (on ? ' on' : '');
+  });
   if (v === 'map' && !state.mapReady && state.HD) { state.mapReady = true; setTimeout(renderMap, 120); }
 }
 

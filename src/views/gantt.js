@@ -6,7 +6,7 @@ import { esc } from '../lib/escape.js';
 import { toMs, msToIso, fmtMinutes, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../lib/dates.js';
 import { PX_PER_MIN, MIN_BLOCK_PX, linearScale, compactPoints, compactScale, coverageGaps } from '../lib/gantt-layout.js';
 
-const TRANSPORT_COLOR = { train: '#f59e0b', bus: '#10b981', ferry: '#06b6d4', flight: '#8b5cf6' };
+const TRANSPORT_COLOR = { train: '#f59e0b', bus: '#10b981', ferry: '#06b6d4', flight: '#8b5cf6', taxi: '#eab308' };
 const EVENT_COLOR = { festival: '#ec4899', gig: '#f97316', walk: '#22c55e', tour: '#6366f1', activity: '#14b8a6', other: '#64748b' };
 const ACCOM_COLOR = '#3b82f6';
 
