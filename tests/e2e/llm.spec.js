@@ -42,13 +42,17 @@ const newSegment = {
 };
 
 // Stub the ajv ESM modules so the test is hermetic (no esm.sh network needed) and
-// so we can deterministically drive validation outcomes via globalThis.__VALID__.
+// so we can deterministically drive validation outcomes. The app compiles two
+// validators — the full document and a single segment (a oneOf schema) — which
+// are driven independently via globalThis.__DOC_VALID__ / __SEG_VALID__ so a
+// tool call can be accepted while the resulting document still fails.
 const AJV_STUB = `
 export default class Ajv {
   constructor() {}
-  compile() {
+  compile(schema) {
+    const flag = schema && schema.oneOf ? '__SEG_VALID__' : '__DOC_VALID__';
     function validate(data) {
-      const ok = (globalThis.__VALID__ !== false);
+      const ok = (globalThis[flag] !== false);
       validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/segments/0', message: 'stub: invalid', params: {} }]);
       return ok;
     }
@@ -78,7 +82,8 @@ test.describe('AI assistant (OpenRouter)', () => {
       localStorage.setItem('hItinerary', JSON.stringify(itin));
       localStorage.setItem('hOpenRouterKey', 'test-key');
       localStorage.setItem('hOpenRouterModel', 'test/model');
-      globalThis.__VALID__ = true;
+      globalThis.__DOC_VALID__ = true;
+      globalThis.__SEG_VALID__ = true;
     }, baseItinerary);
   });
 
@@ -119,9 +124,10 @@ test.describe('AI assistant (OpenRouter)', () => {
       function: { name: 'add_segment', arguments: JSON.stringify({ segment_json: JSON.stringify({ id: 'seg-2', type: 'transport' }) }) }
     }]);
     await page.goto('/holiday_itinerary_viewer.html');
-    // Force validation to fail for this run.
+    // Accept the tool call (segment validation passes) but fail validation of
+    // the resulting document, so the preview must block Apply.
     await page.evaluate(() => {
-      globalThis.__VALID__ = false;
+      globalThis.__DOC_VALID__ = false;
       globalThis.__ERRORS__ = [{ instancePath: '/segments/1', message: "must have required property 'operator'", params: {} }];
     });
 

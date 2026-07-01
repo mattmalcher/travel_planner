@@ -1,0 +1,127 @@
+<!-- Source skeleton for the itinerary viewer. scripts/build.mjs replaces the
+     three "build:" placeholder comments below with the inlined stylesheet,
+     the bundled app script and the validation module script, emitting the
+     standalone dist/holiday_itinerary_viewer.html. -->
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Itinerary Viewer</title>
+<h2 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore timeline, budget and map views</h2>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- build:styles -->
+
+<div id="hupl" style="padding:2.5rem 1.5rem">
+  <div style="text-align:center;margin-bottom:1.75rem">
+    <div style="font-size:17px;font-weight:500;margin-bottom:4px">Itinerary viewer</div>
+    <div style="font-size:13px;color:var(--color-text-secondary)">Load any <code>HolidayItinerary</code> JSON file to view timeline, budget and map</div>
+    <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:6px"><a href="holiday_itinerary_schema.json" style="color:var(--color-text-info)" target="_blank"><i class="ti ti-file-code" aria-hidden="true"></i> JSON Schema</a> — use this to create and validate your own itinerary files</div>
+  </div>
+  <div id="hverwarn" style="display:none;max-width:460px;margin:0 auto 1rem;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-lg);padding:.85rem 1rem;font-size:12px;line-height:1.45"></div>
+  <div class="hdrop" id="hdz" onclick="document.getElementById('hfile').click()">
+    <i class="ti ti-file-import" style="font-size:28px;color:var(--color-text-secondary);display:block;margin-bottom:10px" aria-hidden="true"></i>
+    <p style="font-size:14px;font-weight:500;margin-bottom:4px">Drop your itinerary JSON here</p>
+    <p style="font-size:12px;color:var(--color-text-secondary)">or click to browse</p>
+  </div>
+  <div style="text-align:center;display:flex;gap:8px;justify-content:center">
+    <input type="file" id="hfile" accept=".json" style="display:none">
+    <button onclick="document.getElementById('hfile').click()"><i class="ti ti-upload" aria-hidden="true"></i> Browse</button>
+    <button onclick="hChatOpen()"><i class="ti ti-sparkles" aria-hidden="true"></i> Create with AI</button>
+  </div>
+</div>
+
+<div id="happ" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)">
+    <div>
+      <div id="htname" style="font-size:15px;font-weight:500"></div>
+      <div id="htmeta" style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;display:flex;gap:12px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="hChatOpen()" style="font-size:12px" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
+      <button id="hedit-toggle" onclick="hToggleEdit()" style="font-size:12px" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+      <button onclick="hDownload()" style="font-size:12px" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
+      <button onclick="hreset()" style="font-size:12px"><i class="ti ti-refresh" aria-hidden="true"></i> New file</button>
+    </div>
+  </div>
+  <div style="display:flex;border-bottom:.5px solid var(--color-border-tertiary);padding:0 1.25rem">
+    <div class="htab on" data-v="list" onclick="hsw('list')"><i class="ti ti-list-details" aria-hidden="true"></i> Timeline</div>
+    <div class="htab" data-v="budget" onclick="hsw('budget')"><i class="ti ti-coins" aria-hidden="true"></i> Budget</div>
+    <div class="htab" data-v="map" onclick="hsw('map')"><i class="ti ti-map-2" aria-hidden="true"></i> Map</div>
+    <div class="htab" data-v="gantt" onclick="hsw('gantt')"><i class="ti ti-chart-gantt" aria-hidden="true"></i> Gantt</div>
+  </div>
+  <div id="hvlist" class="hv on" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvbudget" class="hv" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvmap" class="hv" style="padding:1.25rem">
+    <div style="display:flex;gap:8px;font-size:11px;color:var(--color-text-secondary);margin-bottom:8px;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#4b5563;display:inline-block"></span>Station</span>
+      <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#b45309;display:inline-block"></span>Stay</span>
+      <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#15803d;display:inline-block"></span>Event</span>
+    </div>
+    <div id="hmap" style="width:100%;height:440px;border-radius:var(--border-radius-lg);border:.5px solid var(--color-border-tertiary)"></div>
+    <div id="hmaplist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;margin-top:1rem"></div>
+  </div>
+  <div id="hvgantt" class="hv" style="padding:0"></div>
+</div>
+
+<div id="hedit-modal" onclick="if(event.target===this)hCloseEdit()">
+  <div id="hedit-inner">
+    <div id="hedit-hd">
+      <span style="font-size:13px;font-weight:500" id="hedit-title">Edit</span>
+      <button onclick="hCloseEdit()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </div>
+    <textarea id="hedit-ta" spellcheck="false"></textarea>
+    <div id="hedit-ft">
+      <span id="hedit-err"></span>
+      <button onclick="hCloseEdit()" style="font-size:12px">Cancel</button>
+      <button onclick="hSaveEdit()" style="font-size:12px;font-weight:500">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="hchat">
+  <div id="hchat-hd">
+    <span style="font-size:13px;font-weight:500"><i class="ti ti-sparkles" aria-hidden="true"></i> AI assistant</span>
+    <span style="display:flex;gap:6px">
+      <button onclick="hSetOpen()" style="font-size:12px;padding:2px 6px" title="Settings"><i class="ti ti-settings" aria-hidden="true"></i></button>
+      <button onclick="hChatClear()" style="font-size:12px;padding:2px 6px" title="Clear conversation"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      <button onclick="hChatClose()" style="font-size:12px;padding:2px 6px" title="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </span>
+  </div>
+  <div id="hchat-msgs"></div>
+  <div id="hchat-busy"><i class="ti ti-loader-2" aria-hidden="true"></i> Thinking…</div>
+  <div id="hchat-preview"></div>
+  <div id="hchat-ft">
+    <textarea id="hchat-input" placeholder="e.g. Add a Eurostar from London to Paris on 18 September at 16:31" rows="1"></textarea>
+    <button onclick="hChatSubmit()" id="hchat-send" style="font-size:12px;font-weight:500" title="Send"><i class="ti ti-send" aria-hidden="true"></i></button>
+  </div>
+</div>
+
+<div id="hset-modal" onclick="if(event.target===this)hSetClose()">
+  <div id="hset-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;font-weight:500">AI assistant settings</span>
+      <button onclick="hSetClose()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </div>
+    <div>
+      <label class="hset-lbl" for="hset-key">OpenRouter API key</label>
+      <input class="hset-in" id="hset-key" type="password" placeholder="sk-or-v1-…" autocomplete="off">
+    </div>
+    <div>
+      <label class="hset-lbl" for="hset-model">Model</label>
+      <input class="hset-in" id="hset-model" type="text" placeholder="google/gemini-3.5-flash">
+    </div>
+    <label style="font-size:12px;display:flex;align-items:center;gap:7px;cursor:pointer">
+      <input type="checkbox" id="hset-web"> Allow web search (extra cost; model decides when to use it)
+    </label>
+    <div style="font-size:11px;color:var(--color-text-tertiary);line-height:1.4">
+      Your key is stored only in this browser (localStorage) and sent directly to OpenRouter — there is no backend. Get a key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--color-text-info)">openrouter.ai/keys</a>.
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="hSetClearKey()" style="font-size:12px">Clear key</button>
+      <button onclick="hSetSave()" style="font-size:12px;font-weight:500">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- build:app -->
+<!-- build:validate -->
