@@ -62,14 +62,14 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 #hchat{position:fixed;top:0;right:0;width:390px;max-width:100vw;height:100vh;height:100dvh;background:var(--color-background-primary);border-left:.5px solid var(--color-border-tertiary);box-shadow:-4px 0 24px rgba(0,0,0,.08);display:none;flex-direction:column;z-index:1100}
 #hchat.on{display:flex}
 #hchat-hd{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:.5px solid var(--color-border-tertiary);flex-shrink:0}
-#hchat-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.55rem}
+#hchat-msgs{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:1rem;display:flex;flex-direction:column;gap:.55rem}
 .hcmsg{font-size:13px;line-height:1.45;padding:.55rem .7rem;border-radius:var(--border-radius-md);max-width:90%;white-space:pre-wrap;overflow-wrap:anywhere}
 .hcmsg.user{background:var(--color-background-info);color:var(--color-text-primary);align-self:flex-end}
 .hcmsg.assistant{background:var(--color-background-secondary);align-self:flex-start}
 .hcmsg.sys{background:transparent;color:var(--color-text-tertiary);align-self:center;text-align:center;font-size:11px;padding:.2rem}
 #hchat-busy{display:none;align-self:flex-start;color:var(--color-text-secondary);font-size:12px;padding:.3rem .7rem}
 #hchat-busy.on{display:block}
-#hchat-preview{display:none;border-top:.5px solid var(--color-border-tertiary);padding:.75rem 1rem;font-size:12px;max-height:42vh;max-height:42dvh;overflow-y:auto;flex-shrink:0;background:var(--color-background-secondary)}
+#hchat-preview{display:none;border-top:.5px solid var(--color-border-tertiary);padding:.75rem 1rem;font-size:12px;max-height:42vh;max-height:42dvh;overflow-y:auto;overscroll-behavior:contain;flex-shrink:0;background:var(--color-background-secondary)}
 #hchat-preview.on{display:block}
 .hpv-op{font-size:12px;padding:1px 0;font-family:ui-monospace,monospace}
 .hpv-err{background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
