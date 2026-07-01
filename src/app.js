@@ -35,6 +35,18 @@ export function switchView(v) {
   if (v === 'map' && !state.mapReady && state.HD) { state.mapReady = true; setTimeout(renderMap, 120); }
 }
 
+/** Jump from another view to a segment's timeline card and flash it (issue #21). */
+export function revealSegment(idx) {
+  switchView('list');
+  const el = document.querySelector(`#hvlist .hseg[data-seg="${idx}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.classList.remove('hl');
+  void el.offsetWidth; // restart the flash animation if it was mid-run
+  el.classList.add('hl');
+  el.addEventListener('animationend', () => el.classList.remove('hl'), { once: true });
+}
+
 export function download() {
   const blob = new Blob([JSON.stringify(state.HD, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
