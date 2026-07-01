@@ -241,6 +241,16 @@ test.describe('Holiday Itinerary Viewer', () => {
           time: "10:00",
           duration_min: 15,
           cost: { amount: 5, currency: "GBP", status: "paid", paid_by: "Alice" }
+        },
+        {
+          id: "evt-long",
+          type: "event",
+          name: "Museum Afternoon",
+          subtype: "tour",
+          date: "2026-08-01",
+          time: "13:00",
+          duration_min: 240,
+          cost: { amount: 30, currency: "GBP", status: "paid", paid_by: "Alice" }
         }
       ]
     };
@@ -252,18 +262,23 @@ test.describe('Holiday Itinerary Viewer', () => {
     });
     await page.click('.htab[data-v="gantt"]');
 
-    const blk = page.locator('#hvgantt .hgt-blk');
-    await expect(blk).toHaveCount(1);
+    const blocks = page.locator('#hvgantt .hgt-blk');
+    await expect(blocks).toHaveCount(2);
+    const shortBlk = blocks.first(); // Quick Coffee (renders first / earlier)
+    const longBlk = blocks.last();   // Museum Afternoon
 
     // Accurate height: a 15-min block must be far shorter than the old 28px floor.
-    const h = await blk.evaluate(el => el.getBoundingClientRect().height);
+    const h = await shortBlk.evaluate(el => el.getBoundingClientRect().height);
     expect(h).toBeLessThan(20);
 
-    // Text is no longer baked into the block.
-    await expect(blk).toHaveText('');
+    // Too short to fit a label — text is not baked in, only the popover carries it.
+    await expect(shortBlk).toHaveText('');
 
-    // Hovering reveals the label and times via the popover.
-    await blk.hover();
+    // A block with room shows its label inline for glanceability.
+    await expect(longBlk).toContainText('Museum Afternoon');
+
+    // Hovering the short block still reveals its full detail via the popover.
+    await shortBlk.hover();
     const pop = page.locator('.hgt-pop');
     await expect(pop).toBeVisible();
     await expect(pop).toContainText('Quick Coffee');
