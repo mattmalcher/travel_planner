@@ -20,6 +20,7 @@ export function validateSafe(doc) {
 
 export function chatOpen() {
   document.getElementById('hchat').classList.add('on');
+  lockBackground(true);
   syncChatViewport();
   if (!localStorage.getItem('hOpenRouterKey')) settingsOpen();
   else document.getElementById('hchat-input').focus();
@@ -27,7 +28,40 @@ export function chatOpen() {
 
 export function chatClose() {
   document.getElementById('hchat').classList.remove('on');
+  lockBackground(false);
   syncChatViewport();
+}
+
+// Stop touch drags inside the panel from scrolling the itinerary behind it
+// (issue #25). The app scrolls the window, and overscroll-behavior on the
+// message list only contains chaining at its own edges — so on the phone-sized
+// full-screen panel we also freeze the page. plain overflow:hidden doesn't hold
+// on iOS Safari, so pin the body with position:fixed and restore the scroll
+// offset on close. Skipped on wider screens, where the panel is a side strip
+// and the visible itinerary should still scroll.
+function lockBackground(lock) {
+  const b = document.body;
+  if (lock) {
+    if (b.dataset.hlock != null) return;
+    if (!window.matchMedia('(max-width:640px)').matches) return;
+    const y = window.scrollY || 0;
+    b.dataset.hlock = String(y);
+    b.style.position = 'fixed';
+    b.style.top = `-${y}px`;
+    b.style.left = '0';
+    b.style.right = '0';
+    b.style.width = '100%';
+  } else {
+    if (b.dataset.hlock == null) return;
+    const y = parseInt(b.dataset.hlock, 10) || 0;
+    delete b.dataset.hlock;
+    b.style.position = '';
+    b.style.top = '';
+    b.style.left = '';
+    b.style.right = '';
+    b.style.width = '';
+    window.scrollTo(0, y);
+  }
 }
 
 // Pin the fixed chat panel to the *visual* viewport. CSS dvh only tracks the

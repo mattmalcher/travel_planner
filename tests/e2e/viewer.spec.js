@@ -436,9 +436,22 @@ test.describe('Holiday Itinerary Viewer', () => {
       globalThis.getComputedStyle(globalThis.document.getElementById('hchat-input')).fontSize));
     expect(inputFont).toBeGreaterThanOrEqual(16);
 
-    // Closing releases the inline sizing back to the CSS dvh/vh rules.
+    // The itinerary behind the panel is frozen so a drag in the chat can't
+    // scroll it. The message list also contains its own overscroll.
+    const locked = await page.evaluate(() => ({
+      bodyPos: globalThis.getComputedStyle(globalThis.document.body).position,
+      overscroll: globalThis.getComputedStyle(globalThis.document.getElementById('hchat-msgs')).overscrollBehaviorY,
+    }));
+    expect(locked.bodyPos).toBe('fixed');
+    expect(locked.overscroll).toBe('contain');
+
+    // Closing releases the sizing back to CSS and unfreezes the background.
     await page.evaluate(() => globalThis.hChatClose());
-    const cleared = await page.evaluate(() => globalThis.document.getElementById('hchat').style.height);
-    expect(cleared).toBe('');
+    const closed = await page.evaluate(() => ({
+      height: globalThis.document.getElementById('hchat').style.height,
+      bodyPos: globalThis.getComputedStyle(globalThis.document.body).position,
+    }));
+    expect(closed.height).toBe('');
+    expect(closed.bodyPos).toBe('static');
   });
 });
