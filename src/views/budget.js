@@ -3,6 +3,7 @@
 import { state } from '../state.js';
 import { budgetSummary } from '../lib/cost.js';
 import { fmtDate } from '../lib/dates.js';
+import { esc } from '../lib/escape.js';
 import { badge } from './badges.js';
 
 export function renderBudget() {
@@ -29,13 +30,13 @@ export function renderBudget() {
     </div>
     ${upcoming.length ? `<div style="font-size:13px;font-weight:500;margin-bottom:.5rem">Upcoming payments</div>
     <div style="background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0 1rem;margin-bottom:1.5rem">
-      ${upcoming.map(p => `<div class="hrow"><span>${p.n}</span><div style="display:flex;gap:10px;align-items:center">${p.due ? `<span style="font-size:12px;color:var(--color-text-secondary)">${fmtDate(p.due)}</span>` : ''}<span style="font-weight:500;color:var(--color-text-warning)">${p.sym}${p.amt.toFixed(2)}</span></div></div>`).join('')}
+      ${upcoming.map(p => `<div class="hrow"><span>${esc(p.n)}</span><div style="display:flex;gap:10px;align-items:center">${p.due ? `<span style="font-size:12px;color:var(--color-text-secondary)">${fmtDate(p.due)}</span>` : ''}<span style="font-weight:500;color:var(--color-text-warning)">${p.sym}${p.amt.toFixed(2)}</span></div></div>`).join('')}
     </div>` : ''}
     <div style="font-size:13px;font-weight:500;margin-bottom:.5rem">All segments</div>
     <div style="background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0 1rem">
       ${rows.map(r => `<div class="hrow">
-        <div><div style="font-weight:500">${r.s.name || r.s.operator || 'Segment'}</div>
-        <div style="font-size:11px;color:var(--color-text-secondary)">${r.s.type}${r.s.mode ? ' · ' + r.s.mode : ''}${r.s.subtype ? ' · ' + r.s.subtype : ''}</div></div>
+        <div><div style="font-weight:500">${esc(r.s.name || r.s.operator || 'Segment')}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${esc(r.s.type)}${r.s.mode ? ' · ' + esc(r.s.mode) : ''}${r.s.subtype ? ' · ' + esc(r.s.subtype) : ''}</div></div>
         <div style="display:flex;gap:8px;align-items:center">
           ${badge(r.st, lbl[r.st] || r.st)}
           <span style="font-weight:500;min-width:60px;text-align:right">${r.amt !== null ? r.sym + r.amt.toFixed(2) : '—'}</span>
