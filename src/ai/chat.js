@@ -20,12 +20,33 @@ export function validateSafe(doc) {
 
 export function chatOpen() {
   document.getElementById('hchat').classList.add('on');
+  syncChatViewport();
   if (!localStorage.getItem('hOpenRouterKey')) settingsOpen();
   else document.getElementById('hchat-input').focus();
 }
 
 export function chatClose() {
   document.getElementById('hchat').classList.remove('on');
+  syncChatViewport();
+}
+
+// Pin the fixed chat panel to the *visual* viewport. CSS dvh only tracks the
+// mobile URL bar — by spec it ignores the on-screen keyboard — so the input
+// footer still ends up behind the keyboard (issue #25), and iOS Safari has no
+// CSS lever for it at all. visualViewport is the one API that reflects the
+// keyboard on every mobile browser: match the panel's height to it and follow
+// its offset so the footer stays above the keyboard. Cleared when closed so
+// the CSS dvh/vh rules take over again.
+export function syncChatViewport() {
+  const el = document.getElementById('hchat');
+  const vv = window.visualViewport;
+  if (!vv || !el.classList.contains('on')) {
+    el.style.height = '';
+    el.style.transform = '';
+    return;
+  }
+  el.style.height = vv.height + 'px';
+  el.style.transform = `translateY(${vv.offsetTop}px)`;
 }
 
 export function chatClear() {
