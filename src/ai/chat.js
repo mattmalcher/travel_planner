@@ -75,7 +75,7 @@ export function syncChatViewport() {
 }
 
 export function chatClear() {
-  state.chat = []; state.draft = null; state.ops = [];
+  state.chat = []; state.draft = null; state.ops = []; state.reads = new Set();
   renderChat(); hidePreview();
 }
 
@@ -112,10 +112,15 @@ async function llmSend(text) {
   chatPush('user', text);
   state.draft = state.HD ? structuredClone(state.HD) : emptyItinerary();
   state.ops = [];
+  // Tool results (get_segment reads) are not kept in state.chat, so the model
+  // starts each turn blind again — reads must not carry over between turns.
+  state.reads = new Set();
   const working = [{ role: 'system', content: buildSystem() }, ...state.chat.map(m => ({ role: m.role, content: m.content }))];
   setBusy(true);
   try {
-    for (let i = 0; i < 6; i++) {
+    // 8 iterations (up from 6): the digest prompt (issue #31) costs an extra
+    // get_segment round trip before edits to existing segments.
+    for (let i = 0; i < 8; i++) {
       const data = await callOpenRouter(working);
       const msg = (data.choices && data.choices[0] && data.choices[0].message) || {};
       working.push(msg);
