@@ -4,6 +4,7 @@
 // reuse the stable prefix across the tool loop's repeated calls (issue #24).
 import { state } from '../state.js';
 import { condenseSchema } from '../lib/schema-brief.js';
+import { itineraryDigest } from '../lib/digest.js';
 
 function schemaBrief() {
   try { if (window.hSchemaText) return condenseSchema(JSON.parse(window.hSchemaText)); } catch (e) { /* fall back below */ }
@@ -12,10 +13,12 @@ function schemaBrief() {
 
 export function buildSystem() {
   const today = new Date().toISOString().slice(0, 10);
-  const cur = state.HD ? JSON.stringify(state.HD) : '(no itinerary loaded yet — create one from scratch using update_trip and add_segment)';
-  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (add_segment, patch_segment, update_segment, remove_segment, update_trip). Pass objects as JSON strings in the *_json arguments — never put the itinerary JSON in your text reply.
+  const cur = state.HD ? itineraryDigest(state.HD) : '(no itinerary loaded yet — create one from scratch using update_trip and add_segment)';
+  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (get_segment, add_segment, patch_segment, update_segment, remove_segment, update_trip). Pass objects as JSON strings in the *_json arguments — never put the itinerary JSON in your text reply.
 
 Rules:
+- The current itinerary below is a DIGEST: one line per segment (id | kind | when/where | name | cost), with +notes/+warnings/proposal flags marking detail the line omits. It is not the full data.
+- Before editing an existing segment with patch_segment or update_segment, fetch its full JSON with get_segment (batch several ids in one call) — segments carry fields the digest hides (notes, warnings, seats, payments, coordinates) that an unread edit would lose, so unread edits are rejected.
 - Prefer patch_segment for partial edits to an existing segment (send only the fields that change; null removes a field); use update_segment only when replacing most of a segment.
 - Every segment needs a unique id like "seg-1", "seg-2", … (do not reuse an existing id).
 - Follow the schema reference below exactly: required fields (marked *), enums, "type" const per segment kind. Every tool payload is validated against the full JSON Schema and any errors are returned to you to fix.
@@ -30,6 +33,6 @@ ${schemaBrief()}
 
 Today's date is ${today}.
 
-Current itinerary:
+Current itinerary (digest — use get_segment for full segment JSON):
 ${cur}`;
 }
