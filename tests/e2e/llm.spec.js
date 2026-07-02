@@ -62,17 +62,25 @@ export default class Ajv {
 `;
 const FMT_STUB = `export default function addFormats() {}`;
 
-// Build an OpenRouter mock that returns a tool call first, then a final text reply.
-function mockOpenRouter(page, toolCalls) {
+// Build an OpenRouter mock that replays a scripted sequence of assistant
+// turns: each entry is either an array of tool calls or a final text reply
+// (the last entry repeats if the app asks again). Returns the captured
+// request bodies so tests can assert on the prompt and tool results sent.
+async function mockOpenRouter(page, turns) {
+  const requests = [];
   let call = 0;
-  return page.route('https://openrouter.ai/api/v1/chat/completions', route => {
-    call++;
-    const message = call === 1
-      ? { role: 'assistant', content: null, tool_calls: toolCalls }
-      : { role: 'assistant', content: 'Done — I made the requested change.' };
+  await page.route('https://openrouter.ai/api/v1/chat/completions', route => {
+    requests.push(JSON.parse(route.request().postData()));
+    const t = turns[Math.min(call++, turns.length - 1)];
+    const message = typeof t === 'string'
+      ? { role: 'assistant', content: t }
+      : { role: 'assistant', content: null, tool_calls: t };
     route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message }] }) });
   });
+  return requests;
 }
+
+const toolCall = (id, name, args) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 
 test.describe('AI assistant (OpenRouter)', () => {
   test.beforeEach(async ({ page }) => {
@@ -88,11 +96,10 @@ test.describe('AI assistant (OpenRouter)', () => {
   });
 
   test('adds a segment via tool call, previews it, and applies on confirm', async ({ page }) => {
-    await mockOpenRouter(page, [{
-      id: 'call_1',
-      type: 'function',
-      function: { name: 'add_segment', arguments: JSON.stringify({ segment_json: JSON.stringify(newSegment) }) }
-    }]);
+    const requests = await mockOpenRouter(page, [
+      [toolCall('call_1', 'add_segment', { segment_json: JSON.stringify(newSegment) })],
+      'Done — I made the requested change.',
+    ]);
     await page.goto('/holiday_itinerary_viewer.html');
 
     // Open the assistant and send an instruction.
@@ -115,14 +122,20 @@ test.describe('AI assistant (OpenRouter)', () => {
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
     expect(stored.segments.map(s => s.id)).toContain('seg-2');
     await expect(preview).toBeHidden();
+
+    // The system prompt carries the one-line digest, not the raw itinerary
+    // JSON (issue #31).
+    const system = requests[0].messages[0].content;
+    expect(system).toContain("seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid £156");
+    expect(system).not.toContain('"departs"');
   });
 
-  test('patches a segment via patch_segment, merging changes into the original', async ({ page }) => {
-    await mockOpenRouter(page, [{
-      id: 'call_1',
-      type: 'function',
-      function: { name: 'patch_segment', arguments: JSON.stringify({ id: 'seg-1', changes_json: JSON.stringify({ departs: { time: '17:01' }, cost: { status: 'pending' } }) }) }
-    }]);
+  test('reads a segment with get_segment, then patches it, merging changes into the original', async ({ page }) => {
+    const requests = await mockOpenRouter(page, [
+      [toolCall('call_1', 'get_segment', { ids: ['seg-1'] })],
+      [toolCall('call_2', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ departs: { time: '17:01' }, cost: { status: 'pending' } }) })],
+      'Done — I made the requested change.',
+    ]);
     await page.goto('/holiday_itinerary_viewer.html');
 
     await page.getByRole('button', { name: 'AI' }).click();
@@ -134,6 +147,11 @@ test.describe('AI assistant (OpenRouter)', () => {
     await expect(preview).toContainText('Updated transport (seg-1)');
     await preview.getByRole('button', { name: 'Apply changes' }).click();
 
+    // get_segment returned the full segment JSON to the model.
+    const readResult = requests[1].messages.at(-1);
+    expect(readResult.role).toBe('tool');
+    expect(JSON.parse(readResult.content)).toEqual(baseItinerary.segments[0]);
+
     // Patched fields changed; everything else on the segment survived the merge.
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
     const seg = stored.segments.find(s => s.id === 'seg-1');
@@ -144,12 +162,39 @@ test.describe('AI assistant (OpenRouter)', () => {
     expect(seg.ref).toBe('AB1234');
   });
 
+  test('rejects an edit to an unread segment and lets the model recover', async ({ page }) => {
+    const requests = await mockOpenRouter(page, [
+      [toolCall('call_1', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ class: 'Standard Premier' }) })],
+      [toolCall('call_2', 'get_segment', { ids: ['seg-1'] })],
+      [toolCall('call_3', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ class: 'Standard Premier' }) })],
+      'Done — I made the requested change.',
+    ]);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await page.getByRole('button', { name: 'AI' }).click();
+    await page.locator('#hchat-input').fill('Upgrade the outbound train to Standard Premier');
+    await page.locator('#hchat-send').click();
+
+    // The blind patch was refused with a pointer at get_segment…
+    const preview = page.locator('#hchat-preview');
+    await expect(preview).toBeVisible();
+    const refusal = requests[1].messages.at(-1);
+    expect(refusal.role).toBe('tool');
+    expect(refusal.content).toMatch(/^ERROR: segment "seg-1" has not been read this turn/);
+    expect(refusal.content).toContain('get_segment');
+
+    // …and only the read-then-retry patch landed (a single update op).
+    await expect(preview).toContainText('Updated transport (seg-1)');
+    await preview.getByRole('button', { name: 'Apply changes' }).click();
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(stored.segments.find(s => s.id === 'seg-1').class).toBe('Standard Premier');
+  });
+
   test('blocks apply and surfaces errors when the result is not schema-valid', async ({ page }) => {
-    await mockOpenRouter(page, [{
-      id: 'call_1',
-      type: 'function',
-      function: { name: 'add_segment', arguments: JSON.stringify({ segment_json: JSON.stringify({ id: 'seg-2', type: 'transport' }) }) }
-    }]);
+    await mockOpenRouter(page, [
+      [toolCall('call_1', 'add_segment', { segment_json: JSON.stringify({ id: 'seg-2', type: 'transport' }) })],
+      'Done — I made the requested change.',
+    ]);
     await page.goto('/holiday_itinerary_viewer.html');
     // Accept the tool call (segment validation passes) but fail validation of
     // the resulting document, so the preview must block Apply.
