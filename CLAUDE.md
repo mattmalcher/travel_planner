@@ -37,6 +37,7 @@ src/
     cost.js         costInfo + budgetSummary (all cost interpretation lives here)
     sort.js         segDate/segTime/sortSegments (shared list+map ordering)
     dates.js        formatting, toMs/msToIso, and ALL default times (issue #13)
+    digest.js       one-line-per-segment digest for the AI prompt (issue #31)
     gantt-layout.js time→pixel scales, compact points, coverage gaps
     escape.js       esc() html escaping
   views/            DOM rendering only; maths belongs in lib/
