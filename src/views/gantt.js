@@ -6,6 +6,7 @@ import { revealSegment } from '../app.js';
 import { esc } from '../lib/escape.js';
 import { toMs, msToIso, fmtMinutes, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../lib/dates.js';
 import { PX_PER_MIN, MIN_BLOCK_PX, linearScale, compactPoints, compactScale, coverageGaps } from '../lib/gantt-layout.js';
+import { isDuringTrip } from '../lib/now.js';
 
 const TRANSPORT_COLOR = { train: '#f59e0b', bus: '#10b981', ferry: '#06b6d4', flight: '#8b5cf6', taxi: '#eab308' };
 const EVENT_COLOR = { festival: '#ec4899', gig: '#f97316', walk: '#22c55e', tour: '#6366f1', activity: '#14b8a6', other: '#64748b' };
@@ -14,6 +15,29 @@ const ACCOM_COLOR = '#3b82f6';
 export function toggleGanttMode() {
   state.ganttCompact = !state.ganttCompact;
   renderGantt();
+}
+
+// Scale of the last render, kept so the "now" line can be repositioned on
+// tab switches without a full re-render (which would reset the user's
+// scroll position within the gantt).
+let nowCtx = null;
+
+/** Position (or hide) the current-time line and its axis label (issue #35).
+    Cheap enough to call on every visit to the gantt tab. */
+export function refreshGanttNow(nowMs = Date.now()) {
+  const line = document.querySelector('#hvgantt .hgt-now');
+  const lbl = document.querySelector('#hvgantt .hgt-now-lbl');
+  if (!nowCtx || !line || !lbl) return;
+  if (!isDuringTrip(nowCtx.trip, nowMs)) {
+    line.style.display = lbl.style.display = 'none';
+    return;
+  }
+  const px = nowCtx.toPx(nowMs);
+  line.style.display = 'block';
+  line.style.top = px.toFixed(1) + 'px';
+  lbl.style.display = 'block';
+  lbl.style.top = (px + 2).toFixed(1) + 'px';
+  lbl.textContent = msToIso(nowMs).time;
 }
 
 export function renderGantt() {
@@ -108,15 +132,18 @@ export function renderGantt() {
         <div class="hgt-col-hd"><i class="ti ti-calendar-event" aria-hidden="true"></i> Events</div>
       </div>
       <div class="hgt-scroll">
-        <div class="hgt-axis" style="height:${totalPx.toFixed(0)}px">${axisHtml}</div>
+        <div class="hgt-axis" style="height:${totalPx.toFixed(0)}px">${axisHtml}<div class="hgt-now-lbl" style="display:none"></div></div>
         <div class="hgt-body" style="height:${totalPx.toFixed(0)}px">
           ${bodyLines}
           <div class="hgt-col">${gapHtml}${blkHtml(accomBlocks)}</div>
           <div class="hgt-col">${blkHtml(travelBlocks)}</div>
           <div class="hgt-col">${blkHtml(eventBlocks)}</div>
+          <div class="hgt-now" style="display:none"></div>
         </div>
       </div>
     </div>`;
+  nowCtx = { toPx: scale.toPx, trip: HD.trip };
+  refreshGanttNow();
   setupPopover();
 }
 
