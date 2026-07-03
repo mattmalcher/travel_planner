@@ -3,6 +3,7 @@
 import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
 import { renderMap, destroyMap } from './views/map.js';
+import { refreshGanttNow } from './views/gantt.js';
 import { renderChat } from './ai/chat.js';
 import { hidePreview } from './ai/preview.js';
 
@@ -33,6 +34,7 @@ export function switchView(v) {
     document.getElementById('hv' + t.dataset.v).className = 'hv' + (on ? ' on' : '');
   });
   if (v === 'map' && !state.mapReady && state.HD) { state.mapReady = true; setTimeout(renderMap, 120); }
+  if (v === 'gantt') refreshGanttNow(); // the "now" line drifts between visits (issue #35)
 }
 
 /** Jump from another view to a segment's timeline card and flash it (issue #21). */
