@@ -407,6 +407,83 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('#hvlist .hseg.hl')).toContainText('Cosy Studio near Sacré-Cœur');
   });
 
+  test('should surface "now" during the trip: Today chip, auto-jump, gantt line (issue #35)', async ({ page }) => {
+    // Freeze the clock mid-trip, then reload so every render sees the fake time.
+    await page.clock.setFixedTime(new Date('2026-08-02T14:30:00'));
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    const days = ['2026-08-01', '2026-08-02', '2026-08-03'];
+    const segments = days.flatMap((date, di) => [0, 1, 2, 3, 4, 5].map(i => ({
+      id: `evt-${di}-${i}`,
+      type: 'event',
+      name: `Activity ${di + 1}.${i + 1}`,
+      subtype: 'activity',
+      date,
+      time: `${String(8 + i * 2).padStart(2, '0')}:00`,
+      duration_min: 60,
+      cost: { amount: 10, currency: 'GBP', status: 'paid', paid_by: 'Alice' }
+    })));
+    await page.setInputFiles('#hfile', {
+      name: 'mid_trip.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        trip: { name: 'Now Test', travellers: ['Alice'], start: '2026-08-01', end: '2026-08-03', currency_primary: 'GBP' },
+        segments
+      }))
+    });
+
+    // The date strip gets a Today shortcut targeting the current day, and
+    // today's own chip is marked.
+    const todayBtn = page.locator('#hvlist .hday-chip.hday-today');
+    await expect(todayBtn).toContainText('Today');
+    await expect(todayBtn).toHaveAttribute('data-d', '2026-08-02');
+    await expect(page.locator('#hvlist .hday-chip.is-today')).toHaveText('Sun 2');
+
+    // The timeline opened at the current day rather than the top of the trip.
+    await expect.poll(() => page.locator('#hvlist .hday[data-d="2026-08-02"]')
+      .evaluate(el => el.getBoundingClientRect().top)).toBeLessThan(120);
+
+    // The gantt shows a current-time line at 14:30 on day 2 of the
+    // proportional scale, with the time labelled in the axis.
+    await page.click('.htab[data-v="gantt"]');
+    const nowLine = page.locator('#hvgantt .hgt-now');
+    await expect(nowLine).toBeVisible();
+    const top = await nowLine.evaluate(el => parseFloat(el.style.top));
+    expect(top).toBeCloseTo((24 + 14.5) * 60 * 0.25, 0); // PX_PER_MIN = 0.25
+    await expect(page.locator('#hvgantt .hgt-now-lbl')).toHaveText('14:30');
+
+    // The line survives (and stays correct in) compact mode.
+    await page.locator('#hvgantt button').first().click();
+    await expect(nowLine).toBeVisible();
+  });
+
+  test('should hide the now markers when the trip is not underway (issue #35)', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-07-01T12:00:00'));
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    const futureTrip = {
+      trip: { name: 'Future Trip', travellers: ['Alice'], start: '2026-08-01', end: '2026-08-03', currency_primary: 'GBP' },
+      segments: ['2026-08-01', '2026-08-02'].map((date, i) => ({
+        id: `evt-${i}`, type: 'event', name: `Thing ${i}`, subtype: 'activity',
+        date, time: '10:00', duration_min: 60,
+        cost: { amount: 10, currency: 'GBP', status: 'paid', paid_by: 'Alice' }
+      }))
+    };
+    await page.setInputFiles('#hfile', {
+      name: 'future_trip.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(futureTrip))
+    });
+
+    await expect(page.locator('#hvlist .hday-chip')).toHaveCount(2);
+    await expect(page.locator('#hvlist .hday-chip.hday-today')).toHaveCount(0);
+    await expect(page.locator('#hvlist .hday-chip.is-today')).toHaveCount(0);
+
+    await page.click('.htab[data-v="gantt"]');
+    await expect(page.locator('#hvgantt .hgt-now')).toBeHidden();
+    await expect(page.locator('#hvgantt .hgt-now-lbl')).toBeHidden();
+  });
+
   test('should keep the chat input footer within the visual viewport on mobile (issue #25)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 640 });
     // A stored key makes chatOpen focus the input instead of popping settings.

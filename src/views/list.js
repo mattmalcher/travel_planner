@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { costInfo } from '../lib/cost.js';
 import { sortSegments, segDate } from '../lib/sort.js';
 import { fmtDayLong, fmtDayShort, fmtMinutes } from '../lib/dates.js';
+import { currentDayChip } from '../lib/now.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
 
@@ -66,9 +67,9 @@ function renderNotes(s) {
 /** Scroll the timeline to a day's section (date strip chips, issue #21).
     Days are matched on data-d rather than an id so no selector escaping of
     itinerary-supplied dates is needed. */
-export function jumpToDay(date) {
+export function jumpToDay(date, behavior = 'smooth') {
   const day = [...document.querySelectorAll('#hvlist .hday')].find(el => el.dataset.d === date);
-  if (day) day.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (day) day.scrollIntoView({ behavior, block: 'start' });
 }
 
 // Scroll-spy: mark the chip of the day currently under the sticky strip.
@@ -94,8 +95,12 @@ export function renderList() {
   const grp = {};
   sorted.forEach(s => { const d = segDate(s); (grp[d] = grp[d] || []).push(s); });
   const days = Object.keys(grp);
-  const nav = days.length > 1 ? `<div class="hday-nav">${days.map(d =>
-    `<button class="hday-chip" data-d="${esc(d)}" onclick="hJumpDay(this.dataset.d)">${fmtDayShort(d)}</button>`).join('')}</div>` : '';
+  // During the trip the strip gets a Today shortcut and today's chip a marker,
+  // and the first render lands on the current day (issue #35).
+  const today = currentDayChip(days, HD.trip, Date.now());
+  const todayBtn = today ? `<button class="hday-chip hday-today" data-d="${esc(today)}" onclick="hJumpDay(this.dataset.d)"><i class="ti ti-calendar-pin" aria-hidden="true"></i> Today</button>` : '';
+  const nav = days.length > 1 ? `<div class="hday-nav">${todayBtn}${days.map(d =>
+    `<button class="hday-chip${d === today ? ' is-today' : ''}" data-d="${esc(d)}" onclick="hJumpDay(this.dataset.d)">${fmtDayShort(d)}</button>`).join('')}</div>` : '';
   document.getElementById('hvlist').innerHTML = nav + Object.entries(grp).map(([date, segs]) => `
     <div class="hday" data-d="${esc(date)}" style="margin-bottom:1.75rem">
       <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;display:flex;align-items:center;gap:8px">
@@ -125,4 +130,10 @@ export function renderList() {
     </div>`).join('');
   bindSpy();
   updateActiveChip();
+  // Open at the current day once per page load; later re-renders (edits, AI
+  // changes) must not yank the scroll position away from the user.
+  if (today && !renderList._jumped) {
+    renderList._jumped = true;
+    jumpToDay(today, 'auto');
+  }
 }
