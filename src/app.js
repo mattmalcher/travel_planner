@@ -1,6 +1,7 @@
 // Top-level app behaviour: loading files, tab switching, the JSON edit
 // modal, download, and the saved-data schema-version guard.
 import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
+import { esc } from './lib/escape.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
 import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
@@ -13,6 +14,57 @@ export function load(data) {
   showApp();
   updateHeader();
   renderAll();
+}
+
+/* --- upload guard (issue #15): files declare a schema_version and are
+       schema-validated before loading; both checks are advisory with a
+       "load anyway" escape hatch, mirroring the localStorage guard --- */
+
+function showUploadWarning(html) {
+  const w = document.getElementById('hverwarn');
+  w.innerHTML = html + `
+    <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">
+      <button onclick="hUploadAnyway()" style="font-size:12px">Load anyway</button>
+      <button onclick="hUploadCancel()" style="font-size:12px">Cancel</button>
+    </div>`;
+  w.style.display = 'block';
+}
+
+/** Upload/drag-drop entry point: version-check and validate before load(). */
+export function loadUpload(data) {
+  const doc = typeof data === 'string' ? JSON.parse(data) : data;
+  document.getElementById('hverwarn').style.display = 'none';
+  if (doc && doc.schema_version && major(doc.schema_version) !== major(H_SCHEMA_VERSION)) {
+    state.pendingUpload = doc;
+    showUploadWarning(`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> File is from a different schema version</div>
+      This file declares schema <code>${esc(doc.schema_version)}</code> but this viewer expects <code>${H_SCHEMA_VERSION}</code>, so it may not display correctly.`);
+    return;
+  }
+  // Degrades gracefully when ajv/schema failed to load (validate.js is async
+  // and network-dependent) — same policy as validateSafe in ai/chat.js.
+  const v = window.hValidate ? window.hValidate(doc) : { ok: true, errors: [] };
+  if (!v.ok) {
+    state.pendingUpload = doc;
+    const items = v.errors.slice(0, 8).map(e => `<li><code>${esc(e.path)}</code> ${esc(e.message || '')}</li>`).join('');
+    const more = v.errors.length > 8 ? `<div>…and ${v.errors.length - 8} more</div>` : '';
+    showUploadWarning(`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> File does not match the itinerary schema</div>
+      Some views may render incorrectly or stay blank.
+      <ul style="margin:.4rem 0 0 1.1rem">${items}</ul>${more}`);
+    return;
+  }
+  load(doc);
+}
+
+export function uploadAnyway() {
+  const doc = state.pendingUpload;
+  state.pendingUpload = null;
+  document.getElementById('hverwarn').style.display = 'none';
+  if (doc) load(doc);
+}
+
+export function uploadCancel() {
+  state.pendingUpload = null;
+  document.getElementById('hverwarn').style.display = 'none';
 }
 
 export function reset() {
@@ -50,7 +102,12 @@ export function revealSegment(idx) {
 }
 
 export function download() {
-  const blob = new Blob([JSON.stringify(state.HD, null, 2)], { type: 'application/json' });
+  // Stamp the document with the schema version this build writes, replacing
+  // any version an uploaded file carried in (issue #15).
+  const doc = { schema_version: H_SCHEMA_VERSION, ...state.HD };
+  doc.schema_version = H_SCHEMA_VERSION; // win over any version the uploaded file carried
+
+  const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
