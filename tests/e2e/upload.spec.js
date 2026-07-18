@@ -20,8 +20,8 @@ const validItinerary = {
       operator: "Eurostar",
       ref: "AB1234",
       date: "2026-09-18",
-      departs: { station: "London St Pancras Int'l", time: "16:31" },
-      arrives: { station: "Paris Gare du Nord", time: "19:49" },
+      departs: { place: "London St Pancras Int'l", time: "16:31" },
+      arrives: { place: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
       class: "Standard",
       cost: { amount: 156.0, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }

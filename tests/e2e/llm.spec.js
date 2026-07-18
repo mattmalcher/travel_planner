@@ -17,8 +17,8 @@ const baseItinerary = {
       operator: "Eurostar",
       ref: "AB1234",
       date: "2026-09-18",
-      departs: { station: "London St Pancras Int'l", time: "16:31" },
-      arrives: { station: "Paris Gare du Nord", time: "19:49" },
+      departs: { place: "London St Pancras Int'l", time: "16:31" },
+      arrives: { place: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
       class: "Standard",
       cost: { amount: 156.0, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
@@ -34,8 +34,8 @@ const newSegment = {
   operator: "Eurostar",
   ref: "CD5678",
   date: "2026-09-28",
-  departs: { station: "Paris Gare du Nord", time: "10:00" },
-  arrives: { station: "London St Pancras Int'l", time: "11:30" },
+  departs: { place: "Paris Gare du Nord", time: "10:00" },
+  arrives: { place: "London St Pancras Int'l", time: "11:30" },
   duration_min: 150,
   class: "Standard",
   cost: { amount: 120.0, currency: "GBP", status: "paid", paid_by: "George Jetson" }
@@ -156,7 +156,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
     const seg = stored.segments.find(s => s.id === 'seg-1');
     expect(seg.departs.time).toBe('17:01');
-    expect(seg.departs.station).toBe("London St Pancras Int'l");
+    expect(seg.departs.place).toBe("London St Pancras Int'l");
     expect(seg.cost.status).toBe('pending');
     expect(seg.cost.amount).toBe(156.0);
     expect(seg.ref).toBe('AB1234');

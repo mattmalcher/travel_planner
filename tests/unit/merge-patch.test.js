@@ -25,14 +25,14 @@ test('mergePatch edits a segment without touching unrelated fields', () => {
   const seg = {
     id: 'seg-1', type: 'transport', mode: 'train', operator: 'Eurostar', ref: 'AB1234',
     date: '2026-09-18',
-    departs: { station: 'London St Pancras', time: '16:31' },
-    arrives: { station: 'Paris Gare du Nord', time: '19:49' },
+    departs: { place: 'London St Pancras', time: '16:31' },
+    arrives: { place: 'Paris Gare du Nord', time: '19:49' },
     duration_min: 138, class: 'Standard',
     cost: { total: 156, currency: 'GBP', status: 'pending' },
   };
   const out = mergePatch(seg, { departs: { time: '17:01' }, cost: { status: 'paid' } });
   assert.equal(out.departs.time, '17:01');
-  assert.equal(out.departs.station, 'London St Pancras');
+  assert.equal(out.departs.place, 'London St Pancras');
   assert.equal(out.cost.status, 'paid');
   assert.equal(out.cost.total, 156);
   assert.equal(out.operator, 'Eurostar');

@@ -43,6 +43,16 @@ test('costLine covers not_booked, included_in and missing cost', () => {
   assert.equal(costLine({}, 'GBP'), null);
 });
 
+test('transport without ref/class stays clean and pass-covered legs show the pass (issue #11)', () => {
+  const s = {
+    id: 'seg-7', type: 'transport', mode: 'bus', operator: 'PostBus', date: '2026-09-20',
+    departs: { place: 'Spaceport Square', time: '09:15' }, arrives: { place: 'Orbit Lakes', time: '09:55' },
+    duration_min: 40, pass_id: 'IR01', cost: { status: 'free' },
+  };
+  assert.equal(segmentLine(s, 'GBP'),
+    'seg-7 | transport/bus | 2026-09-20 09:15 Spaceport Square → 09:55 Orbit Lakes | PostBus pass IR01 | free GBP 0');
+});
+
 test('event artist and untimed events render compactly', () => {
   const s = { id: 'seg-4', type: 'event', subtype: 'gig', name: 'Cogswell Sonics', artist: 'The Cogs', venue: 'La Cigale', date: '2026-09-19' };
   assert.equal(segmentLine(s, 'GBP'), 'seg-4 | event/gig | 2026-09-19 | Cogswell Sonics — The Cogs @ La Cigale');
