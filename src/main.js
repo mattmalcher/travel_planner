@@ -2,7 +2,7 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, reset, switchView, download, toggleEdit, openEdit, openEditTrip, closeEdit, saveEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, reset, switchView, download, toggleEdit, openEdit, openEditTrip, closeEdit, saveEdit, deleteSegment, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
 import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport, installChatScrollLock } from './ai/chat.js';
@@ -25,6 +25,7 @@ Object.assign(window, {
   hOpenEditTrip: openEditTrip,
   hCloseEdit: closeEdit,
   hSaveEdit: saveEdit,
+  hDeleteSegment: deleteSegment,
   hGanttToggle: toggleGanttMode,
   hJumpDay: jumpToDay,
   hDownloadSaved: downloadSaved,
