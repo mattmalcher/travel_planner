@@ -484,6 +484,36 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('#hvgantt .hgt-now-lbl')).toBeHidden();
   });
 
+  test('should delete a segment from the edit modal (issue #39)', async ({ page }) => {
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
+    await expect(page.locator('#hvlist .hseg')).toHaveCount(2);
+
+    await page.evaluate(() => globalThis.hOpenEdit(0));
+    await expect(page.locator('#hedit-del')).toBeVisible();
+
+    // Dismissing the confirm leaves everything untouched.
+    page.once('dialog', d => d.dismiss());
+    await page.click('#hedit-del');
+    await expect(page.locator('#hedit-modal')).toHaveClass(/on/);
+    await expect(page.locator('#hvlist .hseg')).toHaveCount(2);
+
+    // Accepting removes the segment, closes the modal and persists.
+    page.once('dialog', d => d.accept());
+    await page.click('#hedit-del');
+    await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
+    await expect(page.locator('#hvlist .hseg')).toHaveCount(1);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments.length);
+    expect(saved).toBe(1);
+
+    // The trip editor has no segment to delete, so the button is hidden there.
+    await page.evaluate(() => globalThis.hOpenEditTrip());
+    await expect(page.locator('#hedit-del')).toBeHidden();
+  });
+
   test('should keep the chat input footer within the visual viewport on mobile (issue #25)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 640 });
     // A stored key makes chatOpen focus the input instead of popping settings.

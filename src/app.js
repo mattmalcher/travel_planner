@@ -71,6 +71,7 @@ export function openEdit(idx) {
   document.getElementById('hedit-title').textContent = 'Edit: ' + (seg.name || seg.operator || 'Segment');
   document.getElementById('hedit-ta').value = JSON.stringify(seg, null, 2);
   document.getElementById('hedit-err').textContent = '';
+  document.getElementById('hedit-del').style.display = '';
   document.getElementById('hedit-modal').classList.add('on');
 }
 
@@ -79,6 +80,7 @@ export function openEditTrip() {
   document.getElementById('hedit-title').textContent = 'Edit: Trip details';
   document.getElementById('hedit-ta').value = JSON.stringify(state.HD.trip, null, 2);
   document.getElementById('hedit-err').textContent = '';
+  document.getElementById('hedit-del').style.display = 'none';
   document.getElementById('hedit-modal').classList.add('on');
 }
 
@@ -97,6 +99,16 @@ export function saveEdit() {
     state.HD.trip = val;
     updateHeader();
   }
+  persist();
+  closeEdit();
+  refreshAfterChange();
+}
+
+export function deleteSegment() {
+  if (!state.editTarget || state.editTarget.type !== 'segment') return;
+  const seg = state.HD.segments[state.editTarget.idx];
+  if (!confirm(`Delete "${seg.name || seg.operator || 'this segment'}"? This cannot be undone.`)) return;
+  state.HD.segments.splice(state.editTarget.idx, 1);
   persist();
   closeEdit();
   refreshAfterChange();
