@@ -39,7 +39,8 @@
       "nights": 2,
       "self_checkin": true,
       "cost": { "amount": 174.48, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" },
-      "notes": "Smart lock check-in. ***Code arrives by SMS on the day.***",
+      "notes": "Smart lock check-in.",
+      "warnings": ["Code arrives by SMS on the day."],
       "date": "2026-09-18"
     },
     {

@@ -53,15 +53,18 @@ function renderEvent(s) {
   </div>`;
 }
 
-// Notes support "***highlighted warning***" spans between plain parts.
+// Alert banners come from the structured warnings[] field; notes are plain
+// prose. The old "***warning***" notes convention is retired (issue #14).
+function renderWarnings(s) {
+  if (!s.warnings || !s.warnings.length) return '';
+  return s.warnings.map(w =>
+    `<div class="hwarn" style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(w)}</div>`
+  ).join('');
+}
+
 function renderNotes(s) {
   if (!s.notes) return '';
-  const parts = s.notes.split('***').map(p => p.trim()).filter(Boolean);
-  if (parts.length <= 1) return `<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${esc(s.notes)}</div>`;
-  return parts.map((p, i) => i % 2 === 1
-    ? `<div style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(p)}</div>`
-    : `<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${esc(p)}</div>`
-  ).join('');
+  return `<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${esc(s.notes)}</div>`;
 }
 
 /** Scroll the timeline to a day's section (date strip chips, issue #21).
@@ -124,7 +127,7 @@ export function renderList() {
               ${costBadge(ci)}${proposalBadge(s)}
             </div>
           </div>
-          ${detail}${renderNotes(s)}
+          ${detail}${renderWarnings(s)}${renderNotes(s)}
         </div>`;
       }).join('')}
     </div>`).join('');
