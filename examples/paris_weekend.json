@@ -1,4 +1,5 @@
 {
+  "schema_version": "2.2.0",
   "trip": {
     "name": "Paris Weekend (example)",
     "travellers": ["Judy Jetson", "George Jetson"],

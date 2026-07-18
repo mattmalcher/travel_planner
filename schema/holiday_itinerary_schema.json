@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "title": "HolidayItinerary",
   "description": "Structured holiday itinerary with transport, accommodation and events (gigs, walks, festivals, etc.)",
   "type": "object",
@@ -9,6 +9,11 @@
     "segments"
   ],
   "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Version of this schema the document was written for (copies the schema's top-level \"version\"). The viewer writes it on download and checks its MAJOR part on load. Optional for now; will become required in a future MAJOR version."
+    },
     "trip": {
       "type": "object",
       "required": [

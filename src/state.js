@@ -12,6 +12,7 @@ export const state = {
   reads: new Set(),    // segment ids the AI has fetched this turn (read-before-edit guard, issue #31)
   busy: false,         // an AI request is in flight
   editTarget: null,    // {type:'segment',idx} or {type:'trip'} for the edit modal
+  pendingUpload: null, // uploaded doc held back by the version/validation guard (issue #15)
 };
 
 /* Schema version this build of the app expects. The placeholder below is

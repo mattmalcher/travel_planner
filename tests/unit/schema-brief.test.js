@@ -7,7 +7,7 @@ const schema = JSON.parse(readFileSync(new URL('../../schema/holiday_itinerary_s
 const brief = condenseSchema(schema);
 
 test('condenseSchema lists the document shape and every definition', () => {
-  assert.match(brief, /^Document: \{trip\*:/);
+  assert.match(brief, /^Document: \{schema_version:str [^,]+, trip\*:/);
   assert.match(brief, /segments\*:\[TransportSegment\|AccommodationSegment\|EventSegment\]/);
   for (const name of Object.keys(schema.definitions))
     assert.match(brief, new RegExp('^' + name + ': \\{', 'm'), name + ' missing');
