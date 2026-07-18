@@ -22,8 +22,8 @@ const xssItinerary = {
       operator: `Eurostar ${IMG}`,
       ref: `REF ${IMG}`,
       date: '2026-09-18',
-      departs: { station: `London ${IMG}`, time: '16:31' },
-      arrives: { station: 'Paris Nord', time: '19:49' },
+      departs: { place: `London ${IMG}`, time: '16:31' },
+      arrives: { place: 'Paris Nord', time: '19:49' },
       duration_min: 138,
       class: 'Standard',
       cost: { amount: 100, currency: 'GBP', status: 'paid', paid_by: 'Judy' }

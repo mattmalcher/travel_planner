@@ -70,7 +70,7 @@ export function renderGantt() {
       travelBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: TRANSPORT_COLOR[s.mode] || '#64748b',
         label: s.operator + (s.service ? ' · ' + s.service : ''),
         times: `${s.departs.time} → ${arr.time} (${fmtMinutes(s.duration_min)})`,
-        sub: `${s.departs.station} → ${s.arrives.station}`, segIdx });
+        sub: `${s.departs.place} → ${s.arrives.place}`, segIdx });
     } else if (s.type === 'event') {
       const evMs = toMs(s.date, s.time || DEFAULT_EVENT_TIME);
       const end = msToIso(evMs + (s.duration_min || DEFAULT_EVENT_DURATION_MIN) * 60000);

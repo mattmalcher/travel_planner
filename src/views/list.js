@@ -7,18 +7,27 @@ import { currentDayChip } from '../lib/now.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
 
-function renderTransport(s) {
+function renderTransport(s, trip) {
   const seatsLine = s.seats && s.seats.length ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${s.seats.map(x => `${esc(x.traveller.split(' ')[0])}: Coach ${esc(x.coach)}${x.deck ? ' (' + esc(x.deck) + ')' : ''}, Seat ${esc(x.seat)}`).join(' · ')}</div>` : '';
+  // ref/class are optional since schema 3.0.0 (issue #11): absent means "no
+  // booking reference"/"no class", so the line simply omits them.
+  const pass = s.pass_id ? ((trip && trip.passes) || []).find(p => p.id === s.pass_id) : null;
+  const meta = [
+    esc(s.operator) + (s.service ? ' · ' + esc(s.service) : ''),
+    s.class ? esc(s.class) : '',
+    s.ref ? `Ref: <code>${esc(s.ref)}</code>` : '',
+    s.pass_id ? `Pass: ${pass ? esc(pass.name) + ' ' : ''}<code>${esc(s.pass_id)}</code>` : '',
+  ].filter(Boolean).join(' · ');
   return `<div style="margin-top:8px;font-size:13px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <span style="font-weight:500">${esc(s.departs.time)}</span>
-      <span style="color:var(--color-text-secondary)">${esc(s.departs.station)}</span>
+      <span style="color:var(--color-text-secondary)">${esc(s.departs.place)}</span>
       <i class="ti ti-arrow-right" style="color:var(--color-text-secondary);font-size:12px" aria-hidden="true"></i>
-      <span style="color:var(--color-text-secondary)">${esc(s.arrives.station)}</span>
+      <span style="color:var(--color-text-secondary)">${esc(s.arrives.place)}</span>
       <span style="font-weight:500">${esc(s.arrives.time)}</span>
       <span style="color:var(--color-text-secondary);font-size:12px">${fmtMinutes(s.duration_min)}</span>
     </div>
-    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${esc(s.operator)}${s.service ? ' · ' + esc(s.service) : ''} · ${esc(s.class)} · Ref: <code>${esc(s.ref)}</code></div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${meta}</div>
     ${seatsLine}
   </div>`;
 }
@@ -114,9 +123,9 @@ export function renderList() {
       ${segs.map(s => {
         const ci = costInfo(s, HD.trip.currency_primary), ic = segIcon(s);
         const title = esc(s.name || s.operator || 'Segment');
-        const sub = s.type === 'transport' ? `${esc(s.departs.station)} → ${esc(s.arrives.station)}` : s.type === 'accommodation' ? esc(s.address) : (s.subtype ? esc(s.subtype.charAt(0).toUpperCase() + s.subtype.slice(1)) : '');
+        const sub = s.type === 'transport' ? `${esc(s.departs.place)} → ${esc(s.arrives.place)}` : s.type === 'accommodation' ? esc(s.address) : (s.subtype ? esc(s.subtype.charAt(0).toUpperCase() + s.subtype.slice(1)) : '');
         const costStr = ci && ci.t === 'amt' ? esc(fmtCurrency(ci.tot, ci.cur)) : '';
-        const detail = s.type === 'transport' ? renderTransport(s) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s, HD.trip.currency_primary);
+        const detail = s.type === 'transport' ? renderTransport(s, HD.trip) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s, HD.trip.currency_primary);
         return `<div class="hseg" data-seg="${HD.segments.indexOf(s)}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0">

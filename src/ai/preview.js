@@ -9,7 +9,7 @@ import { chatPush, validateSafe } from './chat.js';
 function opLabel(seg) {
   if (!seg) return 'segment';
   const id = seg.id ? ' (' + seg.id + ')' : '';
-  if (seg.type === 'transport') return 'transport' + id + ': ' + (seg.operator || '') + ' ' + ((seg.departs && seg.departs.station) || '?') + ' → ' + ((seg.arrives && seg.arrives.station) || '?');
+  if (seg.type === 'transport') return 'transport' + id + ': ' + (seg.operator || '') + ' ' + ((seg.departs && seg.departs.place) || '?') + ' → ' + ((seg.arrives && seg.arrives.place) || '?');
   if (seg.type === 'accommodation') return 'accommodation' + id + ': ' + (seg.name || '');
   if (seg.type === 'event') return 'event' + id + ': ' + (seg.name || '');
   return 'segment' + id;
