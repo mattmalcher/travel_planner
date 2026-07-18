@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { segDate, segTime, sortSegments } from '../../src/lib/sort.js';
 
 const train = { id: 't', type: 'transport', date: '2026-09-18', departs: { place: 'A', time: '16:31' }, arrives: { place: 'B', time: '19:49' } };
-const stay = { id: 'a', type: 'accommodation', checkin: { date: '2026-09-18', from: '13:00' }, checkout: { date: '2026-09-19', by: '11:00' }, date: '2026-09-18' };
+const stay = { id: 'a', type: 'accommodation', checkin: { date: '2026-09-18', from: '13:00' }, checkout: { date: '2026-09-19', by: '11:00' } };
 const gig = { id: 'e', type: 'event', date: '2026-09-18', time: '20:30' };
 
 test('segDate uses check-in date for accommodation, date otherwise', () => {
