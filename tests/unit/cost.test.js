@@ -1,11 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { costInfo, budgetSummary, currencySymbol } from '../../src/lib/cost.js';
+import { costInfo, budgetSummary, fmtCurrency } from '../../src/lib/cost.js';
 
-test('currencySymbol maps EUR to € and everything else to £', () => {
-  assert.equal(currencySymbol('EUR'), '€');
-  assert.equal(currencySymbol('GBP'), '£');
-  assert.equal(currencySymbol(undefined), '£');
+// Compare against Intl's own output so tests don't assume the host locale.
+const intl = (n, cur) => new Intl.NumberFormat(undefined, { style: 'currency', currency: cur }).format(n);
+
+test('fmtCurrency formats any ISO-4217 code via Intl, not just GBP/EUR', () => {
+  assert.equal(fmtCurrency(156, 'GBP'), intl(156, 'GBP'));
+  assert.equal(fmtCurrency(40, 'EUR'), intl(40, 'EUR'));
+  assert.equal(fmtCurrency(99.5, 'CHF'), intl(99.5, 'CHF'));
+  assert.equal(fmtCurrency(1234.56, 'JPY'), intl(1234.56, 'JPY'));
+});
+
+test('fmtCurrency survives junk currency codes and amounts', () => {
+  assert.equal(fmtCurrency(12, 'XYZ'), intl(12, 'XYZ')); // valid-shaped but unassigned: Intl accepts it
+  assert.equal(fmtCurrency(12, 'nope'), 'nope 12.00');
+  assert.equal(fmtCurrency('7', 'nope'), 'nope 7.00');
+  assert.equal(fmtCurrency(3.5, undefined), intl(3.5, 'GBP'));
 });
 
 test('costInfo returns null when a segment has no cost', () => {
@@ -21,11 +32,10 @@ test('costInfo reads amount, falls back to total, and defaults currency to the t
   const byAmount = costInfo({ cost: { amount: 87.24, status: 'paid' } }, 'GBP');
   assert.equal(byAmount.tot, 87.24);
   assert.equal(byAmount.cur, 'GBP');
-  assert.equal(byAmount.sym, '£');
   // Issue #10: segments costed with "total" instead of "amount" must not read as 0.
   const byTotal = costInfo({ cost: { total: 156, status: 'paid', currency: 'EUR' } }, 'GBP');
   assert.equal(byTotal.tot, 156);
-  assert.equal(byTotal.sym, '€');
+  assert.equal(byTotal.cur, 'EUR');
 });
 
 test('costInfo derives paid/pending/partial status from payments', () => {
@@ -55,12 +65,33 @@ const segments = [
   { name: 'Uncosted' },
 ];
 
-test('budgetSummary buckets paid/pending by currency', () => {
+test('budgetSummary groups paid/pending by currency, primary first', () => {
   const b = budgetSummary(segments, 'GBP');
-  assert.equal(b.paidGbp, 156 + 87.24);
-  assert.equal(b.paidEur, 30);
-  assert.equal(b.pendingGbp, 0);
-  assert.equal(b.pendingEur, 40 + 70);
+  assert.deepEqual(b.totals, [
+    { cur: 'GBP', paid: 156 + 87.24, pending: 0 },
+    { cur: 'EUR', paid: 30, pending: 40 + 70 },
+  ]);
+});
+
+test('budgetSummary keeps a third currency in its own bucket (issue #16)', () => {
+  const three = [...segments,
+    { name: 'Cable car', cost: { amount: 62, currency: 'CHF', status: 'paid' } },
+    { name: 'Fondue night', cost: { amount: 55, currency: 'CHF', status: 'pending' } },
+  ];
+  const b = budgetSummary(three, 'GBP');
+  assert.deepEqual(b.totals.map(t => t.cur), ['GBP', 'EUR', 'CHF']);
+  assert.deepEqual(b.totals[2], { cur: 'CHF', paid: 62, pending: 55 });
+  // EUR totals are unchanged — nothing foreign leaks into the € bucket.
+  assert.deepEqual(b.totals[1], { cur: 'EUR', paid: 30, pending: 110 });
+  assert.equal(b.upcoming.find(p => p.n === 'Fondue night').cur, 'CHF');
+});
+
+test('budgetSummary always lists the primary currency first, even when unused', () => {
+  const b = budgetSummary([{ name: 'Museum', cost: { amount: 15, currency: 'EUR', status: 'paid' } }], 'GBP');
+  assert.deepEqual(b.totals, [
+    { cur: 'GBP', paid: 0, pending: 0 },
+    { cur: 'EUR', paid: 15, pending: 0 },
+  ]);
 });
 
 test('budgetSummary sorts upcoming payments by due date, undated last', () => {
@@ -75,4 +106,7 @@ test('budgetSummary emits one row per costed segment and skips included/uncosted
   // not_booked rows have no amount; free rows are zero.
   assert.equal(b.rows.find(r => r.st === 'not_booked').amt, null);
   assert.equal(b.rows.find(r => r.st === 'free').amt, 0);
+  // Rows carry the resolved currency for display.
+  assert.equal(b.rows.find(r => r.s.name === 'Festival').cur, 'EUR');
+  assert.equal(b.rows.find(r => r.s.name === 'Train').cur, 'GBP');
 });

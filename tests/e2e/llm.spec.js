@@ -126,7 +126,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     // The system prompt carries the one-line digest, not the raw itinerary
     // JSON (issue #31).
     const system = requests[0].messages[0].content;
-    expect(system).toContain("seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid £156");
+    expect(system).toContain("seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid GBP 156");
     expect(system).not.toContain('"departs"');
   });
 

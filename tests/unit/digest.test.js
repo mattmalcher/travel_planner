@@ -10,9 +10,9 @@ test('digest of the paris_weekend fixture: trip header + one line per segment', 
   const lines = d.split('\n');
   assert.equal(lines.length, 1 + paris.segments.length);
   assert.equal(lines[0], 'trip: Paris Weekend (example) | Judy Jetson, George Jetson | 2026-09-18 → 2026-09-20 | GBP');
-  assert.equal(lines[1], "seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid £156");
-  assert.equal(lines[2], 'seg-2 | accommodation | 2026-09-18, 2 nights | Cosy Studio near Sacré-Cœur ref XY9876Z | paid £174.48 | +notes');
-  assert.equal(lines[3], 'seg-3 | event/gig | 2026-09-19 20:30 | Jazz at Le Petit Exemple @ Le Petit Exemple, Montmartre | pending €40 due 2026-09-16');
+  assert.equal(lines[1], "seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid GBP 156");
+  assert.equal(lines[2], 'seg-2 | accommodation | 2026-09-18, 2 nights | Cosy Studio near Sacré-Cœur ref XY9876Z | paid GBP 174.48 | +notes');
+  assert.equal(lines[3], 'seg-3 | event/gig | 2026-09-19 20:30 | Jazz at Le Petit Exemple @ Le Petit Exemple, Montmartre | pending EUR 40 due 2026-09-16');
 });
 
 test('digest is a fraction of the raw itinerary size', () => {
@@ -34,7 +34,7 @@ test('flags surface detail the line omits: proposal, notes, warnings', () => {
     cost: { status: 'free' },
   };
   assert.equal(segmentLine(s, 'GBP'),
-    'seg-9 | event/walk | 2026-09-19 | Canal loop | free £0 | proposal:suggested | +notes | +warnings(2)');
+    'seg-9 | event/walk | 2026-09-19 | Canal loop | free GBP 0 | proposal:suggested | +notes | +warnings(2)');
 });
 
 test('costLine covers not_booked, included_in and missing cost', () => {
