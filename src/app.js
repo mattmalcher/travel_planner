@@ -89,10 +89,34 @@ export function closeEdit() {
   state.editTarget = null;
 }
 
+/** One-line summary of schema errors for the modal's error slot. */
+function editErrorText(errors) {
+  const shown = errors.slice(0, 3).map(e => `${e.path || '/'} ${e.message || ''}`.trim()).join('; ');
+  const more = errors.length > 3 ? ` (+${errors.length - 3} more)` : '';
+  return 'Schema: ' + shown + more;
+}
+
+/* Validate the edited value the same way the AI path does (issue #47).
+   Degrades gracefully — {ok:true} — when validate.js failed to load ajv,
+   matching validateSafe in ai/chat.js. For the trip target the whole
+   document is validated, but only /trip errors block the save: a
+   pre-existing invalid segment elsewhere shouldn't lock trip edits. */
+function validateEdit(target, val) {
+  if (target.type === 'segment')
+    return window.hValidateSegment ? window.hValidateSegment(val) : { ok: true, errors: [] };
+  if (!window.hValidate) return { ok: true, errors: [] };
+  const v = window.hValidate({ ...state.HD, trip: val });
+  const tripErrors = v.errors.filter(e => (e.path || '').startsWith('/trip'));
+  return { ok: tripErrors.length === 0, errors: tripErrors };
+}
+
 export function saveEdit() {
   let val;
+  const errEl = document.getElementById('hedit-err');
   try { val = JSON.parse(document.getElementById('hedit-ta').value); }
-  catch (e) { document.getElementById('hedit-err').textContent = 'Invalid JSON: ' + e.message; return; }
+  catch (e) { errEl.textContent = 'Invalid JSON: ' + e.message; return; }
+  const v = validateEdit(state.editTarget, val);
+  if (!v.ok) { errEl.textContent = editErrorText(v.errors); return; }
   if (state.editTarget.type === 'segment') {
     state.HD.segments[state.editTarget.idx] = val;
   } else {
