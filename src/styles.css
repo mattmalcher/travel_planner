@@ -81,6 +81,15 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 #hchat-ft{display:flex;gap:8px;align-items:flex-end;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom));border-top:.5px solid var(--color-border-tertiary);flex-shrink:0}
 /* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25). */
 #hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;min-height:38px;max-height:120px;outline:none}
+/* On small screens the open chat is genuinely fullscreen and the page behind
+   it is taken out of play, so no touch gesture can scroll the itinerary
+   (issue #48). visibility rather than display so showApp()'s inline
+   style.display toggling and Leaflet's measured dimensions are untouched. */
+@media (max-width:600px){
+  #hchat.on{width:100vw;border-left:none}
+  body.hchat-open{overflow:hidden}
+  body.hchat-open #happ,body.hchat-open #hupl{visibility:hidden}
+}
 #hset-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200;align-items:center;justify-content:center;padding:1rem}
 #hset-modal.on{display:flex}
 #hset-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:440px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.7rem}
