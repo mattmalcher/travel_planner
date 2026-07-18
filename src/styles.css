@@ -78,6 +78,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 #hchat-preview.on{display:block}
 .hpv-op{font-size:12px;padding:1px 0;font-family:ui-monospace,monospace}
 .hpv-err{background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
+.hpv-warn{background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
 #hchat-ft{display:flex;gap:8px;align-items:flex-end;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom));border-top:.5px solid var(--color-border-tertiary);flex-shrink:0}
 /* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25). */
 #hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;min-height:38px;max-height:120px;outline:none}
