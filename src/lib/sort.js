@@ -1,5 +1,6 @@
 // Shared chronological ordering of segments (issue #18): the timeline and
 // map views must agree on segment order, so both use sortSegments.
+import { DEFAULT_EVENT_TIME } from './dates.js';
 
 /** The date a segment sorts under (accommodation sorts by its check-in date). */
 export function segDate(s) {
@@ -9,12 +10,14 @@ export function segDate(s) {
 /** The time-of-day key a segment sorts by within its date.
     Accommodation is pinned to end-of-day so a stay always sorts after the
     transport/events that lead to it, regardless of its check-in window.
-    NOTE: the '12:00' event fallback is a sort key only — the gantt renders
-    events with DEFAULT_EVENT_TIME from lib/dates.js. */
+    All-day events sort to the start of their day; untimed events fall back
+    to DEFAULT_EVENT_TIME, the same default the gantt renders them with
+    (issue #13). */
 export function segTime(s) {
   return s.type === 'transport' ? s.departs.time
     : s.type === 'accommodation' ? '23:59'
-    : (s.time || '12:00');
+    : s.all_day ? '00:00'
+    : (s.time || DEFAULT_EVENT_TIME);
 }
 
 export function compareSegments(a, b) {

@@ -276,6 +276,63 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(segs.nth(1)).toContainText('Coach B');
   });
 
+  test('should span multi-day festivals and banner all-day events on the gantt (issue #13)', async ({ page }) => {
+    const spanTrip = {
+      trip: {
+        name: "Festival Weekend",
+        travellers: ["Judy Jetson"],
+        start: "2026-08-01",
+        end: "2026-08-03",
+        currency_primary: "GBP"
+      },
+      segments: [
+        {
+          id: "fest-1",
+          type: "event",
+          subtype: "festival",
+          name: "Orbit Fest",
+          date: "2026-08-01",
+          end_date: "2026-08-02",
+          cost: { amount: 120, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
+        },
+        {
+          id: "wander-1",
+          type: "event",
+          subtype: "activity",
+          name: "Old Town Wander",
+          date: "2026-08-03",
+          all_day: true,
+          cost: { status: "free" }
+        }
+      ]
+    };
+    await page.setInputFiles('#hfile', {
+      name: 'festival.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(spanTrip))
+    });
+
+    // Timeline: the festival announces its last day; the wander is all-day.
+    const segs = page.locator('#hvlist .hseg');
+    await expect(segs.nth(0)).toContainText('Until Sun 2 August');
+    await expect(segs.nth(1)).toContainText('All day');
+
+    await page.click('.htab[data-v="gantt"]');
+    const blocks = page.locator('#hvgantt .hgt-blk');
+    await expect(blocks).toHaveCount(2);
+
+    // The festival spans both its days (~2879 min at 0.25 px/min), not a
+    // fake 2-hour block on day one.
+    const festH = await blocks.nth(0).evaluate(el => el.getBoundingClientRect().height);
+    expect(festH).toBeGreaterThan(2800 * 0.25);
+
+    // The all-day wander covers its whole day and labels itself as such.
+    const wanderH = await blocks.nth(1).evaluate(el => el.getBoundingClientRect().height);
+    expect(wanderH).toBeGreaterThan(1400 * 0.25);
+    await blocks.nth(1).hover();
+    await expect(page.locator('.hgt-pop')).toContainText('All day');
+  });
+
   test('should render timeline blocks at accurate heights with text in a popover', async ({ page }) => {
     // A 15-minute event would previously be inflated to the old 28px minimum,
     // pushing its end position past the true time. It should now render short.
