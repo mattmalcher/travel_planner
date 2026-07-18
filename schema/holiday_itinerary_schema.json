@@ -639,8 +639,7 @@
         "guests",
         "nights",
         "self_checkin",
-        "cost",
-        "date"
+        "cost"
       ],
       "properties": {
         "id": {
@@ -710,11 +709,6 @@
         },
         "cost": {
           "$ref": "#/definitions/Cost"
-        },
-        "date": {
-          "type": "string",
-          "format": "date",
-          "description": "Convenience alias for checkin.date — must match. Enables uniform date-based sorting across all segment types."
         }
       },
       "additionalProperties": false

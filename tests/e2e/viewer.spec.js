@@ -51,8 +51,7 @@ const genericItinerary = {
         status: "paid",
         paid_by: "Judy Jetson"
       },
-      notes: "Smart checkin",
-      date: "2026-09-18"
+      notes: "Smart checkin"
     }
   ]
 };
@@ -371,8 +370,7 @@ test.describe('Holiday Itinerary Viewer', () => {
             currency: "EUR",
             status: "paid",
             paid_by: "Alice"
-          },
-          date: "2026-09-04"
+          }
         }
       ]
     };
