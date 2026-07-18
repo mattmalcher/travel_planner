@@ -2,6 +2,7 @@
 // while the draft fails schema validation, and swaps the draft in on apply.
 import { state, persist } from '../state.js';
 import { esc } from '../lib/escape.js';
+import { lintItinerary } from '../lib/lint.js';
 import { updateHeader, refreshAfterChange, showApp } from '../render.js';
 import { chatPush, validateSafe } from './chat.js';
 
@@ -30,12 +31,15 @@ export function showPreview() {
     return `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px;color:var(--color-text-secondary)">details ${i + 1}</summary><pre style="font-size:10px;overflow-x:auto;margin:4px 0">${esc(body)}</pre></details>`;
   }).join('');
   const err = v.ok ? '' : `<div class="hpv-err"><strong>Cannot apply — schema errors remain:</strong>\n${esc(JSON.stringify(v.errors, null, 2))}</div>`;
+  // Referential-integrity lint (issue #17): advisory only, never blocks Apply.
+  const lint = lintItinerary(state.draft);
+  const lintHtml = lint.length ? `<div class="hpv-warn"><strong>Warnings:</strong>\n${lint.map(w => '• ' + esc(w)).join('\n')}</div>` : '';
   const btns = `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.6rem">
       <button onclick="hDiscardDraft()" style="font-size:12px">Discard</button>
       <button onclick="hApplyDraft()" style="font-size:12px;font-weight:500" ${v.ok ? '' : 'disabled'}>Apply changes</button>
     </div>`;
   const pv = document.getElementById('hchat-preview');
-  pv.innerHTML = `<div style="font-weight:500;margin-bottom:.35rem">Proposed changes</div>${ops}${details}${err}${btns}`;
+  pv.innerHTML = `<div style="font-weight:500;margin-bottom:.35rem">Proposed changes</div>${ops}${details}${err}${lintHtml}${btns}`;
   pv.classList.add('on');
 }
 
