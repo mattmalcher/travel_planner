@@ -1,6 +1,6 @@
 // Timeline (list) view: day-grouped cards with per-type detail rows.
 import { state } from '../state.js';
-import { costInfo } from '../lib/cost.js';
+import { costInfo, fmtCurrency } from '../lib/cost.js';
 import { sortSegments, segDate } from '../lib/sort.js';
 import { fmtDayLong, fmtDayShort, fmtMinutes } from '../lib/dates.js';
 import { currentDayChip } from '../lib/now.js';
@@ -34,12 +34,14 @@ function renderAccom(s) {
   </div>`;
 }
 
-function renderEvent(s) {
+function renderEvent(s, primaryCurrency) {
   let pr = '';
   if (s.pricing) {
     pr = Object.entries(s.pricing).map(([k, v]) => {
       const l = esc(k.replace(/_/g, ' '));
-      const val = v.amount !== undefined ? `€${esc(v.amount)}` : (v.from !== undefined ? `€${esc(v.from)}–€${esc(v.to)}` : '');
+      // Each pricing tier can carry its own currency (issue #16).
+      const cur = v.currency || primaryCurrency;
+      const val = v.amount !== undefined ? esc(fmtCurrency(v.amount, cur)) : (v.from !== undefined ? `${esc(fmtCurrency(v.from, cur))}–${esc(fmtCurrency(v.to, cur))}` : '');
       return `${l}: ${val}`;
     }).join(' · ');
   }
@@ -110,8 +112,8 @@ export function renderList() {
         const ci = costInfo(s, HD.trip.currency_primary), ic = segIcon(s);
         const title = esc(s.name || s.operator || 'Segment');
         const sub = s.type === 'transport' ? `${esc(s.departs.station)} → ${esc(s.arrives.station)}` : s.type === 'accommodation' ? esc(s.address) : (s.subtype ? esc(s.subtype.charAt(0).toUpperCase() + s.subtype.slice(1)) : '');
-        const costStr = ci && ci.t === 'amt' ? `${ci.sym}${ci.tot.toFixed(2)}` : '';
-        const detail = s.type === 'transport' ? renderTransport(s) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s);
+        const costStr = ci && ci.t === 'amt' ? esc(fmtCurrency(ci.tot, ci.cur)) : '';
+        const detail = s.type === 'transport' ? renderTransport(s) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s, HD.trip.currency_primary);
         return `<div class="hseg" data-seg="${HD.segments.indexOf(s)}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0">

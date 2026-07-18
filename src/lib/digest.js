@@ -16,7 +16,7 @@ export function costLine(s, primaryCurrency) {
   if (!c) return null;
   if (c.t === 'inc') return 'cost included in ' + s.cost.included_in;
   if (c.t === 'nb') return 'not_booked';
-  return c.st + ' ' + c.sym + money(c.tot) + (c.due ? ' due ' + c.due : '');
+  return c.st + ' ' + c.cur + ' ' + money(c.tot) + (c.due ? ' due ' + c.due : '');
 }
 
 function when(s) {
