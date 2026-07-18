@@ -437,10 +437,24 @@
           "type": "string",
           "format": "date"
         },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Last day of a multi-day event (festival, multi-day trek) — omit for single-day events"
+        },
         "time": {
           "type": "string",
           "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
           "description": "Start time HH:MM (24 h)"
+        },
+        "end_time": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "description": "End time HH:MM on end_date (or on date for single-day events) — alternative to duration_min"
+        },
+        "all_day": {
+          "type": "boolean",
+          "description": "True for genuinely all-day activities (old-town wander, day trip): renders as a full-day banner instead of a timed block. Do not combine with time/end_time/duration_min."
         },
         "duration_min": {
           "type": "integer",

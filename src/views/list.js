@@ -57,7 +57,9 @@ function renderEvent(s, primaryCurrency) {
   const url = safeUrl(s.url), ticketsUrl = safeUrl(s.tickets_url);
   return `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;gap:8px">
     ${s.venue ? `<span><i class="ti ti-map-pin" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.venue)}</span>` : ''}
-    ${s.time ? `<span><i class="ti ti-clock" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.time)}</span>` : ''}
+    ${s.all_day ? `<span><i class="ti ti-clock" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> All day</span>` : ''}
+    ${s.time ? `<span><i class="ti ti-clock" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.time)}${s.end_time ? '–' + esc(s.end_time) : ''}</span>` : ''}
+    ${s.end_date ? `<span><i class="ti ti-calendar-due" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Until ${fmtDayLong(s.end_date)}</span>` : ''}
     ${pr ? `<span>${pr}</span>` : ''}
     ${url ? `<span><a href="${esc(url)}" style="color:var(--color-text-info)">Website <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a></span>` : ''}
     ${ticketsUrl ? `<span><a href="${esc(ticketsUrl)}" style="color:var(--color-text-info)">Tickets <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a></span>` : ''}

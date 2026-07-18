@@ -24,7 +24,11 @@ function when(s) {
     return `${s.date} ${s.departs.time} ${s.departs.place} → ${s.arrives.time} ${s.arrives.place}`;
   if (s.type === 'accommodation')
     return `${s.checkin.date}, ${s.nights} night${s.nights === 1 ? '' : 's'}`;
-  return s.date + (s.time ? ' ' + s.time : '');
+  let w = s.date + (s.time ? ' ' + s.time : '');
+  if (s.end_date || s.end_time)
+    w += ' → ' + [s.end_date, s.end_time].filter(Boolean).join(' ');
+  if (s.all_day) w += ' all-day';
+  return w;
 }
 
 function who(s) {

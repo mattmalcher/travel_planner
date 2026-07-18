@@ -35,6 +35,28 @@ export function toMs(dateStr, timeStr) {
   return new Date(dateStr + 'T' + (timeStr || '00:00') + ':00').getTime();
 }
 
+/**
+ * The {startMs, endMs} span an event occupies (issue #13), resolving
+ * end_date / end_time / all_day in ONE place so sorting, the proportional
+ * gantt and the compact gantt cannot drift apart:
+ * - all_day (or a multi-day event with no start time) spans 00:00 on date
+ *   to 23:59 on end_date (or date);
+ * - a timed event starts at time (or DEFAULT_EVENT_TIME) and ends at
+ *   end_time on its last day, at 23:59 of end_date when only end_date is
+ *   given, else duration_min (or DEFAULT_EVENT_DURATION_MIN) after start.
+ * The end is clamped to at least one minute after the start.
+ */
+export function eventInterval(s) {
+  const endDate = s.end_date || s.date;
+  if (s.all_day || (!s.time && s.end_date))
+    return { startMs: toMs(s.date, '00:00'), endMs: toMs(endDate, '23:59') };
+  const startMs = toMs(s.date, s.time || DEFAULT_EVENT_TIME);
+  const endMs = s.end_time ? toMs(endDate, s.end_time)
+    : s.end_date ? toMs(endDate, '23:59')
+    : startMs + (s.duration_min || DEFAULT_EVENT_DURATION_MIN) * 60000;
+  return { startMs, endMs: Math.max(endMs, startMs + 60000) };
+}
+
 /** Inverse of toMs: ms timestamp → {date:"YYYY-MM-DD", time:"HH:MM"} in local time. */
 export function msToIso(ms) {
   const d = new Date(ms);
