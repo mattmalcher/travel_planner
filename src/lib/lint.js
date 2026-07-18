@@ -45,10 +45,10 @@ export function lintItinerary(doc) {
       checkName(cost.paid_by, `${label}: cost.paid_by`);
       if (Array.isArray(cost.payments)) {
         cost.payments.forEach((p, j) => checkName(p && p.paid_by, `${label}: payments[${j}].paid_by`));
-        if (typeof cost.total === 'number' && cost.payments.length) {
+        if (typeof cost.amount === 'number' && cost.payments.length) {
           const sum = cost.payments.reduce((acc, p) => acc + ((p && typeof p.amount === 'number') ? p.amount : 0), 0);
-          if (Math.abs(sum - cost.total) > SUM_TOLERANCE)
-            warnings.push(`${label}: payments sum to ${sum.toFixed(2)} but cost.total is ${cost.total.toFixed(2)}`);
+          if (Math.abs(sum - cost.amount) > SUM_TOLERANCE)
+            warnings.push(`${label}: payments sum to ${sum.toFixed(2)} but cost.amount is ${cost.amount.toFixed(2)}`);
         }
       }
     }

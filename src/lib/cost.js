@@ -1,6 +1,8 @@
 // Cost/budget maths (issues #10, #16). Pure functions over segment.cost —
 // keep every interpretation of the cost object in this module so the list
-// and budget views cannot drift apart.
+// and budget views cannot drift apart. Since schema 3.0.0 the one amount
+// field is `amount` (the old `total` is gone); when payments[] is present
+// an explicit `amount` wins, otherwise the payments are summed.
 
 const fmtCache = {};
 
@@ -29,12 +31,12 @@ export function costInfo(s, primaryCurrency) {
   if (c.status === 'not_booked') return { t: 'nb' };
   const cur = c.currency || primaryCurrency;
   if (c.payments) {
-    const tot = c.total || c.payments.reduce((a, p) => a + p.amount, 0);
+    const tot = c.amount ?? c.payments.reduce((a, p) => a + p.amount, 0);
     const pd = c.payments.filter(p => p.status === 'paid').reduce((a, p) => a + p.amount, 0);
     const pn = c.payments.filter(p => p.status === 'pending').reduce((a, p) => a + p.amount, 0);
     return { t: 'amt', tot, cur, st: pn > 0 ? (pd > 0 ? 'partial' : 'pending') : 'paid' };
   }
-  return { t: 'amt', tot: c.amount || c.total || 0, cur, st: c.status, due: c.due };
+  return { t: 'amt', tot: c.amount || 0, cur, st: c.status, due: c.due };
 }
 
 /**
@@ -61,7 +63,7 @@ export function budgetSummary(segments, primaryCurrency) {
     if (c.status === 'free') { rows.push({ s, st: 'free', amt: 0, cur }); continue; }
     const b = bucket(cur);
     if (c.payments) {
-      const tot = c.total || c.payments.reduce((a, p) => a + p.amount, 0);
+      const tot = c.amount ?? c.payments.reduce((a, p) => a + p.amount, 0);
       for (const p of c.payments) {
         if (p.status === 'paid') b.paid += p.amount;
         else { b.pending += p.amount; upcoming.push({ n: s.name || s.operator, amt: p.amount, cur, due: p.due }); }
@@ -70,7 +72,7 @@ export function budgetSummary(segments, primaryCurrency) {
       const pn = c.payments.filter(p => p.status === 'pending').reduce((a, p) => a + p.amount, 0);
       rows.push({ s, st: pn > 0 ? (pd > 0 ? 'partial' : 'pending') : 'paid', amt: tot, cur });
     } else {
-      const amt = c.amount || c.total || 0;
+      const amt = c.amount || 0;
       if (c.status === 'paid') b.paid += amt;
       else if (c.status === 'pending') { b.pending += amt; upcoming.push({ n: s.name || s.operator, amt, cur, due: c.due }); }
       rows.push({ s, st: c.status, amt, cur });
