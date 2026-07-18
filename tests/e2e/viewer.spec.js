@@ -513,27 +513,37 @@ test.describe('Holiday Itinerary Viewer', () => {
       globalThis.getComputedStyle(globalThis.document.getElementById('hchat-input')).fontSize));
     expect(inputFont).toBeGreaterThanOrEqual(16);
 
-    // A touch drag on the panel background can't scroll the itinerary behind
-    // it: the message list contains its own overscroll, and any drag outside a
-    // scroll region is cancelled so it never reaches the page.
-    const lock = await page.evaluate(() => {
-      const panel = globalThis.document.getElementById('hchat');
-      const T = globalThis.Touch, TE = globalThis.TouchEvent;
-      const touch = new T({ identifier: 1, target: panel, clientX: 40, clientY: 30 });
-      const ev = new TE('touchmove', { cancelable: true, bubbles: true, touches: [touch] });
-      panel.dispatchEvent(ev);
+    // On small screens the open panel is fullscreen and the page behind it is
+    // out of play (issue #48): body scroll locked, background hidden, panel
+    // spanning the viewport — so there is nothing behind the panel to scroll.
+    const open = await page.evaluate(() => {
+      const doc = globalThis.document;
       return {
-        prevented: ev.defaultPrevented,
-        overscroll: globalThis.getComputedStyle(
-          globalThis.document.getElementById('hchat-msgs')).overscrollBehaviorY,
+        bodyClass: doc.body.classList.contains('hchat-open'),
+        bodyOverflow: globalThis.getComputedStyle(doc.body).overflow,
+        uplVisibility: globalThis.getComputedStyle(doc.getElementById('hupl')).visibility,
+        panelWidth: doc.getElementById('hchat').getBoundingClientRect().width,
+        msgsOverscroll: globalThis.getComputedStyle(doc.getElementById('hchat-msgs')).overscrollBehaviorY,
       };
     });
-    expect(lock.prevented).toBe(true);
-    expect(lock.overscroll).toBe('contain');
+    expect(open.bodyClass).toBe(true);
+    expect(open.bodyOverflow).toBe('hidden');
+    expect(open.uplVisibility).toBe('hidden');
+    expect(open.panelWidth).toBe(390); // full viewport width
+    expect(open.msgsOverscroll).toBe('contain');
 
-    // Closing releases the inline sizing back to the CSS dvh/vh rules.
+    // Closing releases the body lock and the inline sizing back to CSS rules.
     await page.evaluate(() => globalThis.hChatClose());
-    const cleared = await page.evaluate(() => globalThis.document.getElementById('hchat').style.height);
-    expect(cleared).toBe('');
+    const closed = await page.evaluate(() => {
+      const doc = globalThis.document;
+      return {
+        bodyClass: doc.body.classList.contains('hchat-open'),
+        uplVisibility: globalThis.getComputedStyle(doc.getElementById('hupl')).visibility,
+        height: doc.getElementById('hchat').style.height,
+      };
+    });
+    expect(closed.bodyClass).toBe(false);
+    expect(closed.uplVisibility).toBe('visible');
+    expect(closed.height).toBe('');
   });
 });
