@@ -25,6 +25,7 @@ Rules:
 - Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters; default to the trip's currency_primary (GBP for a new trip).
 - For accommodation, "date" must equal checkin.date, and set "nights" consistently.
 - Provide duration_min where the schema requires it (transport).
+- Costs carry one "amount" (plus optional payments[] instalments that sum to it); a cost with status paid/pending needs an amount or payments.
 - Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed. If a choice between valid options genuinely depends on user preference, ask in your text reply before calling tools.
 - After your tool calls, reply with a short plain-text summary of what you changed.
 

@@ -26,7 +26,7 @@ const xssItinerary = {
       arrives: { station: 'Paris Nord', time: '19:49' },
       duration_min: 138,
       class: 'Standard',
-      cost: { total: 100, currency: 'GBP', status: 'paid', paid_by: 'Judy' }
+      cost: { amount: 100, currency: 'GBP', status: 'paid', paid_by: 'Judy' }
     },
     {
       id: 'seg-2',

@@ -9,7 +9,7 @@ const doc = (segments, travellers = ['Judy Jetson', 'George Jetson']) => ({
 
 const seg = (over = {}) => ({
   id: 'seg-1', type: 'event', subtype: 'gig', name: 'Show', date: '2026-09-19',
-  cost: { total: 40, currency: 'GBP', status: 'paid', paid_by: 'Judy Jetson' },
+  cost: { amount: 40, currency: 'GBP', status: 'paid', paid_by: 'Judy Jetson' },
   ...over,
 });
 
@@ -45,7 +45,7 @@ test('flags dangling and self-referencing cost.included_in', () => {
 
 test('flags names that are not in trip.travellers', () => {
   const w = lintItinerary(doc([seg({
-    cost: { total: 40, status: 'paid', paid_by: 'Jody Jetson', payments: [{ amount: 40, status: 'paid', paid_by: 'Geo Jetson' }] },
+    cost: { amount: 40, status: 'paid', paid_by: 'Jody Jetson', payments: [{ amount: 40, status: 'paid', paid_by: 'Geo Jetson' }] },
     seats: [{ traveller: 'Elroy Jetson', coach: 1, seat: 1 }],
     proposal: { status: 'suggested', proposed_by: 'Rosie' },
   })]));
@@ -60,18 +60,18 @@ test('skips name checks when the trip lists no travellers', () => {
   assert.deepEqual(lintItinerary(doc([seg()], [])), []);
 });
 
-test('flags payments that do not sum to the declared total', () => {
-  const bad = seg({ cost: { total: 100, status: 'pending', payments: [{ amount: 40, status: 'paid' }, { amount: 50, status: 'pending' }] } });
+test('flags payments that do not sum to the declared amount', () => {
+  const bad = seg({ cost: { amount: 100, status: 'pending', payments: [{ amount: 40, status: 'paid' }, { amount: 50, status: 'pending' }] } });
   const [w] = lintItinerary(doc([bad]));
-  assert.match(w, /payments sum to 90\.00 but cost\.total is 100\.00/);
+  assert.match(w, /payments sum to 90\.00 but cost\.amount is 100\.00/);
   // Exact (within rounding tolerance) sums pass — 0.1 + 0.2 style float noise included.
-  const ok = seg({ cost: { total: 0.3, status: 'pending', payments: [{ amount: 0.1, status: 'paid' }, { amount: 0.2, status: 'pending' }] } });
+  const ok = seg({ cost: { amount: 0.3, status: 'pending', payments: [{ amount: 0.1, status: 'paid' }, { amount: 0.2, status: 'pending' }] } });
   assert.deepEqual(lintItinerary(doc([ok])), []);
 });
 
-test('ignores payment sums when there is no declared total or no payments', () => {
+test('ignores payment sums when there is no declared amount or no payments', () => {
   assert.deepEqual(lintItinerary(doc([seg({ cost: { status: 'pending', payments: [{ amount: 40, status: 'paid' }] } })])), []);
-  assert.deepEqual(lintItinerary(doc([seg({ cost: { total: 40, status: 'pending', payments: [] } })])), []);
+  assert.deepEqual(lintItinerary(doc([seg({ cost: { amount: 40, status: 'pending', payments: [] } })])), []);
 });
 
 test('flags accommodation date/checkin.date alias mismatch', () => {
