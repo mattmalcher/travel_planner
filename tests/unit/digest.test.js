@@ -11,7 +11,7 @@ test('digest of the paris_weekend fixture: trip header + one line per segment', 
   assert.equal(lines.length, 1 + paris.segments.length);
   assert.equal(lines[0], 'trip: Paris Weekend (example) | Judy Jetson, George Jetson | 2026-09-18 → 2026-09-20 | GBP');
   assert.equal(lines[1], "seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid GBP 156");
-  assert.equal(lines[2], 'seg-2 | accommodation | 2026-09-18, 2 nights | Cosy Studio near Sacré-Cœur ref XY9876Z | paid GBP 174.48 | +notes');
+  assert.equal(lines[2], 'seg-2 | accommodation | 2026-09-18, 2 nights | Cosy Studio near Sacré-Cœur ref XY9876Z | paid GBP 174.48 | +notes | +warnings(1)');
   assert.equal(lines[3], 'seg-3 | event/gig | 2026-09-19 20:30 | Jazz at Le Petit Exemple @ Le Petit Exemple, Montmartre | pending EUR 40 due 2026-09-16');
 });
 

@@ -484,6 +484,26 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('#hvgantt .hgt-now-lbl')).toBeHidden();
   });
 
+  test('should render warnings[] as banners and notes as plain prose (issue #14)', async ({ page }) => {
+    const doc = structuredClone(genericItinerary);
+    doc.segments[0].warnings = ['Line closed for engineering works — check before travel', 'Passport needed at boarding'];
+    // The retired *** convention must no longer promote note text to a banner.
+    doc.segments[1].notes = 'Bring the **last train of the day** timetable. ***Not a warning.***';
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(doc))
+    });
+
+    const first = page.locator('#hvlist .hseg').first();
+    await expect(first.locator('.hwarn')).toHaveCount(2);
+    await expect(first.locator('.hwarn').first()).toContainText('Line closed for engineering works');
+
+    const second = page.locator('#hvlist .hseg').nth(1);
+    await expect(second.locator('.hwarn')).toHaveCount(0);
+    await expect(second).toContainText('***Not a warning.***');
+  });
+
   test('should delete a segment from the edit modal (issue #39)', async ({ page }) => {
     await page.setInputFiles('#hfile', {
       name: 'generic_itinerary.json',
