@@ -2,7 +2,7 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, reset, switchView, download, toggleEdit, openEdit, openEditTrip, closeEdit, saveEdit, deleteSegment, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, loadUpload, uploadAnyway, uploadCancel, reset, switchView, download, toggleEdit, openEdit, openEditTrip, closeEdit, saveEdit, deleteSegment, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
 import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport } from './ai/chat.js';
@@ -28,6 +28,8 @@ Object.assign(window, {
   hDeleteSegment: deleteSegment,
   hGanttToggle: toggleGanttMode,
   hJumpDay: jumpToDay,
+  hUploadAnyway: uploadAnyway,
+  hUploadCancel: uploadCancel,
   hDownloadSaved: downloadSaved,
   hForceLoadSaved: forceLoadSaved,
   hDiscardSaved: discardSaved,
@@ -47,7 +49,7 @@ Object.assign(window, {
 function loadFile(f) {
   if (!f) return;
   const r = new FileReader();
-  r.onload = ev => { try { load(JSON.parse(ev.target.result)); } catch (err) { alert('Invalid JSON: ' + err.message); } };
+  r.onload = ev => { try { loadUpload(ev.target.result); } catch (err) { alert('Invalid JSON: ' + err.message); } };
   r.readAsText(f);
 }
 document.getElementById('hfile').addEventListener('change', e => {
