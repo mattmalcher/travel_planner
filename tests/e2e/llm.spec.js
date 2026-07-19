@@ -95,7 +95,7 @@ test.describe('AI assistant (OpenRouter)', () => {
 
   test('adds a segment via tool call, previews it, and applies on confirm', async ({ page }) => {
     const requests = await mockOpenRouter(page, [
-      [toolCall('call_1', 'add_segment', { segment_json: JSON.stringify(newSegment) })],
+      [toolCall('call_1', 'add_segment', { segment: newSegment })],
       'Done — I made the requested change.',
     ]);
     await page.goto('/holiday_itinerary_viewer.html');
@@ -131,7 +131,7 @@ test.describe('AI assistant (OpenRouter)', () => {
   test('reads a segment with get_segment, then patches it, merging changes into the original', async ({ page }) => {
     const requests = await mockOpenRouter(page, [
       [toolCall('call_1', 'get_segment', { ids: ['seg-1'] })],
-      [toolCall('call_2', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ departs: { time: '17:01' }, cost: { status: 'pending' } }) })],
+      [toolCall('call_2', 'patch_segment', { id: 'seg-1', changes: { departs: { time: '17:01' }, cost: { status: 'pending' } } })],
       'Done — I made the requested change.',
     ]);
     await page.goto('/holiday_itinerary_viewer.html');
@@ -162,9 +162,9 @@ test.describe('AI assistant (OpenRouter)', () => {
 
   test('rejects an edit to an unread segment and lets the model recover', async ({ page }) => {
     const requests = await mockOpenRouter(page, [
-      [toolCall('call_1', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ notes: 'Upgraded to Standard Premier' }) })],
+      [toolCall('call_1', 'patch_segment', { id: 'seg-1', changes: { notes: 'Upgraded to Standard Premier' } })],
       [toolCall('call_2', 'get_segment', { ids: ['seg-1'] })],
-      [toolCall('call_3', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ notes: 'Upgraded to Standard Premier' }) })],
+      [toolCall('call_3', 'patch_segment', { id: 'seg-1', changes: { notes: 'Upgraded to Standard Premier' } })],
       'Done — I made the requested change.',
     ]);
     await page.goto('/holiday_itinerary_viewer.html');
@@ -190,6 +190,8 @@ test.describe('AI assistant (OpenRouter)', () => {
 
   test('blocks apply and surfaces errors when the result is not schema-valid', async ({ page }) => {
     await mockOpenRouter(page, [
+      // Legacy *_json string form, still accepted for older transcripts and
+      // models that stringify anyway (issue #42).
       [toolCall('call_1', 'add_segment', { segment_json: JSON.stringify({ id: 'seg-2', type: 'transport' }) })],
       'Done — I made the requested change.',
     ]);
