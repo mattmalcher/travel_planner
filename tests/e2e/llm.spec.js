@@ -20,7 +20,6 @@ const baseItinerary = {
       departs: { place: "London St Pancras Int'l", time: "16:31" },
       arrives: { place: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
-      class: "Standard",
       cost: { amount: 156.0, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
     }
   ]
@@ -37,7 +36,6 @@ const newSegment = {
   departs: { place: "Paris Gare du Nord", time: "10:00" },
   arrives: { place: "London St Pancras Int'l", time: "11:30" },
   duration_min: 150,
-  class: "Standard",
   cost: { amount: 120.0, currency: "GBP", status: "paid", paid_by: "George Jetson" }
 };
 
@@ -164,9 +162,9 @@ test.describe('AI assistant (OpenRouter)', () => {
 
   test('rejects an edit to an unread segment and lets the model recover', async ({ page }) => {
     const requests = await mockOpenRouter(page, [
-      [toolCall('call_1', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ class: 'Standard Premier' }) })],
+      [toolCall('call_1', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ notes: 'Upgraded to Standard Premier' }) })],
       [toolCall('call_2', 'get_segment', { ids: ['seg-1'] })],
-      [toolCall('call_3', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ class: 'Standard Premier' }) })],
+      [toolCall('call_3', 'patch_segment', { id: 'seg-1', changes_json: JSON.stringify({ notes: 'Upgraded to Standard Premier' }) })],
       'Done — I made the requested change.',
     ]);
     await page.goto('/holiday_itinerary_viewer.html');
@@ -187,7 +185,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     await expect(preview).toContainText('Updated transport (seg-1)');
     await preview.getByRole('button', { name: 'Apply changes' }).click();
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
-    expect(stored.segments.find(s => s.id === 'seg-1').class).toBe('Standard Premier');
+    expect(stored.segments.find(s => s.id === 'seg-1').notes).toBe('Upgraded to Standard Premier');
   });
 
   test('blocks apply and surfaces errors when the result is not schema-valid', async ({ page }) => {

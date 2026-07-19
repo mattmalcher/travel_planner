@@ -9,12 +9,11 @@ import { costBadge, proposalBadge, segIcon } from './badges.js';
 
 function renderTransport(s, trip) {
   const seatsLine = s.seats && s.seats.length ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${s.seats.map(x => `${esc(x.traveller.split(' ')[0])}: Coach ${esc(x.coach)}${x.deck ? ' (' + esc(x.deck) + ')' : ''}, Seat ${esc(x.seat)}`).join(' · ')}</div>` : '';
-  // ref/class are optional since schema 3.0.0 (issue #11): absent means "no
-  // booking reference"/"no class", so the line simply omits them.
+  // ref is optional since schema 3.0.0 (issue #11): absent means "no booking
+  // reference", so the line simply omits it.
   const pass = s.pass_id ? ((trip && trip.passes) || []).find(p => p.id === s.pass_id) : null;
   const meta = [
     esc(s.operator) + (s.service ? ' · ' + esc(s.service) : ''),
-    s.class ? esc(s.class) : '',
     s.ref ? `Ref: <code>${esc(s.ref)}</code>` : '',
     s.pass_id ? `Pass: ${pass ? esc(pass.name) + ' ' : ''}<code>${esc(s.pass_id)}</code>` : '',
   ].filter(Boolean).join(' · ');
