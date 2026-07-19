@@ -14,7 +14,7 @@ function schemaBrief() {
 export function buildSystem() {
   const today = new Date().toISOString().slice(0, 10);
   const cur = state.HD ? itineraryDigest(state.HD) : '(no itinerary loaded yet — create one from scratch using update_trip and add_segment)';
-  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (get_segment, add_segment, patch_segment, update_segment, remove_segment, patch_trip, update_trip). Pass segment/trip payloads as plain JSON objects in the tool arguments (no extra JSON-string encoding) — never put the itinerary JSON in your text reply.
+  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (get_segment, add_segment, patch_segment, update_segment, remove_segment, patch_trip, update_trip, get_list, add_list, patch_list, remove_list). Pass segment/trip/list payloads as plain JSON objects in the tool arguments (no extra JSON-string encoding) — never put the itinerary JSON in your text reply.
 
 Rules:
 - The current itinerary below is a DIGEST: one line per segment (id | kind | when/where | name | cost), with +notes/+warnings/proposal flags marking detail the line omits. It is not the full data.
@@ -27,6 +27,7 @@ Rules:
 - Costs carry one "amount" (plus optional payments[] instalments that sum to it); a cost with status paid/pending needs an amount or payments.
 - Transport ref is optional: omit it when unknown or not applicable (taxis, local buses) — never fill in placeholders like "n/a". Travel class goes in seats[] or notes if it matters. When a leg is covered by a travel pass (e.g. Interrail), define the pass once in trip.passes and set the leg's pass_id instead of abusing ref.
 - Multi-day events (festivals) set end_date; timed events use time plus end_time or duration_min; genuinely all-day activities set all_day true instead of an invented time.
+- Lists hold intentions that aren't (yet) plans (packing, foods to try, restaurant options); segments hold plans. List items have no date or cost — when the user schedules an item, create a normal event segment with add_segment, then patch_list to set that item's segment_id to the returned segment id. To tick an item off set its done flag. The same read-before-edit rule applies: get_list before patch_list, and a patch's items array replaces wholesale, so send it complete. List and item ids are assigned by add_list — use them exactly as returned or shown in the digest.
 - Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed. If a choice between valid options genuinely depends on user preference, ask in your text reply before calling tools.
 - After your tool calls, reply with a short plain-text summary of what you changed.
 

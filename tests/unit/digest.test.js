@@ -1,24 +1,47 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { itineraryDigest, segmentLine, costLine } from '../../src/lib/digest.js';
+import { itineraryDigest, segmentLine, costLine, listLines, listItemLine } from '../../src/lib/digest.js';
 
 const paris = JSON.parse(readFileSync(new URL('../../examples/paris_weekend.json', import.meta.url), 'utf8'));
 
 test('digest of the paris_weekend fixture: trip header + one line per segment', () => {
   const d = itineraryDigest(paris);
   const lines = d.split('\n');
-  assert.equal(lines.length, 1 + paris.segments.length);
+  // header + segments + lists section ("lists:" + a header and item line per list/item)
+  const listCount = paris.lists.length + paris.lists.reduce((n, l) => n + l.items.length, 0);
+  assert.equal(lines.length, 1 + paris.segments.length + 1 + listCount);
   assert.equal(lines[0], 'trip: Paris Weekend (example) | Judy Jetson, George Jetson | 2026-09-18 → 2026-09-20 | GBP');
   assert.equal(lines[1], "seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid GBP 156");
   assert.equal(lines[2], 'seg-2 | accommodation | 2026-09-18, 2 nights | Cosy Studio near Sacré-Cœur ref XY9876Z | paid GBP 174.48 | +notes | +warnings(1)');
   assert.equal(lines[3], 'seg-3 | event/gig | 2026-09-19 20:30 | Jazz at Le Petit Exemple @ Le Petit Exemple, Montmartre | pending EUR 40 due 2026-09-16');
 });
 
+test('lists appear in the digest with progress counts and per-item lines (issue #40)', () => {
+  const lines = itineraryDigest(paris).split('\n');
+  const at = lines.indexOf('lists:');
+  assert.ok(at > 0, 'lists section present');
+  assert.equal(lines[at + 1], 'list-food | Foods to try | food | 1/3 done');
+  assert.equal(lines[at + 2], '  li-1 | [x] Custard tart / Flan pâtissier +note');
+  assert.equal(lines[at + 4], '  li-3 | [ ] Jazz-club cocktail → seg-3 +note');
+});
+
+test('listItemLine flags omitted detail (note, url) and the promoted segment', () => {
+  assert.equal(listItemLine({ id: 'li-9', name: 'Tapas crawl', url: 'https://example.com', segment_id: 'seg-2' }),
+    '  li-9 | [ ] Tapas crawl → seg-2 +url');
+});
+
+test('documents without lists produce no lists section', () => {
+  assert.deepEqual(listLines({ segments: [] }), []);
+  assert.deepEqual(listLines({ lists: [] }), []);
+});
+
 test('digest is a fraction of the raw itinerary size', () => {
+  // List items are deliberately near-fully inlined (only note/url bodies are
+  // flagged), so the ratio is looser than the segment-only 0.4 used to be.
   const raw = JSON.stringify(paris).length;
   const d = itineraryDigest(paris).length;
-  assert.ok(d < raw * 0.4, `digest ${d} vs raw ${raw}`);
+  assert.ok(d < raw * 0.5, `digest ${d} vs raw ${raw}`);
 });
 
 test('segments are ordered chronologically regardless of input order', () => {

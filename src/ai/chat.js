@@ -56,7 +56,7 @@ export function syncChatViewport() {
 }
 
 export function chatClear() {
-  state.chat = []; state.draft = null; state.ops = []; state.reads = new Set();
+  state.chat = []; state.draft = null; state.ops = []; state.reads = new Set(); state.listReads = new Set();
   renderChat(); hidePreview();
 }
 
@@ -93,9 +93,11 @@ async function llmSend(text) {
   chatPush('user', text);
   state.draft = state.HD ? structuredClone(state.HD) : emptyItinerary();
   state.ops = [];
-  // Tool results (get_segment reads) are not kept in state.chat, so the model
-  // starts each turn blind again — reads must not carry over between turns.
+  // Tool results (get_segment/get_list reads) are not kept in state.chat, so
+  // the model starts each turn blind again — reads must not carry over
+  // between turns.
   state.reads = new Set();
+  state.listReads = new Set();
   const working = [{ role: 'system', content: buildSystem() }, ...state.chat.map(m => ({ role: m.role, content: m.content }))];
   setBusy(true);
   // 12 iterations (up from 8): the read-then-patch pattern the digest prompt
