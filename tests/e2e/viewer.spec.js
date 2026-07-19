@@ -25,7 +25,7 @@ const genericItinerary = {
         { traveller: "George Jetson", coach: 5, seat: 83 }
       ],
       cost: {
-        total: 156.00,
+        amount: 156.00,
         currency: "GBP",
         status: "paid",
         paid_by: "Judy Jetson"

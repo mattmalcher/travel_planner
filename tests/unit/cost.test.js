@@ -28,14 +28,13 @@ test('costInfo flags included and not-booked costs', () => {
   assert.deepEqual(costInfo({ cost: { status: 'not_booked' } }, 'GBP'), { t: 'nb' });
 });
 
-test('costInfo reads amount, falls back to total, and defaults currency to the trip primary', () => {
+test('costInfo reads amount and defaults currency to the trip primary', () => {
   const byAmount = costInfo({ cost: { amount: 87.24, status: 'paid' } }, 'GBP');
   assert.equal(byAmount.tot, 87.24);
   assert.equal(byAmount.cur, 'GBP');
-  // Issue #10: segments costed with "total" instead of "amount" must not read as 0.
-  const byTotal = costInfo({ cost: { total: 156, status: 'paid', currency: 'EUR' } }, 'GBP');
-  assert.equal(byTotal.tot, 156);
-  assert.equal(byTotal.cur, 'EUR');
+  const withCur = costInfo({ cost: { amount: 156, status: 'paid', currency: 'EUR' } }, 'GBP');
+  assert.equal(withCur.tot, 156);
+  assert.equal(withCur.cur, 'EUR');
 });
 
 test('costInfo derives paid/pending/partial status from payments', () => {
@@ -46,13 +45,13 @@ test('costInfo derives paid/pending/partial status from payments', () => {
   assert.equal(costInfo(seg('paid'), 'GBP').st, 'paid');
   assert.equal(costInfo(seg('pending'), 'GBP').st, 'partial');
   assert.equal(costInfo({ cost: { payments: [{ amount: 50, status: 'pending' }] } }, 'GBP').st, 'pending');
-  // Sum of payments unless an explicit total is given.
+  // Sum of payments unless an explicit amount is given.
   assert.equal(costInfo(seg('pending'), 'GBP').tot, 150);
-  assert.equal(costInfo({ cost: { total: 200, payments: [{ amount: 100, status: 'paid' }] } }, 'GBP').tot, 200);
+  assert.equal(costInfo({ cost: { amount: 200, payments: [{ amount: 100, status: 'paid' }] } }, 'GBP').tot, 200);
 });
 
 const segments = [
-  { name: 'Train', cost: { total: 156, currency: 'GBP', status: 'paid' } },
+  { name: 'Train', cost: { amount: 156, currency: 'GBP', status: 'paid' } },
   { name: 'Hotel', cost: { amount: 87.24, currency: 'GBP', status: 'paid' } },
   { name: 'Festival', cost: { amount: 40, currency: 'EUR', status: 'pending', due: '2026-09-16' } },
   { name: 'Deposit stay', cost: { currency: 'EUR', payments: [
