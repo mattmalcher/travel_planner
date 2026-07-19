@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fmtDate, fmtDayLong, fmtDayShort, fmtMinutes, toMs, msToIso, eventInterval, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../../src/lib/dates.js';
+import { fmtDate, fmtDayLong, fmtDayShort, fmtMinutes, toMs, msToIso, eventInterval, nightsBetween, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../../src/lib/dates.js';
 
 test('fmtDate renders day, short month and year', () => {
   assert.equal(fmtDate('2026-09-18'), '18 Sept 2026');
@@ -67,4 +67,14 @@ test('eventInterval: all_day spans the full day(s) regardless of other fields', 
 test('eventInterval clamps a backwards end to one minute after the start', () => {
   const i = eventInterval({ date: '2026-09-19', time: '22:00', end_time: '21:00' });
   assert.equal(i.endMs, i.startMs + 60000);
+});
+
+test('nightsBetween derives nights from checkin/checkout dates (schema 3.0.0 drops the stored field)', () => {
+  assert.equal(nightsBetween('2026-09-18', '2026-09-20'), 2);
+  assert.equal(nightsBetween('2026-09-18', '2026-09-19'), 1);
+  // Spans a DST change (Europe: last Sunday of October) without drifting.
+  assert.equal(nightsBetween('2026-10-24', '2026-10-26'), 2);
+  // A backwards or same-day range never goes negative.
+  assert.equal(nightsBetween('2026-09-18', '2026-09-18'), 0);
+  assert.equal(nightsBetween('2026-09-20', '2026-09-18'), 0);
 });

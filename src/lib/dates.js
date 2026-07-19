@@ -57,6 +57,12 @@ export function eventInterval(s) {
   return { startMs, endMs: Math.max(endMs, startMs + 60000) };
 }
 
+/** Whole nights between two "YYYY-MM-DD" dates (checkin → checkout). Noon
+    anchors keep the difference DST-proof. Never below zero. */
+export function nightsBetween(fromIso, toIso) {
+  return Math.max(0, Math.round((toMs(toIso, '12:00') - toMs(fromIso, '12:00')) / 86400000));
+}
+
 /** Inverse of toMs: ms timestamp → {date:"YYYY-MM-DD", time:"HH:MM"} in local time. */
 export function msToIso(ms) {
   const d = new Date(ms);

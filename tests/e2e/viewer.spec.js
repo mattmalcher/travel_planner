@@ -41,8 +41,6 @@ const genericItinerary = {
       lng: 2.3522,
       checkin: { date: "2026-09-18", from: "13:00" },
       checkout: { date: "2026-09-19", by: "13:00" },
-      guests: 2,
-      nights: 1,
       self_checkin: true,
       cost: {
         amount: 87.24,
@@ -418,8 +416,6 @@ test.describe('Holiday Itinerary Viewer', () => {
           lng: 5.0,
           checkin: { date: "2026-09-04", from: "14:00" },
           checkout: { date: "2026-09-06", by: "11:00" },
-          guests: 2,
-          nights: 2,
           self_checkin: false,
           cost: {
             amount: 150.0,

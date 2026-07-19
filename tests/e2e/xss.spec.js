@@ -38,8 +38,6 @@ const xssItinerary = {
       lng: 2.3522,
       checkin: { date: '2026-09-18', from: '13:00' },
       checkout: { date: '2026-09-19', by: '13:00' },
-      guests: 2,
-      nights: 1,
       cost: { amount: 87.24, currency: 'GBP', status: 'pending', due: '2026-09-01' },
       notes: `Careful ${SCRIPT}`
     },
