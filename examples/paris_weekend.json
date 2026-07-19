@@ -15,8 +15,8 @@
       "operator": "Eurostar",
       "ref": "AB1234",
       "date": "2026-09-18",
-      "departs": { "station": "London St Pancras Int'l", "time": "16:31", "lat": 51.5322, "lng": -0.1270 },
-      "arrives": { "station": "Paris Gare du Nord", "time": "19:49", "lat": 48.8809, "lng": 2.3553 },
+      "departs": { "place": "London St Pancras Int'l", "time": "16:31", "lat": 51.5322, "lng": -0.1270 },
+      "arrives": { "place": "Paris Gare du Nord", "time": "19:49", "lat": 48.8809, "lng": 2.3553 },
       "duration_min": 138,
       "class": "Standard",
       "seats": [

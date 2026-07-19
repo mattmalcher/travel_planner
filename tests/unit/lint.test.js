@@ -74,6 +74,35 @@ test('ignores payment sums when there is no declared amount or no payments', () 
   assert.deepEqual(lintItinerary(doc([seg({ cost: { amount: 40, status: 'pending', payments: [] } })])), []);
 });
 
+test('flags dangling pass_id and duplicate/misattributed trip passes (issue #11)', () => {
+  const withPasses = (passes, segs) => ({
+    trip: { name: 'Test', travellers: ['Judy Jetson'], start: '2026-09-18', end: '2026-09-28', currency_primary: 'GBP', passes },
+    segments: segs,
+  });
+  const leg = (over = {}) => ({
+    id: 'seg-1', type: 'transport', mode: 'train', operator: 'SBB', date: '2026-09-19',
+    departs: { place: 'A', time: '10:00' }, arrives: { place: 'B', time: '11:00' },
+    duration_min: 60, cost: { status: 'free' }, ...over,
+  });
+  // A leg referencing a defined pass is clean.
+  assert.deepEqual(lintItinerary(withPasses(
+    [{ id: 'IR01', name: 'Interrail Global Pass', traveller: 'Judy Jetson' }],
+    [leg({ pass_id: 'IR01' })])), []);
+  // Dangling pass_id.
+  const [dangling] = lintItinerary(withPasses([{ id: 'IR01', name: 'Interrail' }], [leg({ pass_id: 'IR99' })]));
+  assert.match(dangling, /pass_id "IR99" does not match any pass in trip\.passes/);
+  // pass_id with no passes at all is also dangling.
+  const [none] = lintItinerary(doc([leg({ pass_id: 'IR01' })]));
+  assert.match(none, /pass_id "IR01" does not match/);
+  // Duplicate pass ids and a pass holder who isn't a traveller.
+  const w = lintItinerary(withPasses(
+    [{ id: 'IR01', name: 'Pass A' }, { id: 'IR01', name: 'Pass B', traveller: 'Rosie' }],
+    [leg()]));
+  assert.equal(w.length, 2);
+  assert.match(w[0], /duplicate pass id "IR01" in trip\.passes/);
+  assert.match(w[1], /trip\.passes\[1\]\.traveller "Rosie" is not in trip\.travellers/);
+});
+
 test('flags accommodation date/checkin.date alias mismatch', () => {
   const acc = {
     id: 'seg-2', type: 'accommodation', name: 'Studio', host: 'Pierre', ref: 'X', address: 'A',

@@ -22,8 +22,8 @@ const xssItinerary = {
       operator: `Eurostar ${IMG}`,
       ref: `REF ${IMG}`,
       date: '2026-09-18',
-      departs: { station: `London ${IMG}`, time: '16:31' },
-      arrives: { station: 'Paris Nord', time: '19:49' },
+      departs: { place: `London ${IMG}`, time: '16:31' },
+      arrives: { place: 'Paris Nord', time: '19:49' },
       duration_min: 138,
       class: 'Standard',
       cost: { amount: 100, currency: 'GBP', status: 'paid', paid_by: 'Judy' }
@@ -62,7 +62,27 @@ const xssItinerary = {
   ]
 };
 
+// Same stub pattern as upload.spec.js: this spec is about escaping, not
+// validation, so ajv is stubbed (always valid) to keep the test hermetic —
+// otherwise the outcome depends on whether esm.sh loads before the upload,
+// and the hostile fixture (javascript: url) can never be schema-valid.
+const AJV_STUB = `
+export default class Ajv {
+  constructor() {}
+  compile() {
+    function validate() { validate.errors = null; return true; }
+    return validate;
+  }
+}
+`;
+const FMT_STUB = `export default function addFormats() {}`;
+
 test.describe('Itinerary XSS escaping (issue #9)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
+    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
+  });
+
   test('renders hostile strings literally without executing script', async ({ page }) => {
     const errors = [];
     page.on('pageerror', e => errors.push(e));

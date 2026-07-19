@@ -16,8 +16,8 @@ const genericItinerary = {
       operator: "Eurostar",
       ref: "AB1234",
       date: "2026-09-18",
-      departs: { station: "London St Pancras Int'l", time: "16:31" },
-      arrives: { station: "Paris Gare du Nord", time: "19:49" },
+      departs: { place: "London St Pancras Int'l", time: "16:31" },
+      arrives: { place: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
       class: "Standard",
       seats: [
@@ -218,6 +218,63 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(segs).toHaveCount(2);
     await expect(segs.nth(0)).toContainText('Eurostar');
     await expect(segs.nth(1)).toContainText('Cosy Studio near Sacré-Cœur');
+  });
+
+  test('should omit missing transport ref/class and show trip passes (issue #11)', async ({ page }) => {
+    const passTrip = {
+      trip: {
+        name: "Alpine Hop",
+        travellers: ["Judy Jetson"],
+        start: "2026-09-18",
+        end: "2026-09-19",
+        currency_primary: "GBP",
+        passes: [{ id: "IR01", name: "Interrail Global Pass", traveller: "Judy Jetson" }]
+      },
+      segments: [
+        {
+          id: "seg-1",
+          type: "transport",
+          mode: "taxi",
+          operator: "Orbit Cabs",
+          date: "2026-09-18",
+          departs: { place: "12 Skypad Lane", time: "09:00" },
+          arrives: { place: "Spaceport Central", time: "09:20" },
+          duration_min: 20,
+          cost: { amount: 15, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
+        },
+        {
+          id: "seg-2",
+          type: "transport",
+          mode: "train",
+          operator: "SBB",
+          date: "2026-09-18",
+          departs: { place: "Spaceport Central", time: "10:02" },
+          arrives: { place: "Orbit Lakes", time: "12:26" },
+          duration_min: 144,
+          pass_id: "IR01",
+          seats: [{ traveller: "Judy Jetson", coach: "B", seat: 41 }],
+          cost: { status: "included", note: "Covered by Interrail pass" }
+        }
+      ]
+    };
+    await page.setInputFiles('#hfile', {
+      name: 'passes.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(passTrip))
+    });
+
+    const segs = page.locator('#hvlist .hseg');
+    await expect(segs).toHaveCount(2);
+
+    // The taxi has no ref/class, so no placeholder text is rendered.
+    await expect(segs.nth(0)).toContainText('Orbit Cabs');
+    await expect(segs.nth(0)).not.toContainText('Ref:');
+    await expect(segs.nth(0)).not.toContainText('n/a');
+
+    // The pass-covered leg names the trip-level pass and its lettered coach.
+    await expect(segs.nth(1)).toContainText('Pass: Interrail Global Pass');
+    await expect(segs.nth(1)).toContainText('IR01');
+    await expect(segs.nth(1)).toContainText('Coach B');
   });
 
   test('should render timeline blocks at accurate heights with text in a popover', async ({ page }) => {

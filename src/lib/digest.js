@@ -21,7 +21,7 @@ export function costLine(s, primaryCurrency) {
 
 function when(s) {
   if (s.type === 'transport')
-    return `${s.date} ${s.departs.time} ${s.departs.station} → ${s.arrives.time} ${s.arrives.station}`;
+    return `${s.date} ${s.departs.time} ${s.departs.place} → ${s.arrives.time} ${s.arrives.place}`;
   if (s.type === 'accommodation')
     return `${s.checkin.date}, ${s.nights} night${s.nights === 1 ? '' : 's'}`;
   return s.date + (s.time ? ' ' + s.time : '');
@@ -29,7 +29,7 @@ function when(s) {
 
 function who(s) {
   if (s.type === 'transport')
-    return [s.operator, s.service, s.ref && 'ref ' + s.ref].filter(Boolean).join(' ');
+    return [s.operator, s.service, s.ref && 'ref ' + s.ref, s.pass_id && 'pass ' + s.pass_id].filter(Boolean).join(' ');
   if (s.type === 'accommodation')
     return s.name + (s.ref ? ' ref ' + s.ref : '');
   return s.name + (s.artist ? ' — ' + s.artist : '') + (s.venue ? ' @ ' + s.venue : '');
