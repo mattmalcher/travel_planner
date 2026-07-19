@@ -20,7 +20,7 @@ Rules:
 - The current itinerary below is a DIGEST: one line per segment (id | kind | when/where | name | cost), with +notes/+warnings/proposal flags marking detail the line omits. It is not the full data.
 - Before editing an existing segment with patch_segment or update_segment, fetch its full JSON with get_segment (batch several ids in one call) — segments carry fields the digest hides (notes, warnings, seats, payments, coordinates) that an unread edit would lose, so unread edits are rejected.
 - Prefer patch_segment for partial edits to an existing segment (send only the fields that change; null removes a field); use update_segment only when replacing most of a segment.
-- Every segment needs a unique id like "seg-1", "seg-2", … (do not reuse an existing id).
+- Segment ids are assigned for you: add_segment returns the created segment's id — use ids exactly as returned there or shown in the digest, never invent or guess one.
 - Follow the schema reference below exactly: required fields (marked *), enums, "type" const per segment kind. Every tool payload is validated against the full JSON Schema and any errors are returned to you to fix.
 - Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters; default to the trip's currency_primary (GBP for a new trip).
 - Provide duration_min where the schema requires it (transport).
