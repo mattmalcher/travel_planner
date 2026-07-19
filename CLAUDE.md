@@ -38,10 +38,12 @@ src/
     sort.js         segDate/segTime/sortSegments (shared list+map ordering)
     dates.js        formatting, toMs/msToIso, and ALL default times (issue #13)
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
+    lists.js        list progress/partition + dangling segment_id detection (issue #40)
+    ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
     gantt-layout.js time→pixel scales, compact points, coverage gaps
     escape.js       esc() html escaping
   views/            DOM rendering only; maths belongs in lib/
-    badges.js list.js budget.js map.js gantt.js
+    badges.js list.js budget.js map.js gantt.js lists.js
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
@@ -87,4 +89,3 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 
 - `tsc --checkJs` + JSDoc types and schema-generated types
   (`json-schema-to-typescript`) — adopt per-module as files are touched.
-- `lib/lint.js` referential-integrity checks (issue #17).

@@ -15,6 +15,11 @@ function opLabel(seg) {
   return 'segment' + id;
 }
 
+function listLabel(list) {
+  if (!list) return 'list';
+  return (list.name || 'list') + (list.id ? ' (' + list.id + ')' : '');
+}
+
 export function showPreview() {
   const v = validateSafe(state.draft);
   const ops = state.ops.map(o => {
@@ -22,6 +27,9 @@ export function showPreview() {
     if (o.kind === 'remove') return `<div class="hpv-op" style="color:var(--color-text-danger)">− Removed ${esc(opLabel(o.before))}</div>`;
     if (o.kind === 'update') return `<div class="hpv-op" style="color:var(--color-text-warning)">~ Updated ${esc(opLabel(o.after))}</div>`;
     if (o.kind === 'trip') return `<div class="hpv-op" style="color:var(--color-text-warning)">~ Updated trip details</div>`;
+    if (o.kind === 'add-list') return `<div class="hpv-op" style="color:var(--color-text-success)">+ Added list ${esc(listLabel(o.after))}</div>`;
+    if (o.kind === 'remove-list') return `<div class="hpv-op" style="color:var(--color-text-danger)">− Removed list ${esc(listLabel(o.before))}</div>`;
+    if (o.kind === 'update-list') return `<div class="hpv-op" style="color:var(--color-text-warning)">~ Updated list ${esc(listLabel(o.after))}</div>`;
     return '';
   }).join('');
   const details = state.ops.map((o, i) => {

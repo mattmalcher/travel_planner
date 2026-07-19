@@ -2,6 +2,8 @@
 // modal, download, and the saved-data schema-version guard.
 import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
 import { esc } from './lib/escape.js';
+import { newId } from './lib/ids.js';
+import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from './lib/dates.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
 import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
@@ -141,6 +143,36 @@ export function openEditTrip() {
   document.getElementById('hedit-modal').classList.add('on');
 }
 
+/* Promote a list item into the schedule (issue #40): promotion is a UI
+   action, not a schema concept — "Schedule" opens the ordinary edit modal on
+   a prefilled draft EventSegment, and saving writes the new segment's id
+   back to the item's segment_id. */
+export function openScheduleItem(li, ii) {
+  const list = state.HD.lists[li];
+  const item = list.items[ii];
+  state.editTarget = { type: 'new-segment', li, ii };
+  // The modal edits raw JSON, so every field the user is expected to adjust
+  // (date, time, duration) must be present in the prefill to be discoverable
+  // — the defaults come from lib/dates.js (issue #13), not invented here.
+  const seg = {
+    id: newId('seg-', new Set(state.HD.segments.map(s => s && s.id))),
+    type: 'event',
+    subtype: (list.kind === 'food' || list.kind === 'restaurant') ? 'meal' : 'activity',
+    name: item.name,
+    date: state.HD.trip.start,
+    time: DEFAULT_EVENT_TIME,
+    duration_min: DEFAULT_EVENT_DURATION_MIN,
+    cost: { status: 'not_booked' },
+  };
+  if (item.url) seg.url = item.url;
+  if (item.note) seg.notes = item.note;
+  document.getElementById('hedit-title').textContent = 'Schedule: ' + (item.name || 'Item');
+  document.getElementById('hedit-ta').value = JSON.stringify(seg, null, 2);
+  document.getElementById('hedit-err').textContent = '';
+  document.getElementById('hedit-del').style.display = 'none';
+  document.getElementById('hedit-modal').classList.add('on');
+}
+
 export function closeEdit() {
   document.getElementById('hedit-modal').classList.remove('on');
   state.editTarget = null;
@@ -159,7 +191,7 @@ function editErrorText(errors) {
    document is validated, but only /trip errors block the save: a
    pre-existing invalid segment elsewhere shouldn't lock trip edits. */
 function validateEdit(target, val) {
-  if (target.type === 'segment')
+  if (target.type === 'segment' || target.type === 'new-segment')
     return window.hValidateSegment ? window.hValidateSegment(val) : { ok: true, errors: [] };
   if (!window.hValidate) return { ok: true, errors: [] };
   const v = window.hValidate({ ...state.HD, trip: val });
@@ -176,6 +208,13 @@ export function saveEdit() {
   if (!v.ok) { errEl.textContent = editErrorText(v.errors); return; }
   if (state.editTarget.type === 'segment') {
     state.HD.segments[state.editTarget.idx] = val;
+  } else if (state.editTarget.type === 'new-segment') {
+    // A missing or colliding id gets replaced rather than creating a
+    // duplicate that edits-by-id would reach nondeterministically (issue #41).
+    if (!val.id || state.HD.segments.some(s => s && s.id === val.id))
+      val.id = newId('seg-', new Set(state.HD.segments.map(s => s && s.id)));
+    state.HD.segments.push(val);
+    state.HD.lists[state.editTarget.li].items[state.editTarget.ii].segment_id = val.id;
   } else {
     state.HD.trip = val;
     updateHeader();

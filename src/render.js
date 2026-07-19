@@ -6,6 +6,7 @@ import { esc } from './lib/escape.js';
 import { renderList } from './views/list.js';
 import { renderBudget } from './views/budget.js';
 import { renderGantt } from './views/gantt.js';
+import { renderLists } from './views/lists.js';
 import { renderMap, destroyMap } from './views/map.js';
 
 export function updateHeader() {
@@ -17,7 +18,7 @@ export function updateHeader() {
 }
 
 export function renderAll() {
-  renderList(); renderBudget(); renderGantt();
+  renderList(); renderBudget(); renderGantt(); renderLists();
 }
 
 /** Re-render every view after the itinerary changed: the map is rebuilt if

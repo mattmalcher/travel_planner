@@ -5,6 +5,7 @@
 import { sortSegments } from './sort.js';
 import { costInfo } from './cost.js';
 import { nightsBetween } from './dates.js';
+import { listProgress } from './lists.js';
 
 function money(n) {
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
@@ -58,11 +59,36 @@ export function segmentLine(s, primaryCurrency) {
   return parts.join(' | ');
 }
 
-/** Digest of a whole HolidayItinerary document: a trip header line followed
-    by one chronologically sorted line per segment. */
+/** One digest line for a list item: id, tick state, names, promoted-segment
+    pointer, then flags for detail the line omits (note, url) so the model
+    knows to get_list before editing. */
+export function listItemLine(it) {
+  return `  ${it.id} | ${it.done ? '[x]' : '[ ]'} ${it.name}`
+    + (it.local_name ? ' / ' + it.local_name : '')
+    + (it.segment_id ? ' → ' + it.segment_id : '')
+    + (it.note ? ' +note' : '')
+    + (it.url ? ' +url' : '');
+}
+
+/** Digest lines for the lists section (issue #40), or [] when the document
+    has no lists: a header per list, then one indented line per item. */
+export function listLines(doc) {
+  const lists = Array.isArray(doc.lists) ? doc.lists : [];
+  if (!lists.length) return [];
+  const out = ['lists:'];
+  for (const l of lists) {
+    const p = listProgress(l);
+    out.push(`${l.id} | ${l.name}${l.kind ? ' | ' + l.kind : ''} | ${p.done}/${p.total} done`);
+    for (const it of l.items || []) if (it) out.push(listItemLine(it));
+  }
+  return out;
+}
+
+/** Digest of a whole HolidayItinerary document: a trip header line, one
+    chronologically sorted line per segment, then the lists section. */
 export function itineraryDigest(doc) {
   const t = doc.trip || {};
   const head = `trip: ${t.name} | ${(t.travellers || []).join(', ')} | ${t.start} → ${t.end} | ${t.currency_primary}`;
   const lines = sortSegments(doc.segments || []).map(s => segmentLine(s, t.currency_primary));
-  return [head, ...lines].join('\n');
+  return [head, ...lines, ...listLines(doc)].join('\n');
 }

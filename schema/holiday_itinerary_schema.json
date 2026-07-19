@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "title": "HolidayItinerary",
   "description": "Structured holiday itinerary with transport, accommodation and events (gigs, walks, festivals, etc.)",
   "type": "object",
@@ -73,10 +73,89 @@
           }
         ]
       }
+    },
+    "lists": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/List"
+      },
+      "description": "Pools of intentions that aren't (yet) plans — packing lists, foods to try, candidate restaurants. Items are checked off in place (done) or promoted into an ordinary segment (segment_id). Lists never appear on the timeline, budget, map or gantt: if something gets a date or a cost, it becomes a segment."
     }
   },
   "additionalProperties": false,
   "definitions": {
+    "List": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique list identifier, e.g. list-food"
+        },
+        "name": {
+          "type": "string",
+          "description": "e.g. Foods to try"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "food",
+            "packing",
+            "restaurant",
+            "sight",
+            "activity",
+            "other"
+          ],
+          "description": "Used only for icon and labelling — every kind shares the one ListItem shape"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ListItem"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ListItem": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique item identifier (unique across all lists in the document), e.g. li-1"
+        },
+        "name": {
+          "type": "string"
+        },
+        "local_name": {
+          "type": "string",
+          "description": "Local/translated name, e.g. \"Pastel de nata\" for \"Custard tart\""
+        },
+        "note": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "done": {
+          "type": "boolean",
+          "description": "Checked off — the single source of truth for done state (defaults to false). No done flag exists on segments."
+        },
+        "segment_id": {
+          "type": "string",
+          "description": "id of the segment this item was promoted (scheduled) into"
+        }
+      },
+      "additionalProperties": false
+    },
     "Cost": {
       "type": "object",
       "required": [
