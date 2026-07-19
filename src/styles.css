@@ -96,3 +96,17 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 #hset-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:440px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.7rem}
 .hset-lbl{font-size:12px;font-weight:500;display:block;margin-bottom:3px}
 .hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:16px;outline:none}
+/* Lists view (issue #40): item rows with a tick-off checkbox and chips for
+   the link / schedule / promoted-segment actions. */
+.hli{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:.5px solid var(--color-border-tertiary);font-size:13px}
+.hli:first-child{border-top:none}
+.hli-main{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}
+.hli-main input{accent-color:var(--color-text-primary);cursor:pointer}
+.hli.done .hli-name{text-decoration:line-through;color:var(--color-text-tertiary)}
+.hli-local{color:var(--color-text-secondary);font-style:italic}
+.hli.done .hli-local{color:var(--color-text-tertiary)}
+.hli-note{width:100%;padding-left:24px;font-size:11px;color:var(--color-text-tertiary)}
+.hli-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;font-family:inherit;padding:1px 8px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;text-decoration:none;transition:color .15s}
+.hli-chip:hover{color:var(--color-text-primary)}
+.hli-chip.broken{background:var(--color-background-warning);border-color:transparent;color:var(--color-text-warning);cursor:default}
+.hli-progress{font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:999px;padding:2px 8px}

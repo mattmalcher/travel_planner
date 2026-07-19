@@ -103,3 +103,31 @@ test('flags dangling pass_id and duplicate/misattributed trip passes (issue #11)
   assert.match(w[1], /trip\.passes\[1\]\.traveller "Rosie" is not in trip\.travellers/);
 });
 
+test('flags duplicate list and item ids, including item ids reused across lists (issue #40)', () => {
+  const d = doc([seg()]);
+  d.lists = [
+    { id: 'list-1', name: 'A', items: [{ id: 'li-1', name: 'x' }, { id: 'li-1', name: 'y' }] },
+    { id: 'list-1', name: 'B', items: [{ id: 'li-1', name: 'z' }] },
+  ];
+  const w = lintItinerary(d);
+  assert.equal(w.filter(m => m.includes('duplicate list id "list-1"')).length, 1);
+  assert.equal(w.filter(m => m.includes('duplicate list item id "li-1"')).length, 2);
+});
+
+test('flags list items scheduled into a segment that no longer exists (issue #40)', () => {
+  const d = doc([seg()]);
+  d.lists = [{ id: 'list-1', name: 'Foods', items: [
+    { id: 'li-1', name: 'ok', segment_id: 'seg-1' },
+    { id: 'li-2', name: 'gone', segment_id: 'seg-9' },
+  ] }];
+  const w = lintItinerary(d);
+  assert.equal(w.length, 1);
+  assert.match(w[0], /list "list-1": item "li-2" was scheduled as segment "seg-9" which no longer exists/);
+});
+
+test('clean lists produce no warnings', () => {
+  const d = doc([seg()]);
+  d.lists = [{ id: 'list-1', name: 'Foods', kind: 'food', items: [{ id: 'li-1', name: 'Custard tart', done: true }] }];
+  assert.deepEqual(lintItinerary(d), []);
+});
+

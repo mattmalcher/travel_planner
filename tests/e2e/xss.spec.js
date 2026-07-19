@@ -55,6 +55,28 @@ const xssItinerary = {
       tickets_url: 'https://tickets.example/ok',
       cost: { amount: 40, currency: 'GBP', status: 'pending', due: '2026-09-05' }
     }
+  ],
+  lists: [
+    {
+      id: `list-1 ${IMG}`,
+      name: `Foods ${IMG}`,
+      kind: 'food',
+      items: [
+        {
+          id: 'li-1',
+          name: `Tart ${IMG}`,
+          local_name: `Nata ${IMG}`,
+          note: `Note ${SCRIPT}`,
+          url: 'javascript:window.__xss=(window.__xss||0)+1'
+        },
+        {
+          id: 'li-2',
+          name: 'Break the chip',
+          // Rides in an onclick-adjacent data attribute — must not escape it.
+          segment_id: `seg-1'); window.__xss=(window.__xss||0)+1;('`
+        }
+      ]
+    }
   ]
 };
 
@@ -112,6 +134,17 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
     await expect(page.locator('#hvbudget')).toContainText(`Studio ${IMG}`);
     await page.click('.htab[data-v="map"]');
     await expect(page.locator('#hvmap img[src="x"]')).toHaveCount(0);
+
+    // Lists view (issue #40): payloads stay literal, the javascript: item url
+    // is dropped, and a quote-laden segment_id can't break out of the chip's
+    // onclick (it renders as the dangling-link chip, which never runs JS).
+    await page.click('.htab[data-v="lists"]');
+    await expect(page.locator('#hvlists')).toContainText(`Foods ${IMG}`);
+    await expect(page.locator('#hvlists')).toContainText(`Tart ${IMG}`);
+    await expect(page.locator('#hvlists')).toContainText(`Note ${SCRIPT}`);
+    await expect(page.locator('#hvlists img[src="x"]')).toHaveCount(0);
+    await expect(page.locator('#hvlists a[href^="javascript:"]')).toHaveCount(0);
+    await page.locator('#hvlists .hli', { hasText: 'Break the chip' }).locator('.hli-chip').click();
 
     // The payloads never ran.
     const fired = await page.evaluate(() => globalThis.__xss || 0);
