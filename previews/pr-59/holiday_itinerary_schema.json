@@ -620,10 +620,6 @@
           "type": "integer",
           "minimum": 1
         },
-        "class": {
-          "type": "string",
-          "description": "Travel class — omit where it doesn't apply (taxis, buses)"
-        },
         "seats": {
           "type": "array",
           "items": {
