@@ -10,6 +10,12 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:8345',
     trace: 'on-first-retry',
+    // The page registers a service worker (issue #45). Once one controls a
+    // page, page.route can no longer intercept its fetches, which would
+    // break the esm.sh/OpenRouter stubs on specs that reload. Block it by
+    // default (also exercising the registration no-op path);
+    // offline.spec.js opts back in with test.use.
+    serviceWorkers: 'block',
   },
   projects: [
     {

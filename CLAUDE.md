@@ -33,6 +33,10 @@ src/
   app.js            load/reset, tab switching, JSON edit modal, saved-data version guard
   validate.js       ajv setup (NOT bundled — injected as a separate module script;
                     loads ajv from esm.sh at runtime, degrades gracefully offline)
+  sw.js             offline service worker (issue #45): precache + stale-while-
+                    revalidate shell, cache-first CDNs; bundled to dist/sw.js
+  sw-register.js    guarded SW registration + "Offline ready" badge (no-ops on
+                    file://, PR previews, or when sw.js is absent)
   lib/              pure functions, no DOM — unit tested in tests/unit/
     cost.js         costInfo + budgetSummary (all cost interpretation lives here)
     sort.js         segDate/segTime/sortSegments (shared list+map ordering)
@@ -40,6 +44,7 @@ src/
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
     lists.js        list progress/partition + dangling segment_id detection (issue #40)
     ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
+    sw-cache.js     request classification for the service worker (issue #45)
     gantt-layout.js time→pixel scales, compact points, coverage gaps
     escape.js       esc() html escaping
   views/            DOM rendering only; maths belongs in lib/
@@ -56,7 +61,10 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 
 - **Single-file output**: the built page must stay fully self-contained
   (external CDN links for Leaflet/icons/ajv only). Anything new in `src/`
-  must be inlined by `scripts/build.mjs`.
+  must be inlined by `scripts/build.mjs`. The offline sidecars the build
+  also emits (`sw.js`, `manifest.webmanifest`, icons — issue #45) are
+  deploy conveniences, never dependencies: the page must keep working when
+  they are absent (saved file://, PR previews).
 - **Schema version**: `state.js`'s `__H_SCHEMA_VERSION__` placeholder is
   injected from `schema.version` at build time — never hardcode it. Bump the
   schema's MAJOR version on any breaking change to the stored itinerary

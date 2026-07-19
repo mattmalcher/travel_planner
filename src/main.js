@@ -9,6 +9,7 @@ import { toggleListItem, revealListSegment } from './views/lists.js';
 import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport } from './ai/chat.js';
 import { discardDraft, applyDraft } from './ai/preview.js';
 import { settingsOpen, settingsClose, settingsSave, settingsClearKey } from './ai/settings.js';
+import { initServiceWorker } from './sw-register.js';
 
 // validate.js (a separate inline module script in the built page) compares
 // this against the schema.version it fetches at runtime.
@@ -83,5 +84,6 @@ if (window.visualViewport) {
 
 renderChat();
 loadSaved();
+initServiceWorker();
 
 export { state }; // handy for debugging from the console via the bundle
