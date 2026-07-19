@@ -127,6 +127,10 @@ test.describe('Lists view', () => {
     expect(draft.name).toBe('Custard tart');
     expect(draft.notes).toBe('From a proper bakery.');
     expect(draft.date).toBe('2026-09-18'); // trip start
+    // time/duration are prefilled with the lib/dates.js defaults so the raw
+    // JSON modal shows the user where to set them.
+    expect(draft.time).toBe('10:00');
+    expect(draft.duration_min).toBe(120);
     expect(draft.cost).toEqual({ status: 'not_booked' });
     await expect(page.locator('#hedit-del')).toBeHidden(); // nothing to delete yet
 
