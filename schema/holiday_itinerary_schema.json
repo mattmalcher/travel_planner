@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "title": "HolidayItinerary",
   "description": "Structured holiday itinerary with transport, accommodation and events (gigs, walks, festivals, etc.)",
   "type": "object",
@@ -71,10 +71,38 @@
   "definitions": {
     "Cost": {
       "type": "object",
+      "required": [
+        "status"
+      ],
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "paid",
+              "pending"
+            ]
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "amount"
+            ]
+          },
+          {
+            "required": [
+              "payments"
+            ]
+          }
+        ]
+      },
       "properties": {
         "currency": {
           "type": "string",
-          "pattern": "^[A-Z]{3}$"
+          "pattern": "^[A-Z]{3}$",
+          "description": "ISO-4217 code; when omitted the trip's currency_primary applies"
         },
         "status": {
           "type": "string",
@@ -102,9 +130,10 @@
           "type": "string",
           "description": "ID of segment this cost is bundled with"
         },
-        "total": {
+        "amount": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "description": "The single total amount for this cost. When payments[] is present it must equal their sum (checked by lint, not the schema)."
         },
         "payments": {
           "type": "array",
@@ -144,7 +173,8 @@
             "additionalProperties": false
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "StationPoint": {
       "type": "object",

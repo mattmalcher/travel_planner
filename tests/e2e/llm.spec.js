@@ -21,7 +21,7 @@ const baseItinerary = {
       arrives: { station: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
       class: "Standard",
-      cost: { total: 156.0, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
+      cost: { amount: 156.0, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
     }
   ]
 };
@@ -38,7 +38,7 @@ const newSegment = {
   arrives: { station: "London St Pancras Int'l", time: "11:30" },
   duration_min: 150,
   class: "Standard",
-  cost: { total: 120.0, currency: "GBP", status: "paid", paid_by: "George Jetson" }
+  cost: { amount: 120.0, currency: "GBP", status: "paid", paid_by: "George Jetson" }
 };
 
 // Stub the ajv ESM modules so the test is hermetic (no esm.sh network needed) and
@@ -158,7 +158,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     expect(seg.departs.time).toBe('17:01');
     expect(seg.departs.station).toBe("London St Pancras Int'l");
     expect(seg.cost.status).toBe('pending');
-    expect(seg.cost.total).toBe(156.0);
+    expect(seg.cost.amount).toBe(156.0);
     expect(seg.ref).toBe('AB1234');
   });
 
@@ -247,7 +247,7 @@ test.describe('Schema version guard', () => {
   test('auto-loads saved data from a compatible major version', async ({ page }) => {
     await page.addInitScript((itin) => {
       localStorage.setItem('hItinerary', JSON.stringify(itin));
-      localStorage.setItem('hSchemaVersion', '2.0.0');
+      localStorage.setItem('hSchemaVersion', '3.0.0');
     }, baseItinerary);
     await page.goto('/holiday_itinerary_viewer.html');
 

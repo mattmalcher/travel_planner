@@ -24,7 +24,7 @@ const validItinerary = {
       arrives: { station: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
       class: "Standard",
-      cost: { total: 156.0, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
+      cost: { amount: 156.0, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
     }
   ]
 };
