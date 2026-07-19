@@ -2,7 +2,7 @@
 import { state } from '../state.js';
 import { costInfo, fmtCurrency } from '../lib/cost.js';
 import { sortSegments, segDate } from '../lib/sort.js';
-import { fmtDayLong, fmtDayShort, fmtMinutes } from '../lib/dates.js';
+import { fmtDayLong, fmtDayShort, fmtMinutes, nightsBetween } from '../lib/dates.js';
 import { currentDayChip } from '../lib/now.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
@@ -32,10 +32,12 @@ function renderTransport(s, trip) {
 }
 
 function renderAccom(s) {
+  // nights was dropped from the schema (3.0.0): derive it from the dates.
+  const nights = nightsBetween(s.checkin.date, s.checkout.date);
   return `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;gap:8px">
     <span><i class="ti ti-door-enter" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> In after ${esc(s.checkin.from)} · ${fmtDayLong(s.checkin.date)}</span>
     <span><i class="ti ti-door-exit" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Out by ${esc(s.checkout.by)} · ${fmtDayLong(s.checkout.date)}</span>
-    <span>${s.nights} night${s.nights !== 1 ? 's' : ''} · Host: ${esc(s.host)}</span>
+    <span>${nights} night${nights !== 1 ? 's' : ''} · Host: ${esc(s.host)}</span>
     ${s.self_checkin ? '<span><i class="ti ti-key" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Self check-in</span>' : ''}
     ${s.phone ? `<span><i class="ti ti-phone" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.phone)}</span>` : ''}
     <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">Ref: <code>${esc(s.ref)}</code></div>

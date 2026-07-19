@@ -35,8 +35,6 @@
       "lng": 2.3431,
       "checkin": { "date": "2026-09-18", "from": "14:00" },
       "checkout": { "date": "2026-09-20", "by": "11:00" },
-      "guests": 2,
-      "nights": 2,
       "self_checkin": true,
       "cost": { "amount": 174.48, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" },
       "notes": "Smart lock check-in.",

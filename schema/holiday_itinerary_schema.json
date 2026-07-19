@@ -131,9 +131,6 @@
           "format": "date",
           "description": "ISO date payment is due"
         },
-        "note": {
-          "type": "string"
-        },
         "included_in": {
           "type": "string",
           "description": "ID of segment this cost is bundled with"
@@ -301,34 +298,6 @@
       },
       "additionalProperties": false
     },
-    "Rating": {
-      "type": "object",
-      "description": "A rating from an external source",
-      "required": [
-        "score",
-        "out_of",
-        "source"
-      ],
-      "properties": {
-        "score": {
-          "type": "number",
-          "minimum": 0
-        },
-        "out_of": {
-          "type": "number",
-          "minimum": 0
-        },
-        "review_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "source": {
-          "type": "string",
-          "description": "e.g. AllTrails, Google, Resident Advisor"
-        }
-      },
-      "additionalProperties": false
-    },
     "Proposal": {
       "type": "object",
       "description": "Collaboration metadata — tracks the lifecycle of a segment from first suggestion through to confirmation. If absent on a segment, the segment is implicitly confirmed.",
@@ -412,10 +381,6 @@
         "name": {
           "type": "string"
         },
-        "artist": {
-          "type": "string",
-          "description": "Performer name — used for gigs; omit for walks/activities"
-        },
         "venue": {
           "type": "string",
           "description": "Venue or trailhead name"
@@ -470,9 +435,6 @@
           "type": "string",
           "format": "uri"
         },
-        "rating": {
-          "$ref": "#/definitions/Rating"
-        },
         "walk": {
           "type": "object",
           "description": "Walk-specific detail — only populated when subtype is 'walk'",
@@ -501,49 +463,49 @@
                 "out-and-back",
                 "point-to-point"
               ]
-                },
-                "surface": {
-                  "type": "string",
-                  "description": "e.g. rocky trail, forest path, coastal path"
-                }
-              },
-              "additionalProperties": false
             },
-            "parent_event_id": {
+            "surface": {
               "type": "string",
-              "description": "ID of a parent EventSegment — e.g. a gig nested under a festival segment"
-            },
-            "pricing": {
-              "type": "object",
-              "description": "Named pricing tiers — keys are tier names, values describe the price",
-              "additionalProperties": {
-                "type": "object",
-                "properties": {
-                  "amount": {
-                    "type": "number"
-                  },
-                  "from": {
-                    "type": "number"
-                  },
-                  "to": {
-                    "type": "number"
-                  },
-                  "currency": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{3}$"
-                  },
-                  "note": {
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "cost": {
-              "$ref": "#/definitions/Cost"
+              "description": "e.g. rocky trail, forest path, coastal path"
             }
           },
           "additionalProperties": false
+        },
+        "parent_event_id": {
+          "type": "string",
+          "description": "ID of a parent EventSegment — e.g. a gig nested under a festival segment"
+        },
+        "pricing": {
+          "type": "object",
+          "description": "Named pricing tiers — keys are tier names, values describe the price",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              },
+              "from": {
+                "type": "number"
+              },
+              "to": {
+                "type": "number"
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "cost": {
+          "$ref": "#/definitions/Cost"
+        }
+      },
+      "additionalProperties": false
     },
     "TransportSegment": {
       "type": "object",
@@ -646,8 +608,6 @@
         "lng",
         "checkin",
         "checkout",
-        "guests",
-        "nights",
         "self_checkin",
         "cost"
       ],
@@ -705,14 +665,6 @@
         },
         "checkout": {
           "$ref": "#/definitions/CheckTime"
-        },
-        "guests": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "nights": {
-          "type": "integer",
-          "minimum": 1
         },
         "self_checkin": {
           "type": "boolean"

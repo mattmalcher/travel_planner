@@ -53,9 +53,9 @@ test('transport without ref/class stays clean and pass-covered legs show the pas
     'seg-7 | transport/bus | 2026-09-20 09:15 Spaceport Square → 09:55 Orbit Lakes | PostBus pass IR01 | free GBP 0');
 });
 
-test('event artist and untimed events render compactly', () => {
-  const s = { id: 'seg-4', type: 'event', subtype: 'gig', name: 'Cogswell Sonics', artist: 'The Cogs', venue: 'La Cigale', date: '2026-09-19' };
-  assert.equal(segmentLine(s, 'GBP'), 'seg-4 | event/gig | 2026-09-19 | Cogswell Sonics — The Cogs @ La Cigale');
+test('untimed events render compactly', () => {
+  const s = { id: 'seg-4', type: 'event', subtype: 'gig', name: 'Cogswell Sonics', venue: 'La Cigale', date: '2026-09-19' };
+  assert.equal(segmentLine(s, 'GBP'), 'seg-4 | event/gig | 2026-09-19 | Cogswell Sonics @ La Cigale');
 });
 
 test('multi-day and all-day events surface their span in the digest (issue #13)', () => {

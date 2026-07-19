@@ -4,6 +4,7 @@
 // JSON on demand via the get_segment tool. Pure: no DOM, no state.
 import { sortSegments } from './sort.js';
 import { costInfo } from './cost.js';
+import { nightsBetween } from './dates.js';
 
 function money(n) {
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
@@ -22,8 +23,10 @@ export function costLine(s, primaryCurrency) {
 function when(s) {
   if (s.type === 'transport')
     return `${s.date} ${s.departs.time} ${s.departs.place} → ${s.arrives.time} ${s.arrives.place}`;
-  if (s.type === 'accommodation')
-    return `${s.checkin.date}, ${s.nights} night${s.nights === 1 ? '' : 's'}`;
+  if (s.type === 'accommodation') {
+    const n = nightsBetween(s.checkin.date, s.checkout.date);
+    return `${s.checkin.date}, ${n} night${n === 1 ? '' : 's'}`;
+  }
   let w = s.date + (s.time ? ' ' + s.time : '');
   if (s.end_date || s.end_time)
     w += ' → ' + [s.end_date, s.end_time].filter(Boolean).join(' ');
@@ -36,7 +39,7 @@ function who(s) {
     return [s.operator, s.service, s.ref && 'ref ' + s.ref, s.pass_id && 'pass ' + s.pass_id].filter(Boolean).join(' ');
   if (s.type === 'accommodation')
     return s.name + (s.ref ? ' ref ' + s.ref : '');
-  return s.name + (s.artist ? ' — ' + s.artist : '') + (s.venue ? ' @ ' + s.venue : '');
+  return s.name + (s.venue ? ' @ ' + s.venue : '');
 }
 
 /** One digest line for a segment: id | kind | when/where | name | cost,
