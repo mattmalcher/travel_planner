@@ -53,9 +53,26 @@ const genericItinerary = {
   ]
 };
 
+// Same stub pattern as upload.spec.js: these tests exercise the views, not
+// validation, so ajv is stubbed (always valid) to keep them hermetic —
+// otherwise whether an upload loads straight in depends on the race between
+// the file input and the esm.sh ajv import.
+const AJV_STUB = `
+export default class Ajv {
+  constructor() {}
+  compile() {
+    function validate() { validate.errors = null; return true; }
+    return validate;
+  }
+}
+`;
+const FMT_STUB = `export default function addFormats() {}`;
+
 test.describe('Holiday Itinerary Viewer', () => {
-  
+
   test.beforeEach(async ({ page }) => {
+    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
+    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     // Navigate to the local server hosting the itinerary viewer page
     await page.goto('/holiday_itinerary_viewer.html');
   });
@@ -249,7 +266,8 @@ test.describe('Holiday Itinerary Viewer', () => {
           duration_min: 144,
           pass_id: "IR01",
           seats: [{ traveller: "Judy Jetson", coach: "B", seat: 41 }],
-          cost: { status: "included", note: "Covered by Interrail pass" }
+          notes: "Covered by Interrail pass",
+          cost: { status: "included" }
         }
       ]
     };
