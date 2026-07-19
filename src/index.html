@@ -5,6 +5,16 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Itinerary Viewer</title>
+<!-- PWA sidecars (issue #45): additive links that 404 harmlessly when the
+     page is used as a standalone saved file without them. Safari ignores
+     manifest icons, hence the apple-touch-icon + apple-mobile-web-app tags. -->
+<link rel="manifest" href="manifest.webmanifest"/>
+<meta name="theme-color" content="#f8fafc"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Itinerary"/>
 <h2 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore timeline, budget and map views</h2>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
@@ -126,6 +136,10 @@
     </div>
   </div>
 </div>
+
+<!-- Shown by sw-register.js only when this page load was served from the
+     service worker's offline cache. -->
+<div id="hswbadge" title="Loaded from the offline cache"><i class="ti ti-cloud-check" aria-hidden="true"></i> Offline ready</div>
 
 <!-- build:app -->
 <!-- build:validate -->

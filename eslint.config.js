@@ -17,6 +17,11 @@ export default [
     languageOptions: { globals: { ...globals.browser, L: 'readonly' } },
   },
   {
+    // The service worker runs in a worker scope, not a window.
+    files: ['src/sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
+  {
     files: ['scripts/**/*.mjs', 'tests/**/*.js', '*.config.js', 'eslint.config.js'],
     languageOptions: { globals: { ...globals.node } },
   },

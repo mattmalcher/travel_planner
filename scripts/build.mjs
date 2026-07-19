@@ -11,8 +11,10 @@
 // schema version can never drift from the schema itself.
 import { build, transform } from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeIcons } from './icons.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = p => join(root, 'src', p);
@@ -56,4 +58,39 @@ mkdirSync(out(''), { recursive: true });
 writeFileSync(out('holiday_itinerary_viewer.html'), html);
 writeFileSync(out('index.html'), html);
 copyFileSync(schemaPath, out('holiday_itinerary_schema.json'));
-console.log(`built dist/holiday_itinerary_viewer.html (schema ${schema.version}, ${(html.length / 1024).toFixed(0)} kB)`);
+
+// Offline sidecars (issue #45): service worker, manifest and icons emitted
+// next to the page. They are deploy conveniences, not dependencies — the
+// HTML above stays fully self-contained. The SW cache name carries the
+// schema version plus a hash of the built page so a deploy with any change
+// gets a fresh shell cache (old ones are dropped on activate).
+const buildTag = `${schema.version}-${createHash('sha256').update(html).digest('hex').slice(0, 8)}`;
+const swBundle = await build({
+  entryPoints: [src('sw.js')],
+  bundle: true,
+  format: 'iife',
+  minify: true,
+  legalComments: 'none',
+  write: false,
+});
+const sw = swBundle.outputFiles[0].text.replaceAll('__H_SW_VERSION__', buildTag);
+if (sw.includes('__H_SW_VERSION__')) throw new Error('SW version placeholder not replaced');
+writeFileSync(out('sw.js'), sw);
+
+writeFileSync(out('manifest.webmanifest'), JSON.stringify({
+  name: 'Holiday Itinerary Viewer',
+  short_name: 'Itinerary',
+  description: 'Timeline, budget, map and gantt views for HolidayItinerary JSON files',
+  start_url: './',
+  scope: './',
+  display: 'standalone',
+  background_color: '#f8fafc',
+  theme_color: '#f8fafc',
+  icons: [
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+  ],
+}, null, 2));
+writeIcons(out(''));
+
+console.log(`built dist/holiday_itinerary_viewer.html (schema ${schema.version}, ${(html.length / 1024).toFixed(0)} kB) + sw.js/manifest/icons (build ${buildTag})`);
