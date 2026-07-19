@@ -22,6 +22,7 @@ beforeEach(() => {
   state.ops = [];
   state.reads = new Set();
   delete globalThis.window.hValidateSegment;
+  delete globalThis.window.hValidateTrip;
 });
 
 test('tool schemas type payload params as objects, not *_json strings', () => {
@@ -94,6 +95,32 @@ test('update_trip accepts a typed trip object (and legacy trip_json)', () => {
   assert.equal(state.draft.trip.name, 'Renamed');
   assert.match(applyTool(call('update_trip', { trip_json: JSON.stringify({ ...trip, name: 'Again' }) })), /^OK/);
   assert.equal(state.draft.trip.name, 'Again');
+});
+
+test('patch_trip merges changes into the trip, keeping unseen fields', () => {
+  const before = state.draft.trip;
+  const res = applyTool(call('patch_trip', { changes: { name: 'Renamed' } }));
+  assert.match(res, /^OK/);
+  assert.equal(state.draft.trip.name, 'Renamed');
+  assert.deepEqual(state.draft.trip.travellers, ['Judy Jetson']);
+  assert.equal(state.draft.trip.currency_primary, 'GBP');
+  assert.deepEqual(state.ops, [{ kind: 'trip', before, after: state.draft.trip }]);
+});
+
+test('patch_trip validates the resulting trip and reports errors', () => {
+  globalThis.window.hValidateTrip = () => ({ ok: false, errors: [{ path: '/end', message: 'stub: bad trip' }] });
+  const res = applyTool(call('patch_trip', { changes: { end: 'not-a-date' } }));
+  assert.match(res, /^ERROR — trip failed schema validation/);
+  assert.match(res, /stub: bad trip/);
+  assert.equal(state.draft.trip.end, '2026-09-28');
+  assert.equal(state.ops.length, 0);
+});
+
+test('update_trip validates the replacement trip', () => {
+  globalThis.window.hValidateTrip = () => ({ ok: false, errors: [{ path: '/', message: 'stub: bad trip' }] });
+  const res = applyTool(call('update_trip', { trip: { name: 'Only a name' } }));
+  assert.match(res, /^ERROR — trip failed schema validation/);
+  assert.equal(state.draft.trip.name, 'Trip');
 });
 
 test('segment validation failures are returned as errors', () => {
