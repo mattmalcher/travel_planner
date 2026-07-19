@@ -68,11 +68,16 @@ dz.addEventListener('drop', e => {
   loadFile(e.dataTransfer.files[0]);
 });
 
-/* chat input UX: Enter to send, Shift+Enter for newline, auto-grow */
+/* chat input UX: auto-grow, plus Enter-to-send only where a physical keyboard
+   makes Shift+Enter easy. On touch devices (coarse pointer) Enter inserts a
+   newline like any other field so multi-line messages can be composed on
+   mobile — the Send button is the only way to submit there. */
 {
   const ta = document.getElementById('hchat-input');
-  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSubmit(); } });
-  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
+  const enterSends = !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  if (enterSends)
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSubmit(); } });
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; });
 }
 
 /* keep the fixed chat panel matched to the visual viewport (mobile URL bar +
