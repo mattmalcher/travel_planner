@@ -27,6 +27,7 @@ Rules:
 - Costs carry one "amount" (plus optional payments[] instalments that sum to it); a cost with status paid/pending needs an amount or payments.
 - Transport ref is optional: omit it when unknown or not applicable (taxis, local buses) — never fill in placeholders like "n/a". Travel class goes in seats[] or notes if it matters. When a leg is covered by a travel pass (e.g. Interrail), define the pass once in trip.passes and set the leg's pass_id instead of abusing ref.
 - Multi-day events (festivals) set end_date; timed events use time plus end_time or duration_min; genuinely all-day activities set all_day true instead of an invented time.
+- Migrating a document written for schema 2.x: cost "total" is now "amount"; departs/arrives "station" is now "place"; transport "class" is gone (mention it in notes or seats[] if it matters); accommodation uses checkin/checkout only (no top-level date) and no longer carries "guests" or "nights" (nights is derived from the dates); events no longer carry "artist" (fold into name) or "rating"; Cost has no "note" (use the segment's notes). A pass ref repeated across legs (e.g. "IR01") becomes one trip.passes entry referenced via pass_id.
 - Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed. If a choice between valid options genuinely depends on user preference, ask in your text reply before calling tools.
 - After your tool calls, reply with a short plain-text summary of what you changed.
 
