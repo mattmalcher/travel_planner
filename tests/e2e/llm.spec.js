@@ -214,6 +214,26 @@ test.describe('AI assistant (OpenRouter)', () => {
     expect(stored.trip.currency_primary).toBe('GBP');
   });
 
+  test('says so when the tool loop exhausts, and pins a low temperature (issue #44)', async ({ page }) => {
+    // The mock repeats its last entry, so every iteration returns a tool
+    // call and the loop can never reach a final text reply.
+    const requests = await mockOpenRouter(page, [
+      [toolCall('call_1', 'get_segment', { ids: ['seg-1'] })],
+    ]);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await page.getByRole('button', { name: 'AI' }).click();
+    await page.locator('#hchat-input').fill('Read everything forever');
+    await page.locator('#hchat-send').click();
+
+    // Instead of ending the turn silently, the exhaustion note is posted.
+    await expect(page.locator('#hchat-msgs')).toContainText('Stopped after 12 tool steps');
+    expect(requests.length).toBe(12);
+
+    // Tool-calling requests pin a low temperature (fewer malformed calls).
+    for (const r of requests) expect(r.temperature).toBe(0.2);
+  });
+
   test('blocks apply and surfaces errors when the result is not schema-valid', async ({ page }) => {
     await mockOpenRouter(page, [
       // Legacy *_json string form, still accepted for older transcripts and
