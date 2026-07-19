@@ -80,8 +80,11 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .hpv-err{background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
 .hpv-warn{background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
 #hchat-ft{display:flex;gap:8px;align-items:flex-end;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom));border-top:.5px solid var(--color-border-tertiary);flex-shrink:0}
-/* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25). */
-#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;min-height:38px;max-height:120px;outline:none}
+/* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25).
+   min-height fits ~3 lines so the multi-line placeholder example is visible;
+   max-height leaves room to compose longer multi-line messages (keep in sync
+   with the auto-grow cap in main.js). */
+#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;line-height:1.35;min-height:76px;max-height:160px;outline:none}
 /* On small screens the open chat is genuinely fullscreen and the page behind
    it is taken out of play, so no touch gesture can scroll the itinerary
    (issue #48). visibility rather than display so showApp()'s inline
