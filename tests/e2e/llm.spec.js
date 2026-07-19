@@ -40,15 +40,17 @@ const newSegment = {
 };
 
 // Stub the ajv ESM modules so the test is hermetic (no esm.sh network needed) and
-// so we can deterministically drive validation outcomes. The app compiles two
-// validators — the full document and a single segment (a oneOf schema) — which
-// are driven independently via globalThis.__DOC_VALID__ / __SEG_VALID__ so a
-// tool call can be accepted while the resulting document still fails.
+// so we can deterministically drive validation outcomes. The app compiles three
+// validators — the full document, a single segment (a oneOf schema) and the
+// trip (currency_primary at its top level) — driven independently via
+// globalThis.__DOC_VALID__ / __SEG_VALID__ / __TRIP_VALID__ so a tool call can
+// be accepted while the resulting document still fails.
 const AJV_STUB = `
 export default class Ajv {
   constructor() {}
   compile(schema) {
-    const flag = schema && schema.oneOf ? '__SEG_VALID__' : '__DOC_VALID__';
+    const flag = schema && schema.oneOf ? '__SEG_VALID__'
+      : (schema && schema.properties && schema.properties.currency_primary ? '__TRIP_VALID__' : '__DOC_VALID__');
     function validate(data) {
       const ok = (globalThis[flag] !== false);
       validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/segments/0', message: 'stub: invalid', params: {} }]);
@@ -90,6 +92,7 @@ test.describe('AI assistant (OpenRouter)', () => {
       localStorage.setItem('hOpenRouterModel', 'test/model');
       globalThis.__DOC_VALID__ = true;
       globalThis.__SEG_VALID__ = true;
+      globalThis.__TRIP_VALID__ = true;
     }, baseItinerary);
   });
 
@@ -186,6 +189,29 @@ test.describe('AI assistant (OpenRouter)', () => {
     await preview.getByRole('button', { name: 'Apply changes' }).click();
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
     expect(stored.segments.find(s => s.id === 'seg-1').notes).toBe('Upgraded to Standard Premier');
+  });
+
+  test('patches the trip with patch_trip, keeping fields the changes omit (issue #43)', async ({ page }) => {
+    await mockOpenRouter(page, [
+      [toolCall('call_1', 'patch_trip', { changes: { name: 'Paris & Lyon 2026' } })],
+      'Done — I renamed the trip.',
+    ]);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await page.getByRole('button', { name: 'AI' }).click();
+    await page.locator('#hchat-input').fill('Rename the trip to Paris & Lyon 2026');
+    await page.locator('#hchat-send').click();
+
+    const preview = page.locator('#hchat-preview');
+    await expect(preview).toBeVisible();
+    await expect(preview).toContainText('Updated trip details');
+    await preview.getByRole('button', { name: 'Apply changes' }).click();
+
+    // Only the name changed; the fields the patch omitted survived.
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(stored.trip.name).toBe('Paris & Lyon 2026');
+    expect(stored.trip.travellers).toEqual(['Judy Jetson', 'George Jetson']);
+    expect(stored.trip.currency_primary).toBe('GBP');
   });
 
   test('blocks apply and surfaces errors when the result is not schema-valid', async ({ page }) => {
