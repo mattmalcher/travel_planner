@@ -1,6 +1,6 @@
 // Referential-integrity checks the JSON Schema can't express (issue #17):
-// id uniqueness, dangling cross-references, traveller-name typos, payment
-// sums and the accommodation date alias. Pure — takes a HolidayItinerary
+// id/pass-id uniqueness, dangling cross-references, traveller-name typos,
+// payment sums and the accommodation date alias. Pure — takes a HolidayItinerary
 // document, returns an array of human-readable warning strings. These are
 // advisory (a warned document still loads); run them after schema validation.
 
@@ -27,9 +27,22 @@ export function lintItinerary(doc) {
       warnings.push(`${where} "${name}" is not in trip.travellers`);
   };
 
+  const passIds = new Set();
+  ((doc.trip && Array.isArray(doc.trip.passes) ? doc.trip.passes : [])).forEach((pass, i) => {
+    if (!pass) return;
+    if (pass.id) {
+      if (passIds.has(pass.id)) warnings.push(`duplicate pass id "${pass.id}" in trip.passes`);
+      passIds.add(pass.id);
+    }
+    checkName(pass.traveller, `trip.passes[${i}].traveller`);
+  });
+
   segments.forEach((seg, i) => {
     if (!seg) return;
     const label = seg.id ? `segment "${seg.id}"` : `segment ${i + 1}`;
+
+    if (seg.pass_id && !passIds.has(seg.pass_id))
+      warnings.push(`${label}: pass_id "${seg.pass_id}" does not match any pass in trip.passes`);
 
     if (seg.parent_event_id) {
       if (seg.parent_event_id === seg.id) warnings.push(`${label}: parent_event_id refers to itself`);

@@ -23,11 +23,11 @@ export function renderMap() {
   const allc = [], route = [], seen = new Set();
   for (const s of sortSegments(HD.segments)) {
     if (s.type === 'transport') {
-      const dk = s.departs.station.toLowerCase(), ak = s.arrives.station.toLowerCase();
+      const dk = s.departs.place.toLowerCase(), ak = s.arrives.place.toLowerCase();
       const dc = s.departs.lat != null ? [s.departs.lat, s.departs.lng] : null;
       const ac = s.arrives.lat != null ? [s.arrives.lat, s.arrives.lng] : null;
-      if (dc) { route.push(dc); if (!seen.has(dk)) { seen.add(dk); allc.push(dc); L.marker(dc, { icon: mpin('#4b5563', 'T') }).addTo(HM).bindPopup(`<strong>${esc(s.departs.station)}</strong><br>${esc(s.operator)}${s.service ? ' · ' + esc(s.service) : ''}<br>Departs ${esc(s.departs.time)}`); } }
-      if (ac) { route.push(ac); if (!seen.has(ak)) { seen.add(ak); allc.push(ac); L.marker(ac, { icon: mpin('#4b5563', 'T') }).addTo(HM).bindPopup(`<strong>${esc(s.arrives.station)}</strong>`); } }
+      if (dc) { route.push(dc); if (!seen.has(dk)) { seen.add(dk); allc.push(dc); L.marker(dc, { icon: mpin('#4b5563', 'T') }).addTo(HM).bindPopup(`<strong>${esc(s.departs.place)}</strong><br>${esc(s.operator)}${s.service ? ' · ' + esc(s.service) : ''}<br>Departs ${esc(s.departs.time)}`); } }
+      if (ac) { route.push(ac); if (!seen.has(ak)) { seen.add(ak); allc.push(ac); L.marker(ac, { icon: mpin('#4b5563', 'T') }).addTo(HM).bindPopup(`<strong>${esc(s.arrives.place)}</strong>`); } }
     } else if (s.type === 'accommodation') {
       const c = [s.lat, s.lng]; route.push(c); allc.push(c);
       L.marker(c, { icon: mpin('#b45309', 'H') }).addTo(HM).bindPopup(`<strong>${esc(s.name)}</strong><br>${esc(s.host)}<br>${esc(s.address)}<br>Check-in: ${fmtDate(s.checkin.date)}`);
