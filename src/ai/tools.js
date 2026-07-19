@@ -11,7 +11,8 @@ export function buildTools() {
     { type: 'function', function: { name: 'patch_segment', description: 'Update part of an existing segment (matched by id) via JSON Merge Patch: nested objects merge, arrays and scalars replace, null removes a field. Preferred over update_segment for partial edits.', parameters: { type: 'object', properties: { id: { type: 'string', description: 'id of the segment to modify' }, changes: { type: 'object', description: 'An object containing only the fields to change.' } }, required: ['id', 'changes'] } } },
     { type: 'function', function: { name: 'update_segment', description: 'Replace an existing segment (matched by id) with a new full segment object.', parameters: { type: 'object', properties: { id: { type: 'string', description: 'id of the segment to replace' }, segment: { type: 'object', description: 'The complete replacement segment object.' } }, required: ['id', 'segment'] } } },
     { type: 'function', function: { name: 'remove_segment', description: 'Remove the segment with the given id.', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } },
-    { type: 'function', function: { name: 'update_trip', description: 'Replace the trip metadata (name, travellers, start, end, currency_primary, passes).', parameters: { type: 'object', properties: { trip: { type: 'object', description: 'The complete trip object.' } }, required: ['trip'] } } },
+    { type: 'function', function: { name: 'patch_trip', description: 'Update part of the trip metadata (name, travellers, start, end, currency_primary, passes) via JSON Merge Patch: nested objects merge, arrays and scalars replace, null removes a field. Preferred over update_trip for partial changes.', parameters: { type: 'object', properties: { changes: { type: 'object', description: 'An object containing only the trip fields to change.' } }, required: ['changes'] } } },
+    { type: 'function', function: { name: 'update_trip', description: 'Replace the trip metadata (name, travellers, start, end, currency_primary, passes) with a complete new trip object. Prefer patch_trip for partial changes — a replacement drops any field it omits.', parameters: { type: 'object', properties: { trip: { type: 'object', description: 'The complete trip object.' } }, required: ['trip'] } } },
   ];
   if (localStorage.getItem('hOpenRouterWeb') === '1')
     tools.push({ type: 'openrouter:web_search', parameters: { engine: 'auto', max_results: 3 } });
@@ -55,6 +56,15 @@ function objArg(args, name) {
   if (typeof v === 'string') v = JSON.parse(v);
   if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new Error('the "' + name + '" argument must be a JSON object');
   return v;
+}
+
+/* Trip payloads are schema-checked at tool time (issue #43) so errors feed
+   back into the tool loop instead of only surfacing at the preview's
+   whole-document check, after the loop has finished. */
+function tripError(trip) {
+  if (!window.hValidateTrip) return null;
+  const v = window.hValidateTrip(trip);
+  return v.ok ? null : 'ERROR — trip failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2);
 }
 
 /** Apply one tool call to state.draft. Returns a string result for the model
@@ -108,8 +118,13 @@ export function applyTool(tc) {
       if (idx < 0) return noSuchSegment(args.id);
       state.ops.push({ kind: 'remove', id: args.id, before: state.draft.segments[idx] });
       state.draft.segments.splice(idx, 1);
+    } else if (name === 'patch_trip') {
+      const trip = mergePatch(state.draft.trip, objArg(args, 'changes'));
+      const bad = tripError(trip); if (bad) return bad;
+      state.ops.push({ kind: 'trip', before: state.draft.trip, after: trip }); state.draft.trip = trip;
     } else if (name === 'update_trip') {
       const trip = objArg(args, 'trip');
+      const bad = tripError(trip); if (bad) return bad;
       state.ops.push({ kind: 'trip', before: state.draft.trip, after: trip }); state.draft.trip = trip;
     } else return 'ERROR: unknown tool "' + name + '".';
   } catch (e) { return 'ERROR applying ' + name + ': ' + e.message; }

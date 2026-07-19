@@ -22,4 +22,7 @@ try{
   const segSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"oneOf":[{"$ref":"#/definitions/TransportSegment"},{"$ref":"#/definitions/AccommodationSegment"},{"$ref":"#/definitions/EventSegment"}]};
   const validateSeg=ajv.compile(segSchema);
   window.hValidateSegment=function(seg){const ok=validateSeg(seg);return{ok,errors:ok?[]:(validateSeg.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
+  const tripSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,...schema.properties.trip};
+  const validateTrip=ajv.compile(tripSchema);
+  window.hValidateTrip=function(trip){const ok=validateTrip(trip);return{ok,errors:ok?[]:(validateTrip.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
 }catch(e){console.error('AI validation unavailable (ajv/schema failed to load):',e);}
