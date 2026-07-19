@@ -2,7 +2,12 @@
 body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:var(--color-text-primary)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .hv{display:none}.hv.on{display:block}
-.htab{padding:.55rem .9rem;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:5px;transition:color .15s;user-select:none}
+/* The tab strip scrolls within itself rather than pushing the page wide:
+   five tabs overflow a narrow phone, and the days timeline already uses this
+   same contained horizontal scroll (issue #66). */
+.htabs{display:flex;border-bottom:.5px solid var(--color-border-tertiary);padding:0 1.25rem;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.htabs::-webkit-scrollbar{display:none}
+.htab{flex-shrink:0;white-space:nowrap;padding:.55rem .9rem;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:5px;transition:color .15s;user-select:none}
 .htab:hover{color:var(--color-text-primary)}.htab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
 .hseg{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:.8rem 1rem;margin-bottom:.5rem;scroll-margin-top:56px}
 .hseg.hl{animation:hseg-flash 1.6s ease-out}

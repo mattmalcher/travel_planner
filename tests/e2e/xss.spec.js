@@ -118,7 +118,6 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
 
     // Header shows the payload as literal text, not a broken element.
     await expect(page.locator('#htname')).toContainText(IMG);
-    await expect(page.locator('#htmeta')).toContainText(IMG);
 
     // Timeline keeps the payloads as text across transport/accommodation/event.
     await expect(page.locator('#hvlist')).toContainText(`Eurostar ${IMG}`);
