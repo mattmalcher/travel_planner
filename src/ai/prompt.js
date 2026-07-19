@@ -14,7 +14,7 @@ function schemaBrief() {
 export function buildSystem() {
   const today = new Date().toISOString().slice(0, 10);
   const cur = state.HD ? itineraryDigest(state.HD) : '(no itinerary loaded yet — create one from scratch using update_trip and add_segment)';
-  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (get_segment, add_segment, patch_segment, update_segment, remove_segment, update_trip). Pass objects as JSON strings in the *_json arguments — never put the itinerary JSON in your text reply.
+  return `You edit a travel itinerary JSON document for the user. Make every change ONLY by calling the provided tools (get_segment, add_segment, patch_segment, update_segment, remove_segment, update_trip). Pass segment/trip payloads as plain JSON objects in the tool arguments (no extra JSON-string encoding) — never put the itinerary JSON in your text reply.
 
 Rules:
 - The current itinerary below is a DIGEST: one line per segment (id | kind | when/where | name | cost), with +notes/+warnings/proposal flags marking detail the line omits. It is not the full data.
