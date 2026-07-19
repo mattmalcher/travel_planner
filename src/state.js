@@ -10,6 +10,7 @@ export const state = {
   draft: null,         // pending AI-edited itinerary (clone), not yet applied
   ops: [],             // tracked operations for the AI diff preview
   reads: new Set(),    // segment ids the AI has fetched this turn (read-before-edit guard, issue #31)
+  listReads: new Set(),// list ids the AI has fetched this turn (same guard for lists, issue #40)
   busy: false,         // an AI request is in flight
   editTarget: null,    // {type:'segment',idx} or {type:'trip'} for the edit modal
   pendingUpload: null, // uploaded doc held back by the version/validation guard (issue #15)

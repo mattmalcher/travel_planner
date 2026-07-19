@@ -3,6 +3,7 @@
 // and payment sums. Pure — takes a HolidayItinerary
 // document, returns an array of human-readable warning strings. These are
 // advisory (a warned document still loads); run them after schema validation.
+import { danglingListRefs } from './lists.js';
 
 /** Two-decimal tolerance for comparing payment sums to a declared total. */
 const SUM_TOLERANCE = 0.005;
@@ -70,6 +71,26 @@ export function lintItinerary(doc) {
       seg.seats.forEach((s, j) => checkName(s && s.traveller, `${label}: seats[${j}].traveller`));
     if (seg.proposal) checkName(seg.proposal.proposed_by, `${label}: proposal.proposed_by`);
   });
+
+  // Lists (issue #40): list ids unique, item ids unique across the whole
+  // document (AI edits address items by id), promoted items point at a real
+  // segment.
+  const listIds = new Set();
+  const itemIds = new Set();
+  (Array.isArray(doc.lists) ? doc.lists : []).forEach(list => {
+    if (!list) return;
+    if (list.id) {
+      if (listIds.has(list.id)) warnings.push(`duplicate list id "${list.id}" — edits by id will only ever reach the first match`);
+      listIds.add(list.id);
+    }
+    (Array.isArray(list.items) ? list.items : []).forEach(item => {
+      if (!item || !item.id) return;
+      if (itemIds.has(item.id)) warnings.push(`duplicate list item id "${item.id}" — item ids must be unique across all lists`);
+      itemIds.add(item.id);
+    });
+  });
+  for (const d of danglingListRefs(doc))
+    warnings.push(`list "${d.listId}": item "${d.itemId}" was scheduled as segment "${d.segmentId}" which no longer exists`);
 
   return warnings;
 }

@@ -17,12 +17,23 @@ const baseSegment = () => ({
   departs: { place: 'London', time: '16:31' }, arrives: { place: 'Paris', time: '19:49' }, duration_min: 138,
 });
 
+const baseList = () => ({
+  id: 'list-food', name: 'Foods to try', kind: 'food',
+  items: [{ id: 'li-1', name: 'Custard tart', note: 'best warm' }],
+});
+
 beforeEach(() => {
-  state.draft = { trip: { name: 'Trip', travellers: ['Judy Jetson'], start: '2026-09-18', end: '2026-09-28', currency_primary: 'GBP' }, segments: [baseSegment()] };
+  state.draft = {
+    trip: { name: 'Trip', travellers: ['Judy Jetson'], start: '2026-09-18', end: '2026-09-28', currency_primary: 'GBP' },
+    segments: [baseSegment()],
+    lists: [baseList()],
+  };
   state.ops = [];
   state.reads = new Set();
+  state.listReads = new Set();
   delete globalThis.window.hValidateSegment;
   delete globalThis.window.hValidateTrip;
+  delete globalThis.window.hValidateList;
 });
 
 test('tool schemas type payload params as objects, not *_json strings', () => {
@@ -171,6 +182,69 @@ test('wrong-id errors list the known ids so the model can self-correct', () => {
     assert.match(res, /^ERROR: no segment with id "seg-9"/);
     assert.match(res, /Known ids: seg-1/);
   }
+});
+
+test('get_list returns full list JSON and marks it read (issue #40)', () => {
+  const res = applyTool(call('get_list', { ids: ['list-food'] }));
+  assert.deepEqual(JSON.parse(res), baseList());
+  assert.ok(state.listReads.has('list-food'));
+});
+
+test('patch_list enforces the read-before-edit guard', () => {
+  const changes = { items: [{ id: 'li-1', name: 'Custard tart', note: 'best warm', done: true }] };
+  assert.match(applyTool(call('patch_list', { id: 'list-food', changes })), /has not been read this turn/);
+  state.listReads.add('list-food');
+  assert.match(applyTool(call('patch_list', { id: 'list-food', changes })), /^OK/);
+  assert.equal(state.draft.lists[0].items[0].done, true);
+  assert.deepEqual(state.ops.map(o => o.kind), ['update-list']);
+});
+
+test('add_list assigns list and item ids and returns them', () => {
+  const res = applyTool(call('add_list', { list: { name: 'Packing', kind: 'packing', items: [{ name: 'Passports' }] } }));
+  const m = res.match(/^OK — created list "(list-[a-z0-9]{5})" with item ids (li-[a-z0-9]{5})/);
+  assert.ok(m, res);
+  const added = state.draft.lists[1];
+  assert.equal(added.id, m[1]);
+  assert.equal(added.items[0].id, m[2]);
+  assert.ok(state.listReads.has(m[1])); // authored in full — editable without a read
+});
+
+test('add_list overrides colliding list and item ids instead of duplicating', () => {
+  const res = applyTool(call('add_list', { list: { id: 'list-food', name: 'Again', items: [{ id: 'li-1', name: 'x' }] } }));
+  assert.match(res, /^OK/);
+  const added = state.draft.lists[1];
+  assert.notEqual(added.id, 'list-food');
+  assert.notEqual(added.items[0].id, 'li-1');
+});
+
+test('remove_list removes by id and records the op', () => {
+  assert.match(applyTool(call('remove_list', { id: 'list-food' })), /^OK/);
+  assert.deepEqual(state.draft.lists, []);
+  assert.deepEqual(state.ops.map(o => o.kind), ['remove-list']);
+});
+
+test('wrong list ids list the known list ids so the model can self-correct', () => {
+  for (const res of [
+    applyTool(call('get_list', { ids: ['list-9'] })),
+    applyTool(call('patch_list', { id: 'list-9', changes: { name: 'x' } })),
+    applyTool(call('remove_list', { id: 'list-9' })),
+  ]) {
+    assert.match(res, /^ERROR: no list with id "list-9"/);
+    assert.match(res, /Known list ids: list-food/);
+  }
+});
+
+test('list validation failures are returned as errors', () => {
+  globalThis.window.hValidateList = () => ({ ok: false, errors: [{ path: '/', message: 'stub: bad list' }] });
+  const res = applyTool(call('add_list', { list: { name: 'Broken' } }));
+  assert.match(res, /^ERROR — list failed schema validation/);
+  assert.equal(state.draft.lists.length, 1);
+});
+
+test('list tools work on a document that has no lists array yet', () => {
+  delete state.draft.lists;
+  assert.match(applyTool(call('add_list', { list: { name: 'First' } })), /^OK/);
+  assert.equal(state.draft.lists.length, 1);
 });
 
 test('unparseable tool arguments are reported, not thrown', () => {

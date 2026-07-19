@@ -1,5 +1,5 @@
 {
-  "schema_version": "3.0.0",
+  "schema_version": "3.1.0",
   "trip": {
     "name": "Paris Weekend (example)",
     "travellers": ["Judy Jetson", "George Jetson"],
@@ -52,6 +52,28 @@
       "lat": 48.8842,
       "lng": 2.3388,
       "cost": { "amount": 40.0, "currency": "EUR", "status": "pending", "due": "2026-09-16" }
+    }
+  ],
+  "lists": [
+    {
+      "id": "list-food",
+      "name": "Foods to try",
+      "kind": "food",
+      "items": [
+        { "id": "li-1", "name": "Custard tart", "local_name": "Flan pâtissier", "note": "Best from a proper bakery, not a supermarket.", "done": true },
+        { "id": "li-2", "name": "Buckwheat crêpe", "local_name": "Galette de sarrasin" },
+        { "id": "li-3", "name": "Jazz-club cocktail", "note": "Before the gig on Saturday.", "segment_id": "seg-3" }
+      ]
+    },
+    {
+      "id": "list-packing",
+      "name": "Packing",
+      "kind": "packing",
+      "items": [
+        { "id": "li-4", "name": "Passports", "done": true },
+        { "id": "li-5", "name": "Eurostar tickets (offline copies)" },
+        { "id": "li-6", "name": "Comfortable walking shoes" }
+      ]
     }
   ]
 }
