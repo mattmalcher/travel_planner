@@ -103,9 +103,8 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('#hupl')).toBeHidden();
     await expect(page.locator('#happ')).toBeVisible();
 
-    // Verify trip name and travellers meta
+    // Verify trip name (dates/travellers were removed from the header in #66)
     await expect(page.locator('#htname')).toHaveText('Summer Rail Tour 2026');
-    await expect(page.locator('#htmeta')).toContainText('Judy Jetson & George Jetson');
 
     // Verify Timeline contains correct segments
     const timeline = page.locator('#hvlist');
@@ -458,7 +457,6 @@ test.describe('Holiday Itinerary Viewer', () => {
 
     // Verify metadata for the custom trip
     await expect(page.locator('#htname')).toHaveText('Test Weekend Getaway');
-    await expect(page.locator('#htmeta')).toContainText('Alice & Bob');
 
     // Verify segment is shown in the timeline
     await expect(page.locator('#hvlist')).toContainText('Cozy Cabin in the Woods');
@@ -720,5 +718,30 @@ test.describe('Holiday Itinerary Viewer', () => {
     expect(closed.bodyClass).toBe(false);
     expect(closed.uplVisibility).toBe('visible');
     expect(closed.height).toBe('');
+  });
+
+  test('should not scroll the page horizontally on a narrow phone (issue #66)', async ({ page }) => {
+    // iPhone 15/16 Pro logical width. Five tabs used to push the tab strip past
+    // the viewport and drag the whole page into a horizontal scroll; the strip
+    // now scrolls within itself instead.
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
+    await expect(page.locator('#happ')).toBeVisible();
+
+    // Visit every tab: none of them may make the document wider than the viewport.
+    for (const v of ['list', 'budget', 'map', 'gantt', 'lists']) {
+      await page.evaluate(view => globalThis.hsw(view), v);
+      const overflow = await page.evaluate(() =>
+        globalThis.document.documentElement.scrollWidth - globalThis.document.documentElement.clientWidth);
+      expect(overflow, `tab "${v}" overflows the viewport`).toBeLessThanOrEqual(1);
+    }
+
+    // The dates/travellers meta line is gone from the header (only the name remains).
+    await expect(page.locator('#htmeta')).toHaveCount(0);
+    await expect(page.locator('#htname')).toHaveText('Summer Rail Tour 2026');
   });
 });
