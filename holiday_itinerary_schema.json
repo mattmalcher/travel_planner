@@ -45,6 +45,14 @@
         "currency_primary": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
+        },
+        "passes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/Pass"
+          },
+          "description": "Trip-level travel passes (e.g. an Interrail pass). Transport segments covered by a pass reference it via pass_id instead of repeating the pass in each leg's ref."
         }
       },
       "additionalProperties": false
@@ -176,15 +184,49 @@
       },
       "additionalProperties": false
     },
-    "StationPoint": {
+    "Pass": {
       "type": "object",
       "required": [
-        "station",
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Short unique id transport segments reference via pass_id, e.g. IR01"
+        },
+        "name": {
+          "type": "string",
+          "description": "e.g. Interrail Global Pass"
+        },
+        "traveller": {
+          "type": "string",
+          "description": "Holder — should match a value in trip.travellers; omit for a pass shared by the whole group"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Pass/booking reference"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TransportStop": {
+      "type": "object",
+      "required": [
+        "place",
         "time"
       ],
       "properties": {
-        "station": {
-          "type": "string"
+        "place": {
+          "type": "string",
+          "description": "Station, stop, port or airport name — or a street address for taxi/door-to-door legs"
         },
         "time": {
           "type": "string",
@@ -218,8 +260,11 @@
           "type": "string"
         },
         "coach": {
-          "type": "integer",
-          "minimum": 1
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Coach number or letter (some operators use lettered coaches)"
         },
         "deck": {
           "type": "string",
@@ -493,12 +538,10 @@
         "type",
         "mode",
         "operator",
-        "ref",
         "date",
         "departs",
         "arrives",
         "duration_min",
-        "class",
         "cost"
       ],
       "properties": {
@@ -543,24 +586,29 @@
         },
         "ref": {
           "type": "string",
-          "description": "Booking reference"
+          "description": "Booking reference — omit when there is none (unbooked/walk-up legs); never use placeholders like \"n/a\""
+        },
+        "pass_id": {
+          "type": "string",
+          "description": "id of the trip-level pass (trip.passes) covering this leg"
         },
         "date": {
           "type": "string",
           "format": "date"
         },
         "departs": {
-          "$ref": "#/definitions/StationPoint"
+          "$ref": "#/definitions/TransportStop"
         },
         "arrives": {
-          "$ref": "#/definitions/StationPoint"
+          "$ref": "#/definitions/TransportStop"
         },
         "duration_min": {
           "type": "integer",
           "minimum": 1
         },
         "class": {
-          "type": "string"
+          "type": "string",
+          "description": "Travel class — omit where it doesn't apply (taxis, buses)"
         },
         "seats": {
           "type": "array",
@@ -591,8 +639,7 @@
         "guests",
         "nights",
         "self_checkin",
-        "cost",
-        "date"
+        "cost"
       ],
       "properties": {
         "id": {
@@ -662,11 +709,6 @@
         },
         "cost": {
           "$ref": "#/definitions/Cost"
-        },
-        "date": {
-          "type": "string",
-          "format": "date",
-          "description": "Convenience alias for checkin.date — must match. Enables uniform date-based sorting across all segment types."
         }
       },
       "additionalProperties": false
