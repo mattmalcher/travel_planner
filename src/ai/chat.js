@@ -98,10 +98,14 @@ async function llmSend(text) {
   state.reads = new Set();
   const working = [{ role: 'system', content: buildSystem() }, ...state.chat.map(m => ({ role: m.role, content: m.content }))];
   setBusy(true);
+  // 12 iterations (up from 8): the read-then-patch pattern the digest prompt
+  // mandates (issue #31) costs a get_segment round trip before each edit, so
+  // a multi-segment request can legitimately need many steps — and an unused
+  // iteration costs nothing (issue #44).
+  const MAX_STEPS = 12;
+  let finished = false;
   try {
-    // 8 iterations (up from 6): the digest prompt (issue #31) costs an extra
-    // get_segment round trip before edits to existing segments.
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < MAX_STEPS; i++) {
       const data = await callOpenRouter(working);
       const msg = (data.choices && data.choices[0] && data.choices[0].message) || {};
       working.push(msg);
@@ -115,8 +119,14 @@ async function llmSend(text) {
       }
       if (msg.content) chatPush('assistant', msg.content);
       else if (!state.ops.length) chatPush('assistant', '(no changes)');
+      finished = true;
       break;
     }
+    // Every iteration returned tool calls: say so instead of ending the turn
+    // silently (issue #44). The note lands in state.chat, so the next turn's
+    // model sees it too and can pick up where it stopped.
+    if (!finished)
+      chatPush('assistant', `Stopped after ${MAX_STEPS} tool steps — the changes recorded so far are in the preview below; ask me to continue for the rest.`);
   } catch (e) { chatPush('assistant', '⚠️ ' + e.message); }
   setBusy(false);
   if (state.ops.length) showPreview();
