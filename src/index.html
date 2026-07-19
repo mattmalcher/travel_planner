@@ -41,24 +41,21 @@
 </div>
 
 <div id="happ" style="display:none">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)">
-    <div>
-      <div id="htname" style="font-size:15px;font-weight:500"></div>
-      <div id="htmeta" style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;display:flex;gap:12px"></div>
-    </div>
-    <div style="display:flex;gap:8px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:.75rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)">
+    <div id="htname" style="font-size:15px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
       <button onclick="hChatOpen()" style="font-size:12px" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
       <button id="hedit-toggle" onclick="hToggleEdit()" style="font-size:12px" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       <button onclick="hDownload()" style="font-size:12px" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
       <button onclick="hreset()" style="font-size:12px"><i class="ti ti-refresh" aria-hidden="true"></i> New file</button>
     </div>
   </div>
-  <div style="display:flex;border-bottom:.5px solid var(--color-border-tertiary);padding:0 1.25rem">
+  <div class="htabs">
     <div class="htab on" data-v="list" onclick="hsw('list')"><i class="ti ti-list-details" aria-hidden="true"></i> Timeline</div>
-    <div class="htab" data-v="budget" onclick="hsw('budget')"><i class="ti ti-coins" aria-hidden="true"></i> Budget</div>
     <div class="htab" data-v="map" onclick="hsw('map')"><i class="ti ti-map-2" aria-hidden="true"></i> Map</div>
     <div class="htab" data-v="gantt" onclick="hsw('gantt')"><i class="ti ti-chart-gantt" aria-hidden="true"></i> Gantt</div>
     <div class="htab" data-v="lists" onclick="hsw('lists')"><i class="ti ti-checklist" aria-hidden="true"></i> Lists</div>
+    <div class="htab" data-v="budget" onclick="hsw('budget')"><i class="ti ti-coins" aria-hidden="true"></i> Budget</div>
   </div>
   <div id="hvlist" class="hv on" style="padding:1.25rem;max-width:760px"></div>
   <div id="hvbudget" class="hv" style="padding:1.25rem;max-width:760px"></div>
