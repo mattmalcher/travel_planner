@@ -25,6 +25,13 @@ test('compactPoints includes trip bounds, midnights and segment boundaries', () 
   assert.deepEqual(pts, [...pts].sort((a, b) => a - b), 'points are sorted');
 });
 
+test('compactPoints uses eventInterval so multi-day events reach their end_date (issue #13)', () => {
+  const festival = { type: 'event', date: '2026-09-18', end_date: '2026-09-19' };
+  const pts = compactPoints(trip, [festival]);
+  assert.ok(pts.includes(toMs('2026-09-18', '00:00')));
+  assert.ok(pts.includes(toMs('2026-09-19', '23:59')));
+});
+
 test('compactScale places known instants a slot apart and interpolates between them', () => {
   const pts = [0, 100, 200];
   const s = compactScale(pts);

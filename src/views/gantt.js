@@ -4,7 +4,7 @@
 import { state } from '../state.js';
 import { revealSegment } from '../app.js';
 import { esc } from '../lib/escape.js';
-import { toMs, msToIso, fmtMinutes, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../lib/dates.js';
+import { toMs, msToIso, fmtMinutes, eventInterval, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY } from '../lib/dates.js';
 import { PX_PER_MIN, MIN_BLOCK_PX, linearScale, compactPoints, compactScale, coverageGaps } from '../lib/gantt-layout.js';
 import { isDuringTrip } from '../lib/now.js';
 
@@ -72,11 +72,17 @@ export function renderGantt() {
         times: `${s.departs.time} → ${arr.time} (${fmtMinutes(s.duration_min)})`,
         sub: `${s.departs.place} → ${s.arrives.place}`, segIdx });
     } else if (s.type === 'event') {
-      const evMs = toMs(s.date, s.time || DEFAULT_EVENT_TIME);
-      const end = msToIso(evMs + (s.duration_min || DEFAULT_EVENT_DURATION_MIN) * 60000);
-      const top = toPx(s.date, s.time || DEFAULT_EVENT_TIME);
-      const bot = toPx(end.date, end.time);
-      eventBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: EVENT_COLOR[s.subtype] || EVENT_COLOR.other, label: s.name, times: `${s.time || DEFAULT_EVENT_TIME} → ${end.time} (${fmtMinutes(s.duration_min || DEFAULT_EVENT_DURATION_MIN)})`, sub: s.subtype || 'event', segIdx });
+      // eventInterval resolves end_date/end_time/all_day (issue #13), so
+      // multi-day festivals span their whole range instead of a fake
+      // 2-hour block on the first day.
+      const { startMs, endMs } = eventInterval(s);
+      const a = msToIso(startMs), b = msToIso(endMs);
+      const top = scale.toPx(startMs), bot = scale.toPx(endMs);
+      const banner = s.all_day || (!s.time && s.end_date);
+      const times = banner
+        ? 'All day' + (s.end_date ? ` · ${s.date} → ${s.end_date}` : '')
+        : `${a.time} → ${b.time} (${fmtMinutes(Math.round((endMs - startMs) / 60000))})`;
+      eventBlocks.push({ top, h: Math.max(bot - top, MIN_BLOCK_PX), color: EVENT_COLOR[s.subtype] || EVENT_COLOR.other, label: s.name, times, sub: s.subtype || 'event', segIdx });
     }
   });
 

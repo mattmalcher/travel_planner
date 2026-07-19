@@ -23,10 +23,10 @@ Rules:
 - Every segment needs a unique id like "seg-1", "seg-2", … (do not reuse an existing id).
 - Follow the schema reference below exactly: required fields (marked *), enums, "type" const per segment kind. Every tool payload is validated against the full JSON Schema and any errors are returned to you to fix.
 - Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters; default to the trip's currency_primary (GBP for a new trip).
-- For accommodation, set "nights" consistently with checkin.date and checkout.date.
 - Provide duration_min where the schema requires it (transport).
 - Costs carry one "amount" (plus optional payments[] instalments that sum to it); a cost with status paid/pending needs an amount or payments.
-- Transport ref and class are optional: omit them when unknown or not applicable (taxis, local buses) — never fill in placeholders like "n/a". When a leg is covered by a travel pass (e.g. Interrail), define the pass once in trip.passes and set the leg's pass_id instead of abusing ref.
+- Transport ref is optional: omit it when unknown or not applicable (taxis, local buses) — never fill in placeholders like "n/a". Travel class goes in seats[] or notes if it matters. When a leg is covered by a travel pass (e.g. Interrail), define the pass once in trip.passes and set the leg's pass_id instead of abusing ref.
+- Multi-day events (festivals) set end_date; timed events use time plus end_time or duration_min; genuinely all-day activities set all_day true instead of an invented time.
 - Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" or a proposal when something isn't confirmed. If a choice between valid options genuinely depends on user preference, ask in your text reply before calling tools.
 - After your tool calls, reply with a short plain-text summary of what you changed.
 

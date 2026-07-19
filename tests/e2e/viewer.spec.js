@@ -19,7 +19,6 @@ const genericItinerary = {
       departs: { place: "London St Pancras Int'l", time: "16:31" },
       arrives: { place: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
-      class: "Standard",
       seats: [
         { traveller: "Judy Jetson", coach: 5, seat: 84 },
         { traveller: "George Jetson", coach: 5, seat: 83 }
@@ -42,8 +41,6 @@ const genericItinerary = {
       lng: 2.3522,
       checkin: { date: "2026-09-18", from: "13:00" },
       checkout: { date: "2026-09-19", by: "13:00" },
-      guests: 2,
-      nights: 1,
       self_checkin: true,
       cost: {
         amount: 87.24,
@@ -56,9 +53,26 @@ const genericItinerary = {
   ]
 };
 
+// Same stub pattern as upload.spec.js: these tests exercise the views, not
+// validation, so ajv is stubbed (always valid) to keep them hermetic —
+// otherwise whether an upload loads straight in depends on the race between
+// the file input and the esm.sh ajv import.
+const AJV_STUB = `
+export default class Ajv {
+  constructor() {}
+  compile() {
+    function validate() { validate.errors = null; return true; }
+    return validate;
+  }
+}
+`;
+const FMT_STUB = `export default function addFormats() {}`;
+
 test.describe('Holiday Itinerary Viewer', () => {
-  
+
   test.beforeEach(async ({ page }) => {
+    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
+    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     // Navigate to the local server hosting the itinerary viewer page
     await page.goto('/holiday_itinerary_viewer.html');
   });
@@ -252,7 +266,8 @@ test.describe('Holiday Itinerary Viewer', () => {
           duration_min: 144,
           pass_id: "IR01",
           seats: [{ traveller: "Judy Jetson", coach: "B", seat: 41 }],
-          cost: { status: "included", note: "Covered by Interrail pass" }
+          notes: "Covered by Interrail pass",
+          cost: { status: "included" }
         }
       ]
     };
@@ -274,6 +289,63 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(segs.nth(1)).toContainText('Pass: Interrail Global Pass');
     await expect(segs.nth(1)).toContainText('IR01');
     await expect(segs.nth(1)).toContainText('Coach B');
+  });
+
+  test('should span multi-day festivals and banner all-day events on the gantt (issue #13)', async ({ page }) => {
+    const spanTrip = {
+      trip: {
+        name: "Festival Weekend",
+        travellers: ["Judy Jetson"],
+        start: "2026-08-01",
+        end: "2026-08-03",
+        currency_primary: "GBP"
+      },
+      segments: [
+        {
+          id: "fest-1",
+          type: "event",
+          subtype: "festival",
+          name: "Orbit Fest",
+          date: "2026-08-01",
+          end_date: "2026-08-02",
+          cost: { amount: 120, currency: "GBP", status: "paid", paid_by: "Judy Jetson" }
+        },
+        {
+          id: "wander-1",
+          type: "event",
+          subtype: "activity",
+          name: "Old Town Wander",
+          date: "2026-08-03",
+          all_day: true,
+          cost: { status: "free" }
+        }
+      ]
+    };
+    await page.setInputFiles('#hfile', {
+      name: 'festival.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(spanTrip))
+    });
+
+    // Timeline: the festival announces its last day; the wander is all-day.
+    const segs = page.locator('#hvlist .hseg');
+    await expect(segs.nth(0)).toContainText('Until Sun 2 August');
+    await expect(segs.nth(1)).toContainText('All day');
+
+    await page.click('.htab[data-v="gantt"]');
+    const blocks = page.locator('#hvgantt .hgt-blk');
+    await expect(blocks).toHaveCount(2);
+
+    // The festival spans both its days (~2879 min at 0.25 px/min), not a
+    // fake 2-hour block on day one.
+    const festH = await blocks.nth(0).evaluate(el => el.getBoundingClientRect().height);
+    expect(festH).toBeGreaterThan(2800 * 0.25);
+
+    // The all-day wander covers its whole day and labels itself as such.
+    const wanderH = await blocks.nth(1).evaluate(el => el.getBoundingClientRect().height);
+    expect(wanderH).toBeGreaterThan(1400 * 0.25);
+    await blocks.nth(1).hover();
+    await expect(page.locator('.hgt-pop')).toContainText('All day');
   });
 
   test('should render timeline blocks at accurate heights with text in a popover', async ({ page }) => {
@@ -362,8 +434,6 @@ test.describe('Holiday Itinerary Viewer', () => {
           lng: 5.0,
           checkin: { date: "2026-09-04", from: "14:00" },
           checkout: { date: "2026-09-06", by: "11:00" },
-          guests: 2,
-          nights: 2,
           self_checkin: false,
           cost: {
             amount: 150.0,

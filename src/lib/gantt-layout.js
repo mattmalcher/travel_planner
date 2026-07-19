@@ -1,6 +1,6 @@
 // Pure geometry for the gantt view: time→pixel scales and accommodation
 // coverage gaps. No DOM — everything here is unit-testable.
-import { toMs, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from './dates.js';
+import { toMs, eventInterval, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY } from './dates.js';
 
 export const PX_PER_MIN = 0.25; // proportional mode
 export const SLOT_PX = 36;      // compact mode: px between consecutive instants
@@ -33,8 +33,8 @@ export function compactPoints(trip, segments) {
       const dep = toMs(s.date, s.departs.time);
       pts.add(dep); pts.add(dep + s.duration_min * 60000);
     } else if (s.type === 'event') {
-      const ev = toMs(s.date, s.time || DEFAULT_EVENT_TIME);
-      pts.add(ev); pts.add(ev + (s.duration_min || DEFAULT_EVENT_DURATION_MIN) * 60000);
+      const { startMs, endMs } = eventInterval(s);
+      pts.add(startMs); pts.add(endMs);
     }
   }
   return Array.from(pts).sort((a, b) => a - b);

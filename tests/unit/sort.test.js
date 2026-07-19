@@ -11,11 +11,14 @@ test('segDate uses check-in date for accommodation, date otherwise', () => {
   assert.equal(segDate(train), '2026-09-18');
 });
 
-test('segTime pins accommodation to end of day and defaults events to midday', () => {
+test('segTime pins accommodation to end of day and events to their render default', () => {
   assert.equal(segTime(train), '16:31');
   assert.equal(segTime(stay), '23:59');
   assert.equal(segTime(gig), '20:30');
-  assert.equal(segTime({ type: 'event', date: '2026-09-18' }), '12:00');
+  // Untimed events sort with the same default time the gantt renders them
+  // at; all-day events open their day (issue #13).
+  assert.equal(segTime({ type: 'event', date: '2026-09-18' }), '10:00');
+  assert.equal(segTime({ type: 'event', date: '2026-09-18', all_day: true }), '00:00');
 });
 
 test('accommodation sorts after same-day transport even when check-in opens earlier', () => {
