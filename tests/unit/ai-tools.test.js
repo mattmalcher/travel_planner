@@ -104,6 +104,48 @@ test('segment validation failures are returned as errors', () => {
   assert.equal(state.draft.segments.length, 1);
 });
 
+test('add_segment assigns an id when the payload omits one, and returns it', () => {
+  const seg = baseSegment(); delete seg.id;
+  const res = applyTool(call('add_segment', { segment: seg }));
+  const m = res.match(/^OK — created segment "(seg-[a-z0-9]{5})"/);
+  assert.ok(m, res);
+  assert.equal(state.draft.segments[1].id, m[1]);
+  assert.ok(state.reads.has(m[1]));
+});
+
+test('add_segment overrides a colliding id instead of creating a duplicate', () => {
+  const res = applyTool(call('add_segment', { segment: baseSegment() })); // reuses seg-1
+  const m = res.match(/created segment "(seg-[a-z0-9]{5})"/);
+  assert.ok(m, res);
+  assert.notEqual(m[1], 'seg-1');
+  assert.deepEqual(state.draft.segments.map(s => s.id), ['seg-1', m[1]]);
+});
+
+test('add_segment keeps a supplied id that is unique', () => {
+  const res = applyTool(call('add_segment', { segment: { ...baseSegment(), id: 'seg-2' } }));
+  assert.match(res, /created segment "seg-2"/);
+});
+
+test('update_segment rejects a replacement carrying another segment\'s id', () => {
+  applyTool(call('add_segment', { segment: { ...baseSegment(), id: 'seg-2' } }));
+  state.reads.add('seg-1');
+  const res = applyTool(call('update_segment', { id: 'seg-1', segment: { ...baseSegment(), id: 'seg-2' } }));
+  assert.match(res, /^ERROR: replacement id "seg-2" already belongs to another segment/);
+  assert.equal(state.draft.segments[0].id, 'seg-1');
+});
+
+test('wrong-id errors list the known ids so the model can self-correct', () => {
+  for (const res of [
+    applyTool(call('get_segment', { ids: ['seg-9'] })),
+    applyTool(call('patch_segment', { id: 'seg-9', changes: { notes: 'x' } })),
+    applyTool(call('update_segment', { id: 'seg-9', segment: baseSegment() })),
+    applyTool(call('remove_segment', { id: 'seg-9' })),
+  ]) {
+    assert.match(res, /^ERROR: no segment with id "seg-9"/);
+    assert.match(res, /Known ids: seg-1/);
+  }
+});
+
 test('unparseable tool arguments are reported, not thrown', () => {
   const res = applyTool({ id: 'c1', type: 'function', function: { name: 'add_segment', arguments: '{not json' } });
   assert.match(res, /^ERROR: could not parse tool arguments/);
