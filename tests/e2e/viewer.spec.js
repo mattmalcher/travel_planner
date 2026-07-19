@@ -19,7 +19,6 @@ const genericItinerary = {
       departs: { place: "London St Pancras Int'l", time: "16:31" },
       arrives: { place: "Paris Gare du Nord", time: "19:49" },
       duration_min: 138,
-      class: "Standard",
       seats: [
         { traveller: "Judy Jetson", coach: 5, seat: 84 },
         { traveller: "George Jetson", coach: 5, seat: 83 }
