@@ -27,7 +27,7 @@ test('mergePatch edits a segment without touching unrelated fields', () => {
     date: '2026-09-18',
     departs: { place: 'London St Pancras', time: '16:31' },
     arrives: { place: 'Paris Gare du Nord', time: '19:49' },
-    duration_min: 138, class: 'Standard',
+    duration_min: 138,
     cost: { total: 156, currency: 'GBP', status: 'pending' },
   };
   const out = mergePatch(seg, { departs: { time: '17:01' }, cost: { status: 'paid' } });

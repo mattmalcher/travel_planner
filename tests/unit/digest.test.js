@@ -53,7 +53,16 @@ test('transport without ref/class stays clean and pass-covered legs show the pas
     'seg-7 | transport/bus | 2026-09-20 09:15 Spaceport Square → 09:55 Orbit Lakes | PostBus pass IR01 | free GBP 0');
 });
 
-test('event artist and untimed events render compactly', () => {
-  const s = { id: 'seg-4', type: 'event', subtype: 'gig', name: 'Cogswell Sonics', artist: 'The Cogs', venue: 'La Cigale', date: '2026-09-19' };
-  assert.equal(segmentLine(s, 'GBP'), 'seg-4 | event/gig | 2026-09-19 | Cogswell Sonics — The Cogs @ La Cigale');
+test('untimed events render compactly', () => {
+  const s = { id: 'seg-4', type: 'event', subtype: 'gig', name: 'Cogswell Sonics', venue: 'La Cigale', date: '2026-09-19' };
+  assert.equal(segmentLine(s, 'GBP'), 'seg-4 | event/gig | 2026-09-19 | Cogswell Sonics @ La Cigale');
+});
+
+test('multi-day and all-day events surface their span in the digest (issue #13)', () => {
+  const fest = { id: 'seg-5', type: 'event', subtype: 'festival', name: 'Orbit Fest', date: '2026-09-19', end_date: '2026-09-22' };
+  assert.equal(segmentLine(fest, 'GBP'), 'seg-5 | event/festival | 2026-09-19 → 2026-09-22 | Orbit Fest');
+  const timed = { id: 'seg-6', type: 'event', subtype: 'gig', name: 'Late Show', date: '2026-09-19', time: '21:00', end_time: '23:30' };
+  assert.equal(segmentLine(timed, 'GBP'), 'seg-6 | event/gig | 2026-09-19 21:00 → 23:30 | Late Show');
+  const wander = { id: 'seg-7', type: 'event', subtype: 'activity', name: 'Old town wander', date: '2026-09-20', all_day: true };
+  assert.equal(segmentLine(wander, 'GBP'), 'seg-7 | event/activity | 2026-09-20 all-day | Old town wander');
 });

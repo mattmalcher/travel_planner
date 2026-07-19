@@ -18,7 +18,6 @@
       "departs": { "place": "London St Pancras Int'l", "time": "16:31", "lat": 51.5322, "lng": -0.1270 },
       "arrives": { "place": "Paris Gare du Nord", "time": "19:49", "lat": 48.8809, "lng": 2.3553 },
       "duration_min": 138,
-      "class": "Standard",
       "seats": [
         { "traveller": "Judy Jetson", "coach": 5, "seat": 84 },
         { "traveller": "George Jetson", "coach": 5, "seat": 83 }
@@ -36,8 +35,6 @@
       "lng": 2.3431,
       "checkin": { "date": "2026-09-18", "from": "14:00" },
       "checkout": { "date": "2026-09-20", "by": "11:00" },
-      "guests": 2,
-      "nights": 2,
       "self_checkin": true,
       "cost": { "amount": 174.48, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" },
       "notes": "Smart lock check-in.",
