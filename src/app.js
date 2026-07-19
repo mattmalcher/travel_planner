@@ -3,6 +3,7 @@
 import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
 import { esc } from './lib/escape.js';
 import { newId } from './lib/ids.js';
+import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from './lib/dates.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
 import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
@@ -150,12 +151,17 @@ export function openScheduleItem(li, ii) {
   const list = state.HD.lists[li];
   const item = list.items[ii];
   state.editTarget = { type: 'new-segment', li, ii };
+  // The modal edits raw JSON, so every field the user is expected to adjust
+  // (date, time, duration) must be present in the prefill to be discoverable
+  // — the defaults come from lib/dates.js (issue #13), not invented here.
   const seg = {
     id: newId('seg-', new Set(state.HD.segments.map(s => s && s.id))),
     type: 'event',
     subtype: (list.kind === 'food' || list.kind === 'restaurant') ? 'meal' : 'activity',
     name: item.name,
     date: state.HD.trip.start,
+    time: DEFAULT_EVENT_TIME,
+    duration_min: DEFAULT_EVENT_DURATION_MIN,
     cost: { status: 'not_booked' },
   };
   if (item.url) seg.url = item.url;
