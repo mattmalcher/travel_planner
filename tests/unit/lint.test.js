@@ -103,12 +103,3 @@ test('flags dangling pass_id and duplicate/misattributed trip passes (issue #11)
   assert.match(w[1], /trip\.passes\[1\]\.traveller "Rosie" is not in trip\.travellers/);
 });
 
-test('flags accommodation date/checkin.date alias mismatch', () => {
-  const acc = {
-    id: 'seg-2', type: 'accommodation', name: 'Studio', host: 'Pierre', ref: 'X', address: 'A',
-    lat: 0, lng: 0, checkin: { date: '2026-09-18' }, checkout: { date: '2026-09-20' },
-    guests: 2, nights: 2, self_checkin: true, cost: { status: 'paid' }, date: '2026-09-19',
-  };
-  const [w] = lintItinerary(doc([acc]));
-  assert.match(w, /date "2026-09-19" does not match checkin\.date "2026-09-18"/);
-});

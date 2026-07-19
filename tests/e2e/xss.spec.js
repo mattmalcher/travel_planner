@@ -42,8 +42,7 @@ const xssItinerary = {
       guests: 2,
       nights: 1,
       cost: { amount: 87.24, currency: 'GBP', status: 'pending', due: '2026-09-01' },
-      notes: `Careful ${SCRIPT}`,
-      date: '2026-09-18'
+      notes: `Careful ${SCRIPT}`
     },
     {
       id: 'seg-3',

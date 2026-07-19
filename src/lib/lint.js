@@ -1,6 +1,6 @@
 // Referential-integrity checks the JSON Schema can't express (issue #17):
-// id/pass-id uniqueness, dangling cross-references, traveller-name typos,
-// payment sums and the accommodation date alias. Pure — takes a HolidayItinerary
+// id/pass-id uniqueness, dangling cross-references, traveller-name typos
+// and payment sums. Pure — takes a HolidayItinerary
 // document, returns an array of human-readable warning strings. These are
 // advisory (a warned document still loads); run them after schema validation.
 
@@ -69,11 +69,6 @@ export function lintItinerary(doc) {
     if (Array.isArray(seg.seats))
       seg.seats.forEach((s, j) => checkName(s && s.traveller, `${label}: seats[${j}].traveller`));
     if (seg.proposal) checkName(seg.proposal.proposed_by, `${label}: proposal.proposed_by`);
-
-    // The alias exists for uniform sorting; a mismatch means the segment
-    // sorts to a different day than it checks in (see issue #12).
-    if (seg.type === 'accommodation' && seg.date && seg.checkin && seg.checkin.date && seg.date !== seg.checkin.date)
-      warnings.push(`${label}: date "${seg.date}" does not match checkin.date "${seg.checkin.date}"`);
   });
 
   return warnings;
