@@ -145,6 +145,15 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
     await expect(page.locator('#hvlists a[href^="javascript:"]')).toHaveCount(0);
     await page.locator('#hvlists .hli', { hasText: 'Break the chip' }).locator('.hli-chip').click();
 
+    // The edit form (issue #65) puts itinerary strings into value attributes:
+    // they must land as literal input values, not markup.
+    await page.evaluate(() => globalThis.hOpenEdit(1));
+    await expect(page.locator('#hedit-form img[src="x"]')).toHaveCount(0);
+    await expect(page.locator('#hedit-form [data-p="name"]')).toHaveValue(`Studio ${IMG}`);
+    await expect(page.locator('#hedit-form [data-p="address"]')).toHaveValue(`42 Rue ${IMG}`);
+    await expect(page.locator('#hedit-form [data-p="notes"]')).toHaveValue(`Careful ${SCRIPT}`);
+    await page.evaluate(() => globalThis.hCloseEdit());
+
     // The payloads never ran.
     const fired = await page.evaluate(() => globalThis.__xss || 0);
     expect(fired).toBe(0);
