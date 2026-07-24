@@ -19,6 +19,24 @@ export function partitionItems(list) {
   };
 }
 
+/** Every list id in the document — the taken set for newId('list-', …). */
+export function takenListIds(doc) {
+  const lists = (doc && Array.isArray(doc.lists)) ? doc.lists : [];
+  return new Set(lists.map(l => l && l.id).filter(Boolean));
+}
+
+/** Every item id in the document. Item ids are unique across all lists (the
+    schema says so, and segment_id back-references assume it), so an id for a
+    new item has to be checked against the whole document, not one list. */
+export function takenItemIds(doc) {
+  const lists = (doc && Array.isArray(doc.lists)) ? doc.lists : [];
+  const out = new Set();
+  for (const list of lists)
+    for (const item of (list && Array.isArray(list.items)) ? list.items : [])
+      if (item && item.id) out.add(item.id);
+  return out;
+}
+
 /** Items whose segment_id points at no segment in the document (the promoted
     segment was deleted, or the id was mistyped). Returns
     [{listId, itemId, segmentId}] — lint formats these into warnings (issue
