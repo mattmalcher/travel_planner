@@ -59,9 +59,13 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .hef-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.4rem .5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
 .hef-in:focus{border-color:var(--color-text-info)}
 textarea.hef-in{resize:vertical;line-height:1.4}
+/* Wrapping single-line fields (long names, addresses, links): they grow to
+   fit instead of scrolling their text sideways on a phone, so no manual
+   resize handle and no scrollbar of their own. */
+textarea.hef-in[data-line]{resize:none;overflow:hidden}
 .hef-ck{grid-column:1/-1;flex-direction:row;align-items:center;gap:7px;font-size:13px;cursor:pointer}
 .hef-ck input{accent-color:var(--color-text-primary);cursor:pointer}
-.hef-more{margin-top:.9rem;font-size:11px;line-height:1.6;color:var(--color-text-tertiary)}
+.hef-more{margin-top:.9rem;font-size:11px;line-height:1.6;color:var(--color-text-tertiary);overflow-wrap:anywhere}
 @media (max-width:520px){.hef-grid{grid-template-columns:1fr}}
 .hgt-wrap{display:flex;flex-direction:column;height:calc(100vh - 120px);min-height:400px}
 .hgt-head{display:flex;flex-shrink:0;border-bottom:.5px solid var(--color-border-tertiary);background:var(--color-background-primary);z-index:10}

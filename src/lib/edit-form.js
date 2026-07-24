@@ -205,10 +205,14 @@ export function inputValue(field, obj) {
 
 /** One raw input value → the value to store, or undefined to drop the key.
     A number that will not parse is kept as the typed string rather than
-    silently discarded, so schema validation reports it on save. */
+    silently discarded, so schema validation reports it on save. Every kind
+    but the notes textarea is a single-line string: the wide fields are drawn
+    as wrapping controls (so a long address doesn't scroll sideways on a
+    phone), and any newline that gets into one collapses to a space. */
 export function parseField(field, raw) {
   if (field.kind === 'checkbox') return raw ? true : (field.required ? false : undefined);
-  const s = String(raw == null ? '' : raw).trim();
+  let s = String(raw == null ? '' : raw).trim();
+  if (field.kind !== 'textarea') s = s.replace(/\s*\n\s*/g, ' ');
   if (s === '') return undefined;
   if (field.kind === 'csv') {
     const items = s.split(',').map(x => x.trim()).filter(Boolean);

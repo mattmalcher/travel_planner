@@ -140,11 +140,13 @@ function editFieldsFor(target, value) {
     source of truth while the modal is open — each tab is a view of it). */
 function setEditMode(mode) {
   state.editMode = mode;
-  if (mode === 'form') renderForm(editEl('form'), state.editFields, state.editValue);
-  else editEl('ta').value = JSON.stringify(state.editValue, null, 2);
+  // Show the tab before filling it: the form's wrapping fields size
+  // themselves to their content, which can only be measured while visible.
   editEl('inner').classList.toggle('json', mode === 'json');
   editEl('tab-form').classList.toggle('on', mode === 'form');
   editEl('tab-json').classList.toggle('on', mode === 'json');
+  if (mode === 'form') renderForm(editEl('form'), state.editFields, state.editValue);
+  else editEl('ta').value = JSON.stringify(state.editValue, null, 2);
 }
 
 /** The edited value as it currently stands in the active tab, or undefined
@@ -176,8 +178,8 @@ function openModal(target, value, title, deletable) {
   editEl('err').textContent = '';
   editEl('del').style.display = deletable ? '' : 'none';
   editEl('tab-form').style.display = state.editFields ? '' : 'none';
+  editEl('modal').classList.add('on'); // before setEditMode — see the note there
   setEditMode(state.editFields ? 'form' : 'json');
-  editEl('modal').classList.add('on');
 }
 
 export function openEdit(idx) {

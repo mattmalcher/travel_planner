@@ -92,6 +92,11 @@ test('parseField: blanks drop the key, numbers parse, checkboxes follow required
   assert.deepEqual(parseField(byPath(spec.trip, 'travellers'), 'Judy , George ,'),
     ['Judy', 'George']);
   assert.equal(parseField(byPath(spec.trip, 'travellers'), ' , '), undefined);
+  // Wide fields are drawn as wrapping controls, so a pasted newline must not
+  // turn a single-line schema string into a multi-line one; notes may wrap.
+  assert.equal(parseField(byPath(spec.accommodation, 'address'), '42 Rue de l\'Exemple,\n75018 Paris'),
+    "42 Rue de l'Exemple, 75018 Paris");
+  assert.equal(parseField(byPath(spec.event, 'notes'), 'Line one\nLine two'), 'Line one\nLine two');
   // Optional booleans disappear when unticked; required ones stay as false.
   assert.equal(parseField(byPath(spec.event, 'all_day'), false), undefined);
   assert.equal(parseField(byPath(spec.event, 'all_day'), true), true);

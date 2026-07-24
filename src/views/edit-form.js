@@ -10,6 +10,22 @@ function optionLabel(v) {
   return String(v).replace(/_/g, ' ');
 }
 
+/* The full-width text fields are the ones that hold long values — names,
+   addresses, stop names, links. In a single-line <input> those scroll
+   sideways inside the field on a phone, showing a third of an address at a
+   time, so they are drawn as wrapping auto-growing textareas instead. The
+   value stays a single-line string: Enter is swallowed and lib/parseField
+   collapses any newline that gets in. */
+function wraps(f) {
+  return f.wide && (f.kind === 'text' || f.kind === 'url' || f.kind === 'csv');
+}
+
+/** Grow a wrapping field to fit its content (needs to be visible to measure). */
+function autosize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+
 function control(f, obj) {
   const v = inputValue(f, obj);
   const p = ` data-p="${esc(f.path)}"`;
@@ -25,6 +41,9 @@ function control(f, obj) {
   }
   if (f.kind === 'textarea')
     return `<textarea class="hef-in" rows="3"${p}>${esc(v)}</textarea>`;
+  if (wraps(f))
+    return `<textarea class="hef-in" data-line="1" rows="1"${f.kind === 'url' ? ' inputmode="url"' : ''}${
+      f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ''}${p}>${esc(v)}</textarea>`;
   const attrs = [
     f.kind === 'number' ? 'type="number"' : f.kind === 'text' || f.kind === 'csv' ? 'type="text"' : `type="${f.kind}"`,
     f.step ? `step="${esc(f.step)}"` : '',
@@ -50,6 +69,11 @@ export function renderForm(el, fields, obj) {
     ? `<div class="hef-more"><i class="ti ti-code" aria-hidden="true"></i> Also set here, editable on the JSON tab: ${extra.map(p => `<code>${esc(p)}</code>`).join(', ')}</div>`
     : '';
   el.innerHTML = `<div class="hef-grid">${fields.map(f => row(f, obj)).join('')}</div>${note}`;
+  // Assigned rather than added, so re-rendering the form never stacks up
+  // duplicate handlers on the container.
+  el.oninput = e => { if (e.target.dataset.line) autosize(e.target); };
+  el.onkeydown = e => { if (e.key === 'Enter' && e.target.dataset.line) e.preventDefault(); };
+  el.querySelectorAll('[data-line]').forEach(autosize);
 }
 
 /** Collect the raw input values, keyed by field path, for lib/applyForm. */
