@@ -1,9 +1,12 @@
-// Top-level app behaviour: loading files, tab switching, the JSON edit
-// modal, download, and the saved-data schema-version guard.
+// Top-level app behaviour: loading files, tab switching, the edit modal
+// (form + raw JSON), download, and the saved-data schema-version guard.
 import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
 import { esc } from './lib/escape.js';
 import { newId } from './lib/ids.js';
 import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from './lib/dates.js';
+import { fieldsFor, applyForm } from './lib/edit-form.js';
+import { FORM_SPEC } from './form-spec.js';
+import { renderForm, readForm } from './views/edit-form.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
 import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
@@ -117,30 +120,75 @@ export function download() {
   a.click(); URL.revokeObjectURL(url);
 }
 
-/* --- JSON edit modal --- */
+/* --- edit modal: a generated form over the common fields, with the raw JSON
+       textarea kept as the escape hatch for everything else (issue #65) --- */
 
 export function toggleEdit() {
   const on = document.getElementById('happ').classList.toggle('hedit-on');
   document.getElementById('hedit-toggle').style.color = on ? 'var(--color-text-primary)' : '';
 }
 
+const editEl = part => document.getElementById('hedit-' + part);
+
+/** Which set of form fields describes the thing being edited — null for a
+    segment whose type the spec doesn't know, which stays JSON-only. */
+function editFieldsFor(target, value) {
+  return fieldsFor(FORM_SPEC, target.type === 'trip' ? 'trip' : value && value.type);
+}
+
+/** Swap the visible editor, drawing it from state.editValue (the single
+    source of truth while the modal is open — each tab is a view of it). */
+function setEditMode(mode) {
+  state.editMode = mode;
+  // Show the tab before filling it: the form's wrapping fields size
+  // themselves to their content, which can only be measured while visible.
+  editEl('inner').classList.toggle('json', mode === 'json');
+  editEl('tab-form').classList.toggle('on', mode === 'form');
+  editEl('tab-json').classList.toggle('on', mode === 'json');
+  if (mode === 'form') renderForm(editEl('form'), state.editFields, state.editValue);
+  else editEl('ta').value = JSON.stringify(state.editValue, null, 2);
+}
+
+/** The edited value as it currently stands in the active tab, or undefined
+    when the JSON tab doesn't parse (the error is left in the modal). */
+function harvestEdit() {
+  if (state.editMode === 'form')
+    return applyForm(state.editValue, state.editFields, readForm(editEl('form'), state.editFields));
+  try { return JSON.parse(editEl('ta').value); }
+  catch (e) { editEl('err').textContent = 'Invalid JSON: ' + e.message; return undefined; }
+}
+
+/** Form ⇄ JSON. The value round-trips through state.editValue, so fields the
+    form doesn't cover survive a trip through the form and vice versa. */
+export function editTab(mode) {
+  if (!state.editTarget || mode === state.editMode) return;
+  if (mode === 'form' && !state.editFields) return; // JSON-only target
+  const val = harvestEdit();
+  if (val === undefined) return;
+  state.editValue = val;
+  editEl('err').textContent = '';
+  setEditMode(mode);
+}
+
+function openModal(target, value, title, deletable) {
+  state.editTarget = target;
+  state.editValue = value;
+  state.editFields = editFieldsFor(target, value);
+  editEl('title').textContent = title;
+  editEl('err').textContent = '';
+  editEl('del').style.display = deletable ? '' : 'none';
+  editEl('tab-form').style.display = state.editFields ? '' : 'none';
+  editEl('modal').classList.add('on'); // before setEditMode — see the note there
+  setEditMode(state.editFields ? 'form' : 'json');
+}
+
 export function openEdit(idx) {
-  state.editTarget = { type: 'segment', idx };
   const seg = state.HD.segments[idx];
-  document.getElementById('hedit-title').textContent = 'Edit: ' + (seg.name || seg.operator || 'Segment');
-  document.getElementById('hedit-ta').value = JSON.stringify(seg, null, 2);
-  document.getElementById('hedit-err').textContent = '';
-  document.getElementById('hedit-del').style.display = '';
-  document.getElementById('hedit-modal').classList.add('on');
+  openModal({ type: 'segment', idx }, seg, 'Edit: ' + (seg.name || seg.operator || 'Segment'), true);
 }
 
 export function openEditTrip() {
-  state.editTarget = { type: 'trip' };
-  document.getElementById('hedit-title').textContent = 'Edit: Trip details';
-  document.getElementById('hedit-ta').value = JSON.stringify(state.HD.trip, null, 2);
-  document.getElementById('hedit-err').textContent = '';
-  document.getElementById('hedit-del').style.display = 'none';
-  document.getElementById('hedit-modal').classList.add('on');
+  openModal({ type: 'trip' }, state.HD.trip, 'Edit: Trip details', false);
 }
 
 /* Promote a list item into the schedule (issue #40): promotion is a UI
@@ -150,10 +198,9 @@ export function openEditTrip() {
 export function openScheduleItem(li, ii) {
   const list = state.HD.lists[li];
   const item = list.items[ii];
-  state.editTarget = { type: 'new-segment', li, ii };
-  // The modal edits raw JSON, so every field the user is expected to adjust
-  // (date, time, duration) must be present in the prefill to be discoverable
-  // — the defaults come from lib/dates.js (issue #13), not invented here.
+  // The form makes date/time/duration discoverable whether or not they are
+  // set, but they stay prefilled so the draft is schedulable as-is — the
+  // defaults come from lib/dates.js (issue #13), not invented here.
   const seg = {
     id: newId('seg-', new Set(state.HD.segments.map(s => s && s.id))),
     type: 'event',
@@ -166,16 +213,14 @@ export function openScheduleItem(li, ii) {
   };
   if (item.url) seg.url = item.url;
   if (item.note) seg.notes = item.note;
-  document.getElementById('hedit-title').textContent = 'Schedule: ' + (item.name || 'Item');
-  document.getElementById('hedit-ta').value = JSON.stringify(seg, null, 2);
-  document.getElementById('hedit-err').textContent = '';
-  document.getElementById('hedit-del').style.display = 'none';
-  document.getElementById('hedit-modal').classList.add('on');
+  openModal({ type: 'new-segment', li, ii }, seg, 'Schedule: ' + (item.name || 'Item'), false);
 }
 
 export function closeEdit() {
   document.getElementById('hedit-modal').classList.remove('on');
   state.editTarget = null;
+  state.editValue = null;
+  state.editFields = null;
 }
 
 /** One-line summary of schema errors for the modal's error slot. */
@@ -200,10 +245,9 @@ function validateEdit(target, val) {
 }
 
 export function saveEdit() {
-  let val;
-  const errEl = document.getElementById('hedit-err');
-  try { val = JSON.parse(document.getElementById('hedit-ta').value); }
-  catch (e) { errEl.textContent = 'Invalid JSON: ' + e.message; return; }
+  const val = harvestEdit();
+  if (val === undefined) return;
+  const errEl = editEl('err');
   const v = validateEdit(state.editTarget, val);
   if (!v.ok) { errEl.textContent = editErrorText(v.errors); return; }
   if (state.editTarget.type === 'segment') {

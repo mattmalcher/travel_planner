@@ -15,6 +15,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeIcons } from './icons.mjs';
+import { specFromSchema } from '../src/lib/edit-form.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = p => join(root, 'src', p);
@@ -24,12 +25,16 @@ const schemaPath = join(root, 'schema', 'holiday_itinerary_schema.json');
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
 if (!schema.version) throw new Error('schema/holiday_itinerary_schema.json has no "version" field');
 
+// The edit modal's form fields are resolved from the schema here rather than
+// from the runtime schema fetch, so the form works on a saved file:// page
+// (issue #65). A LAYOUT path the schema no longer has fails the build.
 const bundle = await build({
   entryPoints: [src('main.js')],
   bundle: true,
   format: 'iife',
   minify: true,
   legalComments: 'none',
+  define: { __H_FORM_SPEC__: JSON.stringify(specFromSchema(schema)) },
   write: false,
 });
 const js = bundle.outputFiles[0].text.replaceAll('__H_SCHEMA_VERSION__', schema.version);

@@ -118,17 +118,25 @@ test.describe('Lists view', () => {
     const food = page.locator('#hvlists .hseg').first();
     await food.locator('.hli', { hasText: 'Custard tart' }).getByRole('button', { name: /Schedule/ }).click();
 
-    // The ordinary edit modal opens on a draft event prefilled from the item.
+    // The ordinary edit modal opens on a draft event prefilled from the item —
+    // as a form (issue #65), so the fields to adjust are visible without
+    // reading the schema.
     await expect(page.locator('#hedit-modal')).toHaveClass(/on/);
     await expect(page.locator('#hedit-title')).toHaveText('Schedule: Custard tart');
+    await expect(page.locator('#hedit-form [data-p="name"]')).toHaveValue('Custard tart');
+    await expect(page.locator('#hedit-form [data-p="date"]')).toHaveValue('2026-09-18');
+    await expect(page.locator('#hedit-form [data-p="time"]')).toHaveValue('10:00');
+    await expect(page.locator('#hedit-form [data-p="duration_min"]')).toHaveValue('120');
+
+    await page.click('#hedit-tab-json');
     const draft = JSON.parse(await page.inputValue('#hedit-ta'));
     expect(draft.type).toBe('event');
     expect(draft.subtype).toBe('meal'); // food list → meal
     expect(draft.name).toBe('Custard tart');
     expect(draft.notes).toBe('From a proper bakery.');
     expect(draft.date).toBe('2026-09-18'); // trip start
-    // time/duration are prefilled with the lib/dates.js defaults so the raw
-    // JSON modal shows the user where to set them.
+    // time/duration are prefilled with the lib/dates.js defaults, so the draft
+    // is schedulable as-is rather than needing every field filled in.
     expect(draft.time).toBe('10:00');
     expect(draft.duration_min).toBe(120);
     expect(draft.cost).toEqual({ status: 'not_booked' });

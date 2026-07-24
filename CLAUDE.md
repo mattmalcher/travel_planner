@@ -30,7 +30,9 @@ src/
   main.js           entry point: window.* handler exports, DOM wiring, boot
   state.js          THE shared mutable state object + persist(); schema version constant
   render.js         updateHeader / renderAll / refreshAfterChange (post-edit re-render)
-  app.js            load/reset, tab switching, JSON edit modal, saved-data version guard
+  app.js            load/reset, tab switching, edit modal (form ⇄ JSON), version guard
+  form-spec.js      edit-modal field descriptors — the __H_FORM_SPEC__ placeholder
+                    is filled at build time by specFromSchema() (issue #65)
   validate.js       ajv setup (NOT bundled — injected as a separate module script;
                     loads ajv from esm.sh at runtime, degrades gracefully offline)
   sw.js             offline service worker (issue #45): precache + stale-while-
@@ -44,11 +46,13 @@ src/
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
     lists.js        list progress/partition + dangling segment_id detection (issue #40)
     ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
+    edit-form.js    edit-modal form model: LAYOUT (paths + labels) resolved
+                    against the schema into field descriptors (issue #65)
     sw-cache.js     request classification for the service worker (issue #45)
     gantt-layout.js time→pixel scales, compact points, coverage gaps
     escape.js       esc() html escaping
   views/            DOM rendering only; maths belongs in lib/
-    badges.js list.js budget.js map.js gantt.js lists.js
+    badges.js list.js budget.js map.js gantt.js lists.js edit-form.js
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
@@ -73,6 +77,12 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   file or an AI reply — use `esc()` from `lib/escape.js` (issue #9). For any
   URL going into an `href`/`src`, gate it through `safeUrl()` first so only
   absolute `http(s)` links survive.
+- **Edit-modal form fields are schema-derived**: add or reorder fields by
+  editing `LAYOUT` in `lib/edit-form.js` (paths + labels only) — input type,
+  enum options, required markers and bounds come from the schema, and a path
+  the schema doesn't have fails the build. Never hand-write descriptors into
+  `form-spec.js`. The JSON tab stays the escape hatch for everything the form
+  doesn't cover, so both directions must round-trip without dropping fields.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add
