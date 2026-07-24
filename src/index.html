@@ -76,9 +76,16 @@
 <div id="hedit-modal" onclick="if(event.target===this)hCloseEdit()">
   <div id="hedit-inner">
     <div id="hedit-hd">
-      <span style="font-size:13px;font-weight:500" id="hedit-title">Edit</span>
-      <button onclick="hCloseEdit()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <span style="font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="hedit-title">Edit</span>
+      <span style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        <span id="hedit-tabs">
+          <button id="hedit-tab-form" class="hedit-tab on" onclick="hEditTab('form')">Form</button>
+          <button id="hedit-tab-json" class="hedit-tab" onclick="hEditTab('json')">JSON</button>
+        </span>
+        <button onclick="hCloseEdit()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+      </span>
     </div>
+    <div id="hedit-form"></div>
     <textarea id="hedit-ta" spellcheck="false"></textarea>
     <div id="hedit-ft">
       <button id="hedit-del" onclick="hDeleteSegment()" style="font-size:12px;color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Delete</button>

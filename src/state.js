@@ -13,6 +13,9 @@ export const state = {
   listReads: new Set(),// list ids the AI has fetched this turn (same guard for lists, issue #40)
   busy: false,         // an AI request is in flight
   editTarget: null,    // {type:'segment',idx} or {type:'trip'} for the edit modal
+  editValue: null,     // the object the open modal is editing (form ⇄ JSON round-trip through it)
+  editFields: null,    // form field descriptors for it, null when JSON-only (issue #65)
+  editMode: 'form',    // which editor tab is showing: 'form' or 'json'
   pendingUpload: null, // uploaded doc held back by the version/validation guard (issue #15)
 };
 
