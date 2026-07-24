@@ -20,10 +20,13 @@ function wraps(f) {
   return f.wide && (f.kind === 'text' || f.kind === 'url' || f.kind === 'csv');
 }
 
-/** Grow a wrapping field to fit its content (needs to be visible to measure). */
+/** Grow a wrapping field to fit its content (needs to be visible to measure).
+    The fields are border-box, so the borders scrollHeight leaves out have to
+    be added back or the last line is cropped by the overflow:hidden. */
 function autosize(ta) {
+  const borders = ta.offsetHeight - ta.clientHeight;
   ta.style.height = 'auto';
-  ta.style.height = ta.scrollHeight + 'px';
+  ta.style.height = ta.scrollHeight + borders + 'px';
 }
 
 function control(f, obj) {

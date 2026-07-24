@@ -214,6 +214,36 @@ test.describe('Edit modal form', () => {
     expect(trip.travellers).toEqual(['Judy Jetson', 'George Jetson', 'Elroy Jetson']);
   });
 
+  // The form must not pan sideways: with overflow-y:auto its other axis would
+  // otherwise be a scroll container too, and a single overwide control turns
+  // the whole panel into something that slides under a thumb.
+  test('the form panel cannot be scrolled sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 });
+    await page.evaluate(() => globalThis.hload({
+      trip: { name: 'T', travellers: ['Judy Jetson'], start: '2026-09-18', end: '2026-09-19', currency_primary: 'GBP' },
+      segments: [{
+        id: 'seg-1', type: 'event', subtype: 'gig', name: 'Jazz', date: '2026-09-18',
+        // No spaces to wrap at — the classic source of a stray overwide box.
+        tickets_url: 'https://www.example-jazz-club.fr/evenements/2026/septembre/quartet-au-petit-exemple-billetterie-en-ligne?ref=itinerary-viewer',
+        cost: { status: 'free' },
+      }],
+    }));
+    await page.evaluate('hOpenEdit(0)');
+
+    const room = await page.locator('#hedit-form').evaluate(el => {
+      el.scrollLeft = 9999;          // as a sideways drag would
+      const moved = el.scrollLeft;
+      el.scrollLeft = 0;
+      return moved;
+    });
+    expect(room).toBe(0);
+
+    // Nothing was clipped to achieve that: the unbreakable URL wrapped.
+    const url = page.locator('#hedit-form [data-p="tickets_url"]');
+    expect(await url.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    expect(await url.evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  });
+
   // A long value in a single-line <input> is only reachable by scrolling the
   // text sideways inside the field, which on a phone means reading an address
   // a third at a time. The wide fields wrap and grow instead.
