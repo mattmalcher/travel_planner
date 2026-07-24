@@ -214,6 +214,51 @@ test.describe('Edit modal form', () => {
     expect(trip.travellers).toEqual(['Judy Jetson', 'George Jetson', 'Elroy Jetson']);
   });
 
+  // A long value in a single-line <input> is only reachable by scrolling the
+  // text sideways inside the field, which on a phone means reading an address
+  // a third at a time. The wide fields wrap and grow instead.
+  test('no field scrolls sideways on a phone, however long the value', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 });
+    await page.evaluate(() => globalThis.hload({
+      trip: { name: 'Summer Rail Tour 2026', travellers: ['Judy Jetson', 'George Jetson', 'Elroy Jetson'], start: '2026-09-18', end: '2026-09-28', currency_primary: 'GBP' },
+      segments: [{
+        id: 'seg-1', type: 'accommodation',
+        name: 'Cosy Studio near the Cathedral with the Long Name',
+        host: 'Pierre', ref: 'XY9876Z',
+        address: '42 Rue de l\'Exemple, Apartment 4B (third floor, blue door), 75018 Paris, France',
+        lat: 48.8867, lng: 2.3431,
+        checkin: { date: '2026-09-18', from: '14:00' },
+        checkout: { date: '2026-09-19', by: '11:00' },
+        self_checkin: true, cost: { status: 'free' },
+      }],
+    }));
+    await page.evaluate('hOpenEdit(0)');
+
+    const overflowing = await page.evaluate(() => [...globalThis.document.querySelectorAll('#hedit-form .hef-in')]
+      .filter(el => el.scrollWidth > el.clientWidth + 1).map(el => el.dataset.p));
+    expect(overflowing).toEqual([]);
+
+    // The long address wrapped onto more than one line rather than being cut off.
+    const address = page.locator('#hedit-form [data-p="address"]');
+    expect(await address.evaluate(el => el.tagName)).toBe('TEXTAREA');
+    expect(await address.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(50);
+
+    // …and the form as a whole still doesn't scroll sideways.
+    const form = page.locator('#hedit-form');
+    expect(await form.evaluate(el => el.scrollWidth - el.clientWidth)).toBe(0);
+  });
+
+  test('a wrapping field still saves a single-line string', async ({ page }) => {
+    await page.evaluate('hOpenEditTrip()');
+    // Enter is swallowed in a wrapping field, and any newline that gets in
+    // another way (paste, autofill) collapses on save.
+    await page.locator('#hedit-form [data-p="name"]').fill('Summer\nRail Tour');
+    await page.locator('#hedit-form [data-p="name"]').press('Enter');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
+    const trip = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).trip);
+    expect(trip.name).toBe('Summer Rail Tour');
+  });
+
   test('a segment type the spec cannot describe stays JSON-only', async ({ page }) => {
     await page.evaluate(() => globalThis.hload({
       trip: { name: 'T', travellers: ['Judy Jetson'], start: '2026-09-18', end: '2026-09-19', currency_primary: 'GBP' },
