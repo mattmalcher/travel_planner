@@ -91,6 +91,20 @@ export const LAYOUT = {
     ...COST,
     ...TAIL,
   ],
+  // Lists and their items (issue #72). A list's `items` and an item's
+  // `segment_id` are deliberately absent: items are edited one at a time from
+  // the Lists view, and segment_id is written by the Schedule action.
+  list: [
+    ['name', 'List name', { wide: true }],
+    ['kind', 'Kind'],
+  ],
+  'list-item': [
+    ['name', 'Name', { wide: true }],
+    ['local_name', 'Local name', { wide: true }],
+    ['url', 'Link', { wide: true }],
+    ['note', 'Note', { wide: true, multiline: true }],
+    ['done', 'Done'],
+  ],
 };
 
 /** Keys the form deliberately never shows: identity, not content. */
@@ -154,6 +168,8 @@ export function specFromSchema(schema) {
     transport: schema.definitions.TransportSegment,
     accommodation: schema.definitions.AccommodationSegment,
     event: schema.definitions.EventSegment,
+    list: schema.definitions.List,
+    'list-item': schema.definitions.ListItem,
   };
   const spec = {};
   for (const [where, entries] of Object.entries(LAYOUT))

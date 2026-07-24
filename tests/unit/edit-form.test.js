@@ -63,6 +63,37 @@ test('required is tracked through nested paths', () => {
   assert.equal(byPath(spec.event, 'proposal.status').required, undefined);
 });
 
+test('lists and their items get schema-derived forms too (issue #72)', () => {
+  const kind = byPath(spec.list, 'kind');
+  assert.equal(kind.kind, 'select');
+  assert.deepEqual(kind.options, schema.definitions.List.properties.kind.enum);
+  assert.equal(kind.allowEmpty, true);               // optional on the schema
+  assert.equal(byPath(spec.list, 'name').required, true);
+
+  const li = spec['list-item'];
+  assert.equal(byPath(li, 'name').required, true);
+  assert.equal(byPath(li, 'url').kind, 'url');       // format: uri
+  assert.equal(byPath(li, 'done').kind, 'checkbox'); // boolean
+  assert.equal(byPath(li, 'note').kind, 'textarea'); // multiline layout opt
+  // The form never touches the ids or the promotion back-reference: an item's
+  // segment_id is written by Schedule, and a list's items are edited one at a
+  // time from the Lists view.
+  assert.deepEqual(uncoveredPaths({ id: 'li-1', name: 'Tart', segment_id: 'seg-1' }, li), ['segment_id']);
+  assert.deepEqual(uncoveredPaths({ id: 'list-food', name: 'Foods', items: [] }, spec.list), ['items']);
+});
+
+test('editing a list keeps its items, editing an item keeps its promotion', () => {
+  const list = { id: 'list-food', name: 'Foods', kind: 'food', items: [{ id: 'li-1', name: 'Tart' }] };
+  const out = applyForm(list, spec.list, { name: 'Foods to try', kind: 'food' });
+  assert.equal(out.name, 'Foods to try');
+  assert.deepEqual(out.items, list.items);
+
+  const item = { id: 'li-1', name: 'Tart', segment_id: 'seg-1', note: 'Bakery' };
+  const edited = applyForm(item, spec['list-item'],
+    { name: 'Custard tart', local_name: 'Pastel de nata', url: '', note: '', done: true });
+  assert.deepEqual(edited, { id: 'li-1', name: 'Custard tart', segment_id: 'seg-1', local_name: 'Pastel de nata', done: true });
+});
+
 test('fieldsFor picks the list for a target, null for anything unknown', () => {
   assert.equal(fieldsFor(spec, 'event'), spec.event);
   assert.equal(fieldsFor(spec, 'sleepover'), null);

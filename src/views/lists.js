@@ -1,10 +1,14 @@
 // Lists view (issue #40): pools of intentions that aren't (yet) plans.
-// Exactly two behaviours per item — check it off in place, or promote it into
-// an ordinary segment via the "Schedule" action (see openScheduleItem in
-// app.js). All counting/partitioning maths lives in lib/lists.js.
+// Read-only behaviour is two actions per item — check it off in place, or
+// promote it into an ordinary segment via "Schedule" (see openScheduleItem in
+// app.js). Edit mode (the header pencil) adds manual authoring without an LLM
+// round trip (issue #72): a quick-add row per list for the common case of
+// typing a name, and the ordinary edit modal for the detail fields, the list
+// itself, and deletion. All counting/partitioning maths lives in lib/lists.js.
 import { state, persist } from '../state.js';
 import { esc, safeUrl } from '../lib/escape.js';
-import { listProgress, partitionItems } from '../lib/lists.js';
+import { newId } from '../lib/ids.js';
+import { listProgress, partitionItems, takenItemIds } from '../lib/lists.js';
 import { revealSegment } from '../app.js';
 
 /** Tabler icon class for a list's kind. */
@@ -33,6 +37,32 @@ export function revealListSegment(segId) {
   if (idx >= 0) revealSegment(idx);
 }
 
+const addInput = li => document.querySelector(`.hli-add-in[data-li="${li}"]`);
+
+/** Quick-add: the typed name becomes an item with a fresh document-unique id
+    and nothing else — everything optional is left to the item's edit modal.
+    Re-renders and puts the cursor back in the box, so a run of items can be
+    typed one after another. */
+export function addListItem(li) {
+  const el = addInput(li);
+  if (!el) return;
+  const name = el.value.trim();
+  if (!name) { el.focus(); return; }
+  const list = state.HD.lists[li];
+  if (!Array.isArray(list.items)) list.items = [];
+  list.items.push({ id: newId('li-', takenItemIds(state.HD)), name });
+  persist();
+  renderLists();
+  const next = addInput(li);
+  if (next) next.focus();
+}
+
+/** Enter in the quick-add box adds the item (a lone input has no form to
+    submit, so the key is handled here). */
+export function addListItemKey(ev, li) {
+  if (ev.key === 'Enter') { ev.preventDefault(); addListItem(li); }
+}
+
 function itemRow(item, li, ii, segIds) {
   const url = safeUrl(item.url);
   // Promotion chip: a working link to the segment, a broken-link warning when
@@ -54,9 +84,21 @@ function itemRow(item, li, ii, segIds) {
     </label>
     ${url ? `<a class="hli-chip" href="${esc(url)}" target="_blank" rel="noopener">Link <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a>` : ''}
     ${chip}
+    <button class="hli-edit hedit-btn" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
     ${item.note ? `<div class="hli-note">${esc(item.note)}</div>` : ''}
   </div>`;
 }
+
+/** The quick-add row under each list — only visible in edit mode. */
+function addRow(li) {
+  return `<div class="hli-add hedit-btn">
+    <input class="hli-add-in" type="text" data-li="${li}" placeholder="Add an item…"
+      aria-label="Add an item" onkeydown="hListAddKey(event,${li})">
+    <button class="hli-chip" onclick="hListAdd(${li})"><i class="ti ti-plus" aria-hidden="true"></i> Add</button>
+  </div>`;
+}
+
+const newListBtn = `<button class="hedit-btn" onclick="hOpenAddList()" style="font-size:12px"><i class="ti ti-plus" aria-hidden="true"></i> New list</button>`;
 
 export function renderLists() {
   const HD = state.HD;
@@ -65,7 +107,9 @@ export function renderLists() {
   if (!lists.length) {
     box.innerHTML = `<div style="font-size:13px;color:var(--color-text-secondary);padding:1rem 0">
       No lists yet. Lists hold intentions that aren't plans — foods to try, packing, restaurant options.
-      Add one with the AI assistant or in the itinerary JSON (<code>lists</code>), then tick items off here or schedule them into the timeline.</div>`;
+      Add one below (turn on edit mode with the pencil, top right), with the AI assistant, or in the itinerary
+      JSON (<code>lists</code>), then tick items off here or schedule them into the timeline.
+      <div style="margin-top:.7rem">${newListBtn}</div></div>`;
     return;
   }
   const segIds = new Set((HD.segments || []).map(s => s && s.id).filter(Boolean));
@@ -78,9 +122,11 @@ export function renderLists() {
         <i class="ti ${listIcon(list.kind)}" style="font-size:17px;color:var(--color-text-secondary)" aria-hidden="true"></i>
         <div style="font-size:14px;font-weight:500;flex:1">${esc(list.name)}</div>
         <span class="hli-progress">${p.done}/${p.total}</span>
+        <button class="hedit-btn" onclick="hOpenEditList(${li})" style="font-size:11px;padding:1px 5px;line-height:1.5;color:var(--color-text-secondary)" title="Edit list"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       </div>
       <div style="margin-top:8px">${[...open, ...done].map(row).join('') ||
         '<div style="font-size:12px;color:var(--color-text-tertiary)">No items yet.</div>'}</div>
+      ${addRow(li)}
     </div>`;
-  }).join('');
+  }).join('') + `<div style="margin-top:.9rem">${newListBtn}</div>`;
 }

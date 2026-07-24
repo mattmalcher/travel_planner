@@ -154,3 +154,190 @@ test.describe('Lists view', () => {
     await expect(food.locator('.hli', { hasText: 'Custard tart' }).locator('.hli-chip')).toContainText(draft.id);
   });
 });
+
+// Manual authoring (issue #72): everything below needs edit mode on — the
+// affordances are the same .hedit-btn set the timeline and trip header use.
+test.describe('Editing lists by hand', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
+    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.setInputFiles('#hfile', {
+      name: 'lists.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(listItinerary))
+    });
+    await page.click('.htab[data-v="lists"]');
+  });
+
+  test('the edit affordances only appear in edit mode', async ({ page }) => {
+    const food = page.locator('#hvlists .hseg').first();
+    await expect(food.locator('.hli-add')).toBeHidden();
+    await expect(page.getByRole('button', { name: 'New list' })).toBeHidden();
+
+    await page.click('#hedit-toggle');
+    await expect(food.locator('.hli-add')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New list' })).toBeVisible();
+  });
+
+  test('quick-add appends an item and stays ready for the next one', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    const food = page.locator('#hvlists .hseg').first();
+    const box = food.locator('.hli-add-in');
+
+    // Enter adds without touching the button, and the box is cleared and
+    // refocused so a run of items can be typed straight through.
+    await box.fill('Croissant');
+    await box.press('Enter');
+    await expect(food.locator('.hli-progress')).toHaveText('0/4');
+    await expect(food.locator('.hli').nth(3)).toContainText('Croissant');
+    await expect(box).toHaveValue('');
+    await expect(box).toBeFocused();
+
+    // The Add button is the same action for pointer users.
+    await box.fill('Espresso');
+    await food.getByRole('button', { name: 'Add' }).click();
+    await expect(food.locator('.hli-progress')).toHaveText('0/5');
+
+    // Blank input adds nothing.
+    await box.press('Enter');
+    await expect(food.locator('.hli-progress')).toHaveText('0/5');
+
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const added = saved.lists[0].items.slice(-2);
+    expect(added.map(i => i.name)).toEqual(['Croissant', 'Espresso']);
+    // Ids are assigned, unique across the document, and nothing else is invented.
+    expect(Object.keys(added[0]).sort()).toEqual(['id', 'name']);
+    const ids = saved.lists.flatMap(l => l.items.map(i => i.id));
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('the item pencil opens the form for the detail fields', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    const food = page.locator('#hvlists .hseg').first();
+    await food.locator('.hli', { hasText: 'Custard tart' }).getByRole('button', { name: 'Edit item' }).click();
+
+    await expect(page.locator('#hedit-title')).toHaveText('Edit: Custard tart');
+    await expect(page.locator('#hedit-form [data-p="name"]')).toHaveValue('Custard tart');
+    await expect(page.locator('#hedit-form [data-p="local_name"]')).toHaveValue('Flan pâtissier');
+    await expect(page.locator('#hedit-form [data-p="note"]')).toHaveValue('From a proper bakery.');
+
+    await page.fill('#hedit-form [data-p="local_name"]', 'Pastel de nata');
+    await page.fill('#hedit-form [data-p="url"]', 'https://example.com/tart');
+    await page.locator('#hedit-form [data-p="done"]').check();
+    await page.click('text=Save');
+
+    await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
+    await expect(food.locator('.hli-progress')).toHaveText('1/3');
+    const row = food.locator('.hli', { hasText: 'Custard tart' });
+    await expect(row).toHaveClass(/done/);
+    await expect(row).toContainText('Pastel de nata');
+
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const item = saved.lists[0].items.find(i => i.id === 'li-1');
+    expect(item).toMatchObject({ id: 'li-1', local_name: 'Pastel de nata', url: 'https://example.com/tart', done: true });
+  });
+
+  test('an item can be deleted; the segment it was scheduled into survives', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    const food = page.locator('#hvlists .hseg').first();
+    const row = food.locator('.hli', { hasText: 'Jazz-club cocktail' });
+    await row.getByRole('button', { name: 'Edit item' }).click();
+
+    // Dismissing the confirm changes nothing.
+    page.once('dialog', d => d.dismiss());
+    await page.click('#hedit-del');
+    await expect(page.locator('#hedit-modal')).toHaveClass(/on/);
+
+    page.once('dialog', d => {
+      expect(d.message()).toContain('stays on the timeline');
+      d.accept();
+    });
+    await page.click('#hedit-del');
+    await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
+    await expect(food.locator('.hli-progress')).toHaveText('0/2');
+
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(saved.lists[0].items.map(i => i.id)).toEqual(['li-1', 'li-3']);
+    expect(saved.segments).toHaveLength(1); // the promoted segment is untouched
+  });
+
+  test('a list can be renamed, re-kinded and deleted without losing its items', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    const food = page.locator('#hvlists .hseg').first();
+    await food.getByRole('button', { name: 'Edit list' }).click();
+
+    await expect(page.locator('#hedit-title')).toHaveText('Edit list: Foods to try');
+    await page.fill('#hedit-form [data-p="name"]', 'Snacks to find');
+    await page.selectOption('#hedit-form [data-p="kind"]', 'restaurant');
+    await page.click('text=Save');
+
+    await expect(food).toContainText('Snacks to find');
+    await expect(food.locator('.hli-progress')).toHaveText('0/3'); // items intact
+    let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(saved.lists[0]).toMatchObject({ id: 'list-food', name: 'Snacks to find', kind: 'restaurant' });
+    expect(saved.lists[0].items).toHaveLength(3);
+
+    // Deleting takes the whole list with its items.
+    await food.getByRole('button', { name: 'Edit list' }).click();
+    page.once('dialog', d => {
+      expect(d.message()).toContain('3 items');
+      d.accept();
+    });
+    await page.click('#hedit-del');
+    await expect(page.locator('#hvlists .hseg')).toHaveCount(1);
+    saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(saved.lists.map(l => l.id)).toEqual(['list-packing']);
+  });
+
+  test('an itinerary with no lists can grow its first one', async ({ page }) => {
+    const bare = structuredClone(listItinerary);
+    delete bare.lists;
+    await page.setInputFiles('#hfile', {
+      name: 'no-lists.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bare))
+    });
+    await page.click('.htab[data-v="lists"]');
+    await page.click('#hedit-toggle');
+    await expect(page.locator('#hvlists')).toContainText('No lists yet');
+
+    await page.getByRole('button', { name: 'New list' }).click();
+    await page.fill('#hedit-form [data-p="name"]', 'Packing');
+    await page.click('text=Save');
+
+    const list = page.locator('#hvlists .hseg').first();
+    await expect(list).toContainText('Packing');
+    await list.locator('.hli-add-in').fill('Passports');
+    await list.locator('.hli-add-in').press('Enter');
+
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(saved.lists).toHaveLength(1);
+    expect(saved.lists[0].items[0].name).toBe('Passports');
+  });
+
+  test('New list creates one, ready to take items', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    await page.getByRole('button', { name: 'New list' }).click();
+    await expect(page.locator('#hedit-title')).toHaveText('New list');
+    await expect(page.locator('#hedit-del')).toBeHidden(); // nothing to delete yet
+
+    await page.fill('#hedit-form [data-p="name"]', 'Sights');
+    await page.selectOption('#hedit-form [data-p="kind"]', 'sight');
+    await page.click('text=Save');
+
+    const added = page.locator('#hvlists .hseg').nth(2);
+    await expect(added).toContainText('Sights');
+    await expect(added.locator('.hli-progress')).toHaveText('0/0');
+
+    await added.locator('.hli-add-in').fill('Miradouro');
+    await added.locator('.hli-add-in').press('Enter');
+    await expect(added.locator('.hli-progress')).toHaveText('0/1');
+
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const list = saved.lists[2];
+    expect(list).toMatchObject({ name: 'Sights', kind: 'sight' });
+    expect(list.id).toMatch(/^list-.{5}$/); // assigned, not typed
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0].name).toBe('Miradouro');
+  });
+});
