@@ -2,8 +2,9 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { libOpen, libClose, libSwitch, libRevs, libDelete, libRestore, libDownloadRev, libSaveName, libForgetAll } from './views/library.js';
+import { boot, shareTrip, shareRevision, shareToastClose } from './share.js';
 import { dismissStoreWarning } from './store.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
@@ -30,11 +31,14 @@ Object.assign(window, {
   hLibDelete: libDelete,
   hLibRestore: libRestore,
   hLibDownloadRev: libDownloadRev,
+  hLibShareRev: shareRevision,
   hLibSaveName: libSaveName,
   hLibForget: libForgetAll,
   hStoreWarnClose: dismissStoreWarning,
   hsw: switchView,
   hDownload: download,
+  hShare: shareTrip,
+  hShareToastClose: shareToastClose,
   hToggleEdit: toggleEdit,
   hOpenEdit: openEdit,
   hOpenEditTrip: openEditTrip,
@@ -118,7 +122,9 @@ if (window.visualViewport) {
 }
 
 renderChat();
-loadSaved();
+// A #d1= share link takes precedence over the trip that was open; with no
+// link, boot() is just loadSaved() (issue #81).
+boot();
 initServiceWorker();
 
 export { state }; // handy for debugging from the console via the bundle

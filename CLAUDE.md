@@ -34,6 +34,10 @@ src/
   store.js          localStorage binding for the trip library (issue #80):
                     persist() — the single write path — plus boot, import
                     decisions, revision recording and restore
+  share.js          share links, browser half (issue #81): building one from
+                    the open trip (share sheet / clipboard) and opening one
+                    that arrives in the fragment — boot() routes it through
+                    loadUpload(), and a link arriving at an open page reloads
   render.js         updateHeader / renderAll / refreshAfterChange (post-edit re-render)
   app.js            load/reset, tab switching, edit modal (form ⇄ JSON), version guard
   form-spec.js      edit-modal field descriptors — the __H_FORM_SPEC__ placeholder
@@ -52,7 +56,9 @@ src/
     library.js      the trip library: document identity (trip_id/rev), the
                     index, revision history, import decisions, quota policy —
                     the store is a parameter, so all of it is unit-testable
-    codec.js        deflate-raw + base64url for stored revisions (#81 reuses it)
+    codec.js        deflate-raw + base64url for stored revisions and share links
+    sharelink.js    share-link encoding (issue #81): the `#d1=` fragment scheme,
+                    decode guards and where the payload sits in a URL
     lists.js        list progress/partition, dangling segment_id detection
                     (issue #40), document-wide id sets for manual adds (#72)
     phrases.js      phrasebook counts + document-wide id sets (issue #75)
@@ -93,6 +99,15 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   injected from `schema.version` at build time — never hardcode it. Bump the
   schema's MAJOR version on any breaking change to the stored itinerary
   shape (localStorage is shared across deployments on the same origin).
+- **A share link is untrusted input, and lands like an uploaded file**
+  (issue #81): the document goes in the URL *fragment* (`#d1=`, deflate-raw +
+  base64url — never the query, which reaches server logs), and an incoming one
+  is routed through `loadUpload()` so it meets the same schema-version and ajv
+  guards a file does, then `loadImport()` for how it resolves against the
+  library. The scheme marker is versioned so a later encoding can arrive
+  without breaking links already sent, decoding a damaged link must *say so*
+  rather than yield an empty trip, and the fragment is cleared once loaded so
+  a refresh can't re-import a stale snapshot over later edits.
 - **The library owns document identity**: `trip_id`, `rev`, `updated_at` and
   `updated_by` are the app's bookkeeping, settled by `persist()` in `store.js`
   — never written by a view, a form or the AI (they are kept out of the AI's
@@ -157,9 +172,5 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 
 ## Follow-ups deliberately not done here
 
-- Share links (issue #81). The trip library is its prerequisite — `trip_id`
-  and `rev` are what let an incoming shared trip land intelligently — and
-  `lib/codec.js` is already the encoder it needs. Until then the revision
-  rows offer **Download** where they will offer *Share*.
 - `tsc --checkJs` + JSDoc types and schema-generated types
   (`json-schema-to-typescript`) — adopt per-module as files are touched.

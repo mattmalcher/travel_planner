@@ -6,8 +6,9 @@
  * The trip library's revision history is the first caller — a realistic
  * two-week itinerary is ~40 kB of JSON but ~6 kB encoded, which is the
  * difference between 50 revisions fitting in the localStorage budget and not.
- * Share links (issue #81) will encode the same way, which is why this is its
- * own module rather than a private helper of the history writer.
+ * Share links (issue #81) encode the same way — lib/sharelink.js builds its
+ * fragments out of these — which is why this is its own module rather than a
+ * private helper of the history writer.
  *
  * Entries are self-describing: `enc` says how `data` was encoded, so a browser
  * without CompressionStream (Safari before 16.4) stores plain JSON instead of
@@ -42,6 +43,18 @@ function base64urlToBytes(text) {
 async function through(transform, bytes) {
   const stream = new Response(bytes).body.pipeThrough(transform);
   return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/** base64url of a UTF-8 string, uncompressed — the same alphabet the
+    compressed form uses, for callers that need a fallback when the platform
+    has no CompressionStream (share links, issue #81). */
+export function toBase64url(text) {
+  return bytesToBase64url(new TextEncoder().encode(text));
+}
+
+/** Inverse of toBase64url. */
+export function fromBase64url(text) {
+  return new TextDecoder().decode(base64urlToBytes(text));
 }
 
 /** Compress `text` to a base64url string. */
