@@ -2,7 +2,7 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, loadUpload, uploadAnyway, uploadCancel, reset, switchView, download, toggleEdit, openEdit, openEditTrip, openScheduleItem, openEditList, openAddList, openEditListItem, closeEdit, saveEdit, editTab, deleteEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, loadUpload, uploadAnyway, uploadCancel, reset, switchView, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, closeEdit, saveEdit, editTab, deleteEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
 import { toggleListItem, revealListSegment, addListItem, addListItemKey, deleteListItem, undoDeleteListItem, jumpToList } from './views/lists.js';
@@ -25,6 +25,8 @@ Object.assign(window, {
   hToggleEdit: toggleEdit,
   hOpenEdit: openEdit,
   hOpenEditTrip: openEditTrip,
+  hAddSegment: openAddSegment,
+  hNewItinerary: openNewItinerary,
   hCloseEdit: closeEdit,
   hSaveEdit: saveEdit,
   hEditTab: editTab,

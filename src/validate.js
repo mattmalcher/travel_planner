@@ -19,9 +19,18 @@ try{
     const ok=validate(doc);
     return{ok,errors:ok?[]:(validate.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};
   };
-  const segSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"oneOf":[{"$ref":"#/definitions/TransportSegment"},{"$ref":"#/definitions/AccommodationSegment"},{"$ref":"#/definitions/EventSegment"}]};
-  const validateSeg=ajv.compile(segSchema);
-  window.hValidateSegment=function(seg){const ok=validateSeg(seg);return{ok,errors:ok?[]:(validateSeg.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
+  /* Segments are validated against the ONE subschema their type names, with
+     the oneOf as the fallback for a segment that names no known type. Under
+     the oneOf, ajv reports every branch's failures, so a half-filled event
+     comes back demanding "mode" and "departs" — the transport branch's
+     requirements — which is worse than useless in the edit modal (issue #76). */
+  const segDefs={transport:"TransportSegment",accommodation:"AccommodationSegment",event:"EventSegment"};
+  const wrap=v=>function(data){const ok=v(data);return{ok,errors:ok?[]:(v.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
+  const segByType={};
+  for(const [t,def] of Object.entries(segDefs))
+    segByType[t]=wrap(ajv.compile({"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"$ref":"#/definitions/"+def}));
+  const segAny=wrap(ajv.compile({"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"oneOf":Object.values(segDefs).map(d=>({"$ref":"#/definitions/"+d}))}));
+  window.hValidateSegment=function(seg){return((seg&&segByType[seg.type])||segAny)(seg);};
   const tripSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,...schema.properties.trip};
   const validateTrip=ajv.compile(tripSchema);
   window.hValidateTrip=function(trip){const ok=validateTrip(trip);return{ok,errors:ok?[]:(validateTrip.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};

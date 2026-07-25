@@ -8,6 +8,10 @@ export const DEFAULT_CHECKOUT_BY = '11:00';
 // Events without a time/duration on the gantt.
 export const DEFAULT_EVENT_TIME = '10:00';
 export const DEFAULT_EVENT_DURATION_MIN = 120;
+// A hand-added transport leg's opening departure time and duration — the
+// schema requires both, so a new draft has to start somewhere (issue #76).
+export const DEFAULT_TRANSPORT_TIME = '09:00';
+export const DEFAULT_TRANSPORT_DURATION_MIN = 60;
 
 /** "2026-09-18" → "18 Sept 2026" */
 export function fmtDate(iso) {

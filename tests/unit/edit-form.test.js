@@ -129,9 +129,12 @@ test('parseField: blanks drop the key, numbers parse, checkboxes follow required
     "42 Rue de l'Exemple, 75018 Paris");
   assert.equal(parseField(byPath(spec.event, 'notes'), 'Line one\nLine two'), 'Line one\nLine two');
   // Optional booleans disappear when unticked; required ones stay as false.
+  // The schema has no required boolean of its own (self_checkin stopped being
+  // one in 3.2.0), so that branch is checked against a synthetic descriptor.
   assert.equal(parseField(byPath(spec.event, 'all_day'), false), undefined);
   assert.equal(parseField(byPath(spec.event, 'all_day'), true), true);
-  assert.equal(parseField(byPath(spec.accommodation, 'self_checkin'), false), false);
+  assert.equal(parseField(byPath(spec.accommodation, 'self_checkin'), false), undefined);
+  assert.equal(parseField({ path: 'x', kind: 'checkbox', required: true }, false), false);
 });
 
 test('applyForm keeps fields the form does not cover', () => {

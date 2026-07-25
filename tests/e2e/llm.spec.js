@@ -46,10 +46,14 @@ const newSegment = {
 // globalThis.__DOC_VALID__ / __SEG_VALID__ / __TRIP_VALID__ so a tool call can
 // be accepted while the resulting document still fails.
 const AJV_STUB = `
+// The app validates a segment against the ONE subschema its type names, and
+// falls back to the oneOf only for an unknown type (issue #76) — so a segment
+// validator is either shape.
+const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
 export default class Ajv {
   constructor() {}
   compile(schema) {
-    const flag = schema && schema.oneOf ? '__SEG_VALID__'
+    const flag = isSegmentSchema(schema) ? '__SEG_VALID__'
       : (schema && schema.properties && schema.properties.currency_primary ? '__TRIP_VALID__' : '__DOC_VALID__');
     function validate(data) {
       const ok = (globalThis[flag] !== false);
