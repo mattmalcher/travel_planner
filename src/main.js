@@ -5,7 +5,7 @@ import { state, H_SCHEMA_VERSION } from './state.js';
 import { load, loadUpload, uploadAnyway, uploadCancel, reset, switchView, download, toggleEdit, openEdit, openEditTrip, openScheduleItem, openEditList, openAddList, openEditListItem, closeEdit, saveEdit, editTab, deleteEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
-import { toggleListItem, revealListSegment, addListItem, addListItemKey } from './views/lists.js';
+import { toggleListItem, revealListSegment, addListItem, addListItemKey, deleteListItem, undoDeleteListItem, jumpToList } from './views/lists.js';
 import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport } from './ai/chat.js';
 import { discardDraft, applyDraft } from './ai/preview.js';
 import { settingsOpen, settingsClose, settingsSave, settingsClearKey } from './ai/settings.js';
@@ -36,6 +36,9 @@ Object.assign(window, {
   hListSeg: revealListSegment,
   hListAdd: addListItem,
   hListAddKey: addListItemKey,
+  hListDel: deleteListItem,
+  hListUndo: undoDeleteListItem,
+  hJumpList: jumpToList,
   hOpenEditList: openEditList,
   hOpenAddList: openAddList,
   hOpenEditListItem: openEditListItem,

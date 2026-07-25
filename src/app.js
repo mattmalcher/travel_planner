@@ -11,6 +11,7 @@ import { renderForm, readForm } from './views/edit-form.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
 import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
+import { updateActiveChip } from './views/jump-nav.js';
 import { renderChat } from './ai/chat.js';
 import { hidePreview } from './ai/preview.js';
 
@@ -93,9 +94,12 @@ export function switchView(v) {
   });
   if (v === 'map' && !state.mapReady && state.HD) { state.mapReady = true; setTimeout(renderMap, 120); }
   if (v === 'gantt') refreshGanttNow(); // the "now" line drifts between visits (issue #35)
+  // A hidden view can't measure its jump strip, so mark the current chip on
+  // arrival; a no-op for the views that have no strip (issue #69).
+  updateActiveChip('hv' + v);
 }
 
-/** Jump from another view to a segment's timeline card and flash it (issue #21). */
+/** Jump from another view to a segment's itinerary card and flash it (issue #21). */
 export function revealSegment(idx) {
   switchView('list');
   const el = document.querySelector(`#hvlist .hseg[data-seg="${idx}"]`);
@@ -332,12 +336,12 @@ export function deleteEdit() {
     const list = state.HD.lists[t.li];
     const n = (list.items || []).length;
     if (!confirm(`Delete the list "${list.name || 'this list'}"${n ? ` and its ${n} item${n === 1 ? '' : 's'}` : ''}? `
-      + 'Segments scheduled from it stay on the timeline. This cannot be undone.')) return;
+      + 'Segments scheduled from it stay on the itinerary. This cannot be undone.')) return;
     state.HD.lists.splice(t.li, 1);
   } else if (t.type === 'list-item') {
     const item = state.HD.lists[t.li].items[t.ii];
     if (!confirm(`Delete "${item.name || 'this item'}"?`
-      + (item.segment_id ? ' The segment it was scheduled into stays on the timeline.' : '')
+      + (item.segment_id ? ' The segment it was scheduled into stays on the itinerary.' : '')
       + ' This cannot be undone.')) return;
     state.HD.lists[t.li].items.splice(t.ii, 1);
   } else return;
