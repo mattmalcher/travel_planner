@@ -28,4 +28,7 @@ try{
   const listSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"$ref":"#/definitions/List"};
   const validateList=ajv.compile(listSchema);
   window.hValidateList=function(list){const ok=validateList(list);return{ok,errors:ok?[]:(validateList.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
+  const itemSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"$ref":"#/definitions/ListItem"};
+  const validateItem=ajv.compile(itemSchema);
+  window.hValidateListItem=function(item){const ok=validateItem(item);return{ok,errors:ok?[]:(validateItem.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
 }catch(e){console.error('AI validation unavailable (ajv/schema failed to load):',e);}

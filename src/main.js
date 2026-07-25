@@ -2,10 +2,10 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, loadUpload, uploadAnyway, uploadCancel, reset, switchView, download, toggleEdit, openEdit, openEditTrip, openScheduleItem, closeEdit, saveEdit, editTab, deleteSegment, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, loadUpload, uploadAnyway, uploadCancel, reset, switchView, download, toggleEdit, openEdit, openEditTrip, openScheduleItem, openEditList, openAddList, openEditListItem, closeEdit, saveEdit, editTab, deleteEdit, loadSaved, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
-import { toggleListItem, revealListSegment } from './views/lists.js';
+import { toggleListItem, revealListSegment, addListItem, addListItemKey } from './views/lists.js';
 import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport } from './ai/chat.js';
 import { discardDraft, applyDraft } from './ai/preview.js';
 import { settingsOpen, settingsClose, settingsSave, settingsClearKey } from './ai/settings.js';
@@ -28,12 +28,17 @@ Object.assign(window, {
   hCloseEdit: closeEdit,
   hSaveEdit: saveEdit,
   hEditTab: editTab,
-  hDeleteSegment: deleteSegment,
+  hDeleteEdit: deleteEdit,
   hGanttToggle: toggleGanttMode,
   hJumpDay: jumpToDay,
   hListToggle: toggleListItem,
   hListSchedule: openScheduleItem,
   hListSeg: revealListSegment,
+  hListAdd: addListItem,
+  hListAddKey: addListItemKey,
+  hOpenEditList: openEditList,
+  hOpenAddList: openAddList,
+  hOpenEditListItem: openEditListItem,
   hUploadAnyway: uploadAnyway,
   hUploadCancel: uploadCancel,
   hDownloadSaved: downloadSaved,

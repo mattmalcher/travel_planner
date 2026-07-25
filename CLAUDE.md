@@ -44,7 +44,8 @@ src/
     sort.js         segDate/segTime/sortSegments (shared list+map ordering)
     dates.js        formatting, toMs/msToIso, and ALL default times (issue #13)
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
-    lists.js        list progress/partition + dangling segment_id detection (issue #40)
+    lists.js        list progress/partition, dangling segment_id detection
+                    (issue #40), document-wide id sets for manual adds (#72)
     ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
     edit-form.js    edit-modal form model: LAYOUT (paths + labels) resolved
                     against the schema into field descriptors (issue #65)
@@ -83,6 +84,9 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   the schema doesn't have fails the build. Never hand-write descriptors into
   `form-spec.js`. The JSON tab stays the escape hatch for everything the form
   doesn't cover, so both directions must round-trip without dropping fields.
+  The same modal edits the trip, segments, lists and list items (issue #72) —
+  a new editable thing is a `LAYOUT` entry plus a target branch in
+  `openModal`/`saveEdit`/`deleteEdit`/`validateEdit`, not a second modal.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listProgress, partitionItems, danglingListRefs } from '../../src/lib/lists.js';
+import { listProgress, partitionItems, danglingListRefs, takenListIds, takenItemIds } from '../../src/lib/lists.js';
+import { newId } from '../../src/lib/ids.js';
 
 const item = (over = {}) => ({ id: 'li-1', name: 'Custard tart', ...over });
 
@@ -37,4 +38,37 @@ test('danglingListRefs tolerates junk and documents without lists', () => {
   assert.deepEqual(danglingListRefs(null), []);
   assert.deepEqual(danglingListRefs({}), []);
   assert.deepEqual(danglingListRefs({ lists: [null, { items: [null] }] }), []);
+});
+
+/* Manual add (issue #72): a new item's id has to miss every item in the
+   document, not just the list it lands in — segment_id back-references and
+   the AI tools both assume item ids are document-unique. */
+
+const doc = {
+  lists: [
+    { id: 'list-food', name: 'Foods', items: [item(), item({ id: 'li-2' })] },
+    { id: 'list-packing', name: 'Packing', items: [item({ id: 'li-3' })] },
+  ],
+};
+
+test('takenListIds / takenItemIds collect ids across the whole document', () => {
+  assert.deepEqual([...takenListIds(doc)], ['list-food', 'list-packing']);
+  assert.deepEqual([...takenItemIds(doc)], ['li-1', 'li-2', 'li-3']);
+});
+
+test('taken id sets tolerate junk and documents without lists', () => {
+  for (const junk of [null, {}, { lists: null }, { lists: [null, { items: null }, { items: [null, {}] }] }]) {
+    assert.equal(takenListIds(junk).size, 0);
+    assert.equal(takenItemIds(junk).size, 0);
+  }
+});
+
+test('a quick-added item id collides with nothing already in the document', () => {
+  const taken = takenItemIds(doc);
+  for (let i = 0; i < 200; i++) {
+    const id = newId('li-', taken);
+    assert.equal(taken.has(id), false);
+    assert.match(id, /^li-.{5}$/);
+    taken.add(id);
+  }
 });

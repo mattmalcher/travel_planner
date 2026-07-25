@@ -3,6 +3,7 @@
 import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
 import { esc } from './lib/escape.js';
 import { newId } from './lib/ids.js';
+import { takenListIds } from './lib/lists.js';
 import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from './lib/dates.js';
 import { fieldsFor, applyForm } from './lib/edit-form.js';
 import { FORM_SPEC } from './form-spec.js';
@@ -130,10 +131,18 @@ export function toggleEdit() {
 
 const editEl = part => document.getElementById('hedit-' + part);
 
+/* Targets whose form is fixed by what is being edited rather than by a `type`
+   key on the value — segments carry their own type, lists and the trip do not. */
+const TARGET_FORM = {
+  trip: 'trip',
+  list: 'list', 'new-list': 'list',
+  'list-item': 'list-item',
+};
+
 /** Which set of form fields describes the thing being edited — null for a
     segment whose type the spec doesn't know, which stays JSON-only. */
 function editFieldsFor(target, value) {
-  return fieldsFor(FORM_SPEC, target.type === 'trip' ? 'trip' : value && value.type);
+  return fieldsFor(FORM_SPEC, TARGET_FORM[target.type] || (value && value.type));
 }
 
 /** Swap the visible editor, drawing it from state.editValue (the single
@@ -216,6 +225,26 @@ export function openScheduleItem(li, ii) {
   openModal({ type: 'new-segment', li, ii }, seg, 'Schedule: ' + (item.name || 'Item'), false);
 }
 
+/* --- lists (issue #72): the same modal, so a list or an item gets the
+       schema-derived form and the JSON escape hatch that segments already
+       have. Adding an *item* is deliberately not here — that is the inline
+       quick-add row in views/lists.js, since typing a name is the common
+       case and a modal for it would be all ceremony. --- */
+
+export function openEditList(li) {
+  const list = state.HD.lists[li];
+  openModal({ type: 'list', li }, list, 'Edit list: ' + (list.name || 'List'), true);
+}
+
+export function openAddList() {
+  openModal({ type: 'new-list' }, { name: '', kind: 'other', items: [] }, 'New list', false);
+}
+
+export function openEditListItem(li, ii) {
+  const item = state.HD.lists[li].items[ii];
+  openModal({ type: 'list-item', li, ii }, item, 'Edit: ' + (item.name || 'Item'), true);
+}
+
 export function closeEdit() {
   document.getElementById('hedit-modal').classList.remove('on');
   state.editTarget = null;
@@ -238,6 +267,15 @@ function editErrorText(errors) {
 function validateEdit(target, val) {
   if (target.type === 'segment' || target.type === 'new-segment')
     return window.hValidateSegment ? window.hValidateSegment(val) : { ok: true, errors: [] };
+  // A list being created has no id yet (saveEdit assigns it), so it is
+  // validated with a stand-in; every other target already carries its id, and
+  // a JSON-tab edit that drops it should fail here rather than be papered over.
+  if (target.type === 'new-list')
+    return window.hValidateList ? window.hValidateList({ id: 'list-draft', ...val }) : { ok: true, errors: [] };
+  if (target.type === 'list')
+    return window.hValidateList ? window.hValidateList(val) : { ok: true, errors: [] };
+  if (target.type === 'list-item')
+    return window.hValidateListItem ? window.hValidateListItem(val) : { ok: true, errors: [] };
   if (!window.hValidate) return { ok: true, errors: [] };
   const v = window.hValidate({ ...state.HD, trip: val });
   const tripErrors = v.errors.filter(e => (e.path || '').startsWith('/trip'));
@@ -259,6 +297,18 @@ export function saveEdit() {
       val.id = newId('seg-', new Set(state.HD.segments.map(s => s && s.id)));
     state.HD.segments.push(val);
     state.HD.lists[state.editTarget.li].items[state.editTarget.ii].segment_id = val.id;
+  } else if (state.editTarget.type === 'list') {
+    state.HD.lists[state.editTarget.li] = val;
+  } else if (state.editTarget.type === 'new-list') {
+    if (!Array.isArray(state.HD.lists)) state.HD.lists = [];
+    // Same id policy as segments (issue #41): missing or colliding ids are
+    // replaced rather than left to resolve nondeterministically.
+    const taken = takenListIds(state.HD);
+    if (!val.id || taken.has(val.id)) val.id = newId('list-', taken);
+    if (!Array.isArray(val.items)) val.items = [];
+    state.HD.lists.push(val);
+  } else if (state.editTarget.type === 'list-item') {
+    state.HD.lists[state.editTarget.li].items[state.editTarget.ii] = val;
   } else {
     state.HD.trip = val;
     updateHeader();
@@ -268,11 +318,29 @@ export function saveEdit() {
   refreshAfterChange();
 }
 
-export function deleteSegment() {
-  if (!state.editTarget || state.editTarget.type !== 'segment') return;
-  const seg = state.HD.segments[state.editTarget.idx];
-  if (!confirm(`Delete "${seg.name || seg.operator || 'this segment'}"? This cannot be undone.`)) return;
-  state.HD.segments.splice(state.editTarget.idx, 1);
+/** The modal's Delete button, for whichever kind of thing it is open on. Only
+    targets opened as deletable get here — a draft (new-*) has nothing to
+    delete and its button is hidden. */
+export function deleteEdit() {
+  const t = state.editTarget;
+  if (!t) return;
+  if (t.type === 'segment') {
+    const seg = state.HD.segments[t.idx];
+    if (!confirm(`Delete "${seg.name || seg.operator || 'this segment'}"? This cannot be undone.`)) return;
+    state.HD.segments.splice(t.idx, 1);
+  } else if (t.type === 'list') {
+    const list = state.HD.lists[t.li];
+    const n = (list.items || []).length;
+    if (!confirm(`Delete the list "${list.name || 'this list'}"${n ? ` and its ${n} item${n === 1 ? '' : 's'}` : ''}? `
+      + 'Segments scheduled from it stay on the timeline. This cannot be undone.')) return;
+    state.HD.lists.splice(t.li, 1);
+  } else if (t.type === 'list-item') {
+    const item = state.HD.lists[t.li].items[t.ii];
+    if (!confirm(`Delete "${item.name || 'this item'}"?`
+      + (item.segment_id ? ' The segment it was scheduled into stays on the timeline.' : '')
+      + ' This cannot be undone.')) return;
+    state.HD.lists[t.li].items.splice(t.ii, 1);
+  } else return;
   persist();
   closeEdit();
   refreshAfterChange();
