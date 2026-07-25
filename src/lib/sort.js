@@ -1,4 +1,4 @@
-// Shared chronological ordering of segments (issue #18): the timeline and
+// Shared chronological ordering of segments (issue #18): the itinerary and
 // map views must agree on segment order, so both use sortSegments.
 import { DEFAULT_EVENT_TIME } from './dates.js';
 

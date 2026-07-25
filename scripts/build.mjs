@@ -85,7 +85,7 @@ writeFileSync(out('sw.js'), sw);
 writeFileSync(out('manifest.webmanifest'), JSON.stringify({
   name: 'Holiday Itinerary Viewer',
   short_name: 'Itinerary',
-  description: 'Timeline, budget, map and gantt views for HolidayItinerary JSON files',
+  description: 'Itinerary, schedule, budget and map views for HolidayItinerary JSON files',
   start_url: './',
   scope: './',
   display: 'standalone',

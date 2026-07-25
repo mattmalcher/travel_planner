@@ -2,9 +2,9 @@
 
 **[Open the viewer](https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html)**
 
-A standalone HTML viewer for `HolidayItinerary` JSON files: timeline, budget,
-map and gantt views, plus an optional AI editor (bring your own OpenRouter
-key). The app is developed as modular source in `src/` and built into a
+A standalone HTML viewer for `HolidayItinerary` JSON files: itinerary, map,
+schedule (gantt) and budget views, plus an optional AI editor (bring your own
+OpenRouter key). The app is developed as modular source in `src/` and built into a
 single self-contained `dist/holiday_itinerary_viewer.html` — the built file
 is produced by CI for deployment and is not committed.
 

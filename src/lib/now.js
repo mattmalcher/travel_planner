@@ -10,7 +10,7 @@ export function isDuringTrip(trip, nowMs) {
   return nowMs >= toMs(trip.start, '00:00') && nowMs < toMs(trip.end, '00:00') + 86400000;
 }
 
-/** The day-group the timeline should treat as "today". `days` are the sorted
+/** The day-group the itinerary view should treat as "today". `days` are the sorted
     "YYYY-MM-DD" keys of days that actually have segments; today may not be
     one of them (e.g. a rest day mid-stay), so the latest listed day not after
     today is returned instead. Null when now is outside the trip or before the
