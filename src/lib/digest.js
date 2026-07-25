@@ -84,11 +84,38 @@ export function listLines(doc) {
   return out;
 }
 
+/** One digest line for a phrase: id, what it says in each language, then a
+    flag for the detail the line omits (the note) so the model knows to
+    get_phrases before editing. Pronunciation is shown rather than flagged —
+    it is short, and the model needs to see whether one is already there. */
+export function phraseLine(p) {
+  return `  ${p.id} | ${p.text}`
+    + (p.local ? ' = ' + p.local : ' = (untranslated)')
+    + (p.pronunciation ? ' /' + p.pronunciation + '/' : '')
+    + (p.note ? ' +note' : '');
+}
+
+/** Digest lines for the phrasebook (issue #75), or [] when the document has
+    none: a header per group, then one indented line per phrase. */
+export function phraseLines(doc) {
+  const groups = Array.isArray(doc.phrases) ? doc.phrases : [];
+  if (!groups.length) return [];
+  const out = ['phrases:'];
+  for (const g of groups) {
+    if (!g) continue;
+    const items = Array.isArray(g.items) ? g.items.filter(Boolean) : [];
+    out.push(`${g.id} | ${g.name}${g.language ? ' | ' + g.language : ''}${g.kind ? ' | ' + g.kind : ''} | ${items.length} phrase${items.length === 1 ? '' : 's'}`);
+    for (const p of items) out.push(phraseLine(p));
+  }
+  return out;
+}
+
 /** Digest of a whole HolidayItinerary document: a trip header line, one
-    chronologically sorted line per segment, then the lists section. */
+    chronologically sorted line per segment, then the lists and phrases
+    sections. */
 export function itineraryDigest(doc) {
   const t = doc.trip || {};
   const head = `trip: ${t.name} | ${(t.travellers || []).join(', ')} | ${t.start} → ${t.end} | ${t.currency_primary}`;
   const lines = sortSegments(doc.segments || []).map(s => segmentLine(s, t.currency_primary));
-  return [head, ...lines, ...listLines(doc)].join('\n');
+  return [head, ...lines, ...listLines(doc), ...phraseLines(doc)].join('\n');
 }

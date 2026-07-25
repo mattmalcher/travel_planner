@@ -4,6 +4,7 @@ import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
 import { esc } from './lib/escape.js';
 import { newId } from './lib/ids.js';
 import { takenListIds } from './lib/lists.js';
+import { takenGroupIds } from './lib/phrases.js';
 import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN, msToIso } from './lib/dates.js';
 import { newSegmentDraft, newTripDraft, blankItinerary } from './lib/drafts.js';
 import { fieldsFor, applyForm } from './lib/edit-form.js';
@@ -142,6 +143,8 @@ const TARGET_FORM = {
   trip: 'trip', 'new-trip': 'trip',
   list: 'list', 'new-list': 'list',
   'list-item': 'list-item',
+  'phrase-group': 'phrase-group', 'new-phrase-group': 'phrase-group',
+  phrase: 'phrase',
 };
 
 /** Which set of form fields describes the thing being edited — null for a
@@ -274,6 +277,24 @@ export function openEditListItem(li, ii) {
   openModal({ type: 'list-item', li, ii }, item, 'Edit: ' + (item.name || 'Item'), true);
 }
 
+/* --- the phrasebook (issue #75): the same modal again. A phrase group is
+       edited and added exactly as a list is, and a phrase as a list item —
+       the only new thing here is which branch of the document it lands in. --- */
+
+export function openEditPhraseGroup(gi) {
+  const group = state.HD.phrases[gi];
+  openModal({ type: 'phrase-group', gi }, group, 'Edit group: ' + (group.name || 'Phrases'), true);
+}
+
+export function openAddPhraseGroup() {
+  openModal({ type: 'new-phrase-group' }, { name: '', kind: 'other', items: [] }, 'New phrase group', false);
+}
+
+export function openEditPhrase(gi, pi) {
+  const phrase = state.HD.phrases[gi].items[pi];
+  openModal({ type: 'phrase', gi, pi }, phrase, 'Edit: ' + (phrase.text || 'Phrase'), true);
+}
+
 export function closeEdit() {
   document.getElementById('hedit-modal').classList.remove('on');
   state.editTarget = null;
@@ -305,6 +326,13 @@ function validateEdit(target, val) {
     return window.hValidateList ? window.hValidateList(val) : { ok: true, errors: [] };
   if (target.type === 'list-item')
     return window.hValidateListItem ? window.hValidateListItem(val) : { ok: true, errors: [] };
+  // Same stand-in-id policy as lists: saveEdit assigns a new group's id.
+  if (target.type === 'new-phrase-group')
+    return window.hValidatePhraseGroup ? window.hValidatePhraseGroup({ id: 'phr-draft', ...val }) : { ok: true, errors: [] };
+  if (target.type === 'phrase-group')
+    return window.hValidatePhraseGroup ? window.hValidatePhraseGroup(val) : { ok: true, errors: [] };
+  if (target.type === 'phrase')
+    return window.hValidatePhrase ? window.hValidatePhrase(val) : { ok: true, errors: [] };
   // A from-scratch trip has no document around it yet, so the trip subschema
   // is validated on its own rather than as part of one (issue #76).
   if (target.type === 'new-trip')
@@ -351,6 +379,16 @@ export function saveEdit() {
     state.HD.lists.push(val);
   } else if (state.editTarget.type === 'list-item') {
     state.HD.lists[state.editTarget.li].items[state.editTarget.ii] = val;
+  } else if (state.editTarget.type === 'phrase-group') {
+    state.HD.phrases[state.editTarget.gi] = val;
+  } else if (state.editTarget.type === 'new-phrase-group') {
+    if (!Array.isArray(state.HD.phrases)) state.HD.phrases = [];
+    const taken = takenGroupIds(state.HD);
+    if (!val.id || taken.has(val.id)) val.id = newId('phr-', taken);
+    if (!Array.isArray(val.items)) val.items = [];
+    state.HD.phrases.push(val);
+  } else if (state.editTarget.type === 'phrase') {
+    state.HD.phrases[state.editTarget.gi].items[state.editTarget.pi] = val;
   } else {
     state.HD.trip = val;
     updateHeader();
@@ -382,6 +420,15 @@ export function deleteEdit() {
       + (item.segment_id ? ' The segment it was scheduled into stays on the itinerary.' : '')
       + ' This cannot be undone.')) return;
     state.HD.lists[t.li].items.splice(t.ii, 1);
+  } else if (t.type === 'phrase-group') {
+    const group = state.HD.phrases[t.gi];
+    const n = (group.items || []).length;
+    if (!confirm(`Delete the phrase group "${group.name || 'this group'}"${n ? ` and its ${n} phrase${n === 1 ? '' : 's'}` : ''}? This cannot be undone.`)) return;
+    state.HD.phrases.splice(t.gi, 1);
+  } else if (t.type === 'phrase') {
+    const phrase = state.HD.phrases[t.gi].items[t.pi];
+    if (!confirm(`Delete "${phrase.text || 'this phrase'}"? This cannot be undone.`)) return;
+    state.HD.phrases[t.gi].items.splice(t.pi, 1);
   } else return;
   persist();
   closeEdit();

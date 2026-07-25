@@ -40,4 +40,10 @@ try{
   const itemSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"$ref":"#/definitions/ListItem"};
   const validateItem=ajv.compile(itemSchema);
   window.hValidateListItem=function(item){const ok=validateItem(item);return{ok,errors:ok?[]:(validateItem.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
+  const groupSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"$ref":"#/definitions/PhraseGroup"};
+  const validateGroup=ajv.compile(groupSchema);
+  window.hValidatePhraseGroup=function(group){const ok=validateGroup(group);return{ok,errors:ok?[]:(validateGroup.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
+  const phraseSchema={"$schema":"http://json-schema.org/draft-07/schema#","definitions":schema.definitions,"$ref":"#/definitions/Phrase"};
+  const validatePhrase=ajv.compile(phraseSchema);
+  window.hValidatePhrase=function(phrase){const ok=validatePhrase(phrase);return{ok,errors:ok?[]:(validatePhrase.errors||[]).map(e=>({path:e.instancePath||'/',message:e.message,params:e.params}))};};
 }catch(e){console.error('AI validation unavailable (ajv/schema failed to load):',e);}

@@ -105,6 +105,20 @@ export const LAYOUT = {
     ['note', 'Note', { wide: true, multiline: true }],
     ['done', 'Done'],
   ],
+  // Phrase groups and their phrases (issue #75), the same way round as lists:
+  // a group's `items` is absent because phrases are edited one at a time from
+  // the Phrases view.
+  'phrase-group': [
+    ['name', 'Group name', { wide: true }],
+    ['language', 'Language', { placeholder: 'e.g. French' }],
+    ['kind', 'Kind'],
+  ],
+  phrase: [
+    ['text', 'In your language', { wide: true }],
+    ['local', 'Local wording', { wide: true }],
+    ['pronunciation', 'Pronunciation', { wide: true }],
+    ['note', 'Note', { wide: true, multiline: true }],
+  ],
 };
 
 /** Keys the form deliberately never shows: identity, not content. */
@@ -160,8 +174,8 @@ function field(schema, root, entry, where) {
   return f;
 }
 
-/** Resolve every LAYOUT entry against the schema → {trip, transport,
-    accommodation, event} field descriptor lists. Run at build time. */
+/** Resolve every LAYOUT entry against the schema → one field descriptor list
+    per target kind. Run at build time. */
 export function specFromSchema(schema) {
   const roots = {
     trip: schema.properties.trip,
@@ -170,6 +184,8 @@ export function specFromSchema(schema) {
     event: schema.definitions.EventSegment,
     list: schema.definitions.List,
     'list-item': schema.definitions.ListItem,
+    'phrase-group': schema.definitions.PhraseGroup,
+    phrase: schema.definitions.Phrase,
   };
   const spec = {};
   for (const [where, entries] of Object.entries(LAYOUT))
