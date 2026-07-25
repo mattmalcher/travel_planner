@@ -4,7 +4,8 @@ import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
 import { esc } from './lib/escape.js';
 import { newId } from './lib/ids.js';
 import { takenListIds } from './lib/lists.js';
-import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from './lib/dates.js';
+import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN, msToIso } from './lib/dates.js';
+import { newSegmentDraft, newTripDraft, blankItinerary } from './lib/drafts.js';
 import { fieldsFor, applyForm } from './lib/edit-form.js';
 import { FORM_SPEC } from './form-spec.js';
 import { renderForm, readForm } from './views/edit-form.js';
@@ -138,7 +139,7 @@ const editEl = part => document.getElementById('hedit-' + part);
 /* Targets whose form is fixed by what is being edited rather than by a `type`
    key on the value — segments carry their own type, lists and the trip do not. */
 const TARGET_FORM = {
-  trip: 'trip',
+  trip: 'trip', 'new-trip': 'trip',
   list: 'list', 'new-list': 'list',
   'list-item': 'list-item',
 };
@@ -202,6 +203,30 @@ export function openEdit(idx) {
 
 export function openEditTrip() {
   openModal({ type: 'trip' }, state.HD.trip, 'Edit: Trip details', false);
+}
+
+/* --- adding the top-level things by hand (issue #76). Editing a segment, a
+       list or the trip already went through this modal; adding one now uses
+       the same door, so a new thing is described by the same schema-derived
+       form and gets the same validation before it lands in the document.
+       Neither is gated on edit mode — nothing exists yet to protect from a
+       stray tap, and adding is the point. --- */
+
+/** Add a segment to the itinerary: the modal opens on a prefilled draft of
+    the chosen type (see lib/drafts.js) with its required content left blank,
+    so saving is refused until it says something. */
+export function openAddSegment(type) {
+  const seg = newSegmentDraft(type, state.HD);
+  if (!seg) return;
+  const title = { transport: 'New travel', accommodation: 'New stay', event: 'New event' }[type];
+  openModal({ type: 'new-segment' }, seg, title, false);
+}
+
+/** Start an itinerary from scratch, with no file and no AI (issue #76): the
+    trip form is the whole first step — saving it creates a document with no
+    segments, which every view then invites you to fill. */
+export function openNewItinerary(nowMs = Date.now()) {
+  openModal({ type: 'new-trip' }, newTripDraft(msToIso(nowMs).date), 'New itinerary', false);
 }
 
 /* Promote a list item into the schedule (issue #40): promotion is a UI
@@ -280,6 +305,10 @@ function validateEdit(target, val) {
     return window.hValidateList ? window.hValidateList(val) : { ok: true, errors: [] };
   if (target.type === 'list-item')
     return window.hValidateListItem ? window.hValidateListItem(val) : { ok: true, errors: [] };
+  // A from-scratch trip has no document around it yet, so the trip subschema
+  // is validated on its own rather than as part of one (issue #76).
+  if (target.type === 'new-trip')
+    return window.hValidateTrip ? window.hValidateTrip(val) : { ok: true, errors: [] };
   if (!window.hValidate) return { ok: true, errors: [] };
   const v = window.hValidate({ ...state.HD, trip: val });
   const tripErrors = v.errors.filter(e => (e.path || '').startsWith('/trip'));
@@ -292,6 +321,12 @@ export function saveEdit() {
   const errEl = editEl('err');
   const v = validateEdit(state.editTarget, val);
   if (!v.ok) { errEl.textContent = editErrorText(v.errors); return; }
+  if (state.editTarget.type === 'new-trip') {
+    // The first save *is* the load: there is no document to write into yet.
+    closeEdit();
+    load(blankItinerary(val));
+    return;
+  }
   if (state.editTarget.type === 'segment') {
     state.HD.segments[state.editTarget.idx] = val;
   } else if (state.editTarget.type === 'new-segment') {
@@ -300,7 +335,10 @@ export function saveEdit() {
     if (!val.id || state.HD.segments.some(s => s && s.id === val.id))
       val.id = newId('seg-', new Set(state.HD.segments.map(s => s && s.id)));
     state.HD.segments.push(val);
-    state.HD.lists[state.editTarget.li].items[state.editTarget.ii].segment_id = val.id;
+    // A draft promoted from a list item points back at it; one added straight
+    // to the itinerary (issue #76) has no item to link.
+    if (state.editTarget.li !== undefined)
+      state.HD.lists[state.editTarget.li].items[state.editTarget.ii].segment_id = val.id;
   } else if (state.editTarget.type === 'list') {
     state.HD.lists[state.editTarget.li] = val;
   } else if (state.editTarget.type === 'new-list') {

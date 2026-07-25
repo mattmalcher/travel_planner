@@ -31,10 +31,14 @@ const validItinerary = {
 // Same stub pattern as llm.spec.js: validation outcome is controlled by
 // globalThis flags so the test drives ajv deterministically and offline.
 const AJV_STUB = `
+// The app validates a segment against the ONE subschema its type names, and
+// falls back to the oneOf only for an unknown type (issue #76) — so a segment
+// validator is either shape.
+const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
 export default class Ajv {
   constructor() {}
   compile(schema) {
-    const flag = schema && schema.oneOf ? '__SEG_VALID__' : '__DOC_VALID__';
+    const flag = isSegmentSchema(schema) ? '__SEG_VALID__' : '__DOC_VALID__';
     function validate(data) {
       const ok = (globalThis[flag] !== false);
       validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/segments/0', message: 'stub: invalid', params: {} }]);

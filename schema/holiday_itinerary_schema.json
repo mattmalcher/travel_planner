@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "title": "HolidayItinerary",
   "description": "Structured holiday itinerary with transport, accommodation and events (gigs, walks, festivals, etc.)",
   "type": "object",
@@ -59,7 +59,7 @@
     },
     "segments": {
       "type": "array",
-      "minItems": 1,
+      "description": "The planned itinerary. May be empty for a trip that is still being filled in — an itinerary started from scratch in the viewer begins with no segments.",
       "items": {
         "oneOf": [
           {
@@ -680,14 +680,9 @@
         "id",
         "type",
         "name",
-        "host",
-        "ref",
         "address",
-        "lat",
-        "lng",
         "checkin",
         "checkout",
-        "self_checkin",
         "cost"
       ],
       "properties": {
@@ -717,10 +712,12 @@
           "type": "string"
         },
         "host": {
-          "type": "string"
+          "type": "string",
+          "description": "Host or hotel contact — omit when there isn't one yet"
         },
         "ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Booking reference — omit when the stay isn't booked; never use placeholders like \"n/a\""
         },
         "address": {
           "type": "string"
@@ -728,12 +725,14 @@
         "lat": {
           "type": "number",
           "minimum": -90,
-          "maximum": 90
+          "maximum": 90,
+          "description": "WGS-84 latitude. Optional, but the stay is left off the map without it"
         },
         "lng": {
           "type": "number",
           "minimum": -180,
-          "maximum": 180
+          "maximum": 180,
+          "description": "WGS-84 longitude — see lat"
         },
         "phone": {
           "type": "string",

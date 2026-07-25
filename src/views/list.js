@@ -3,8 +3,9 @@
 import { state } from '../state.js';
 import { costInfo, fmtCurrency } from '../lib/cost.js';
 import { sortSegments, segDate } from '../lib/sort.js';
-import { fmtDayLong, fmtDayShort, fmtMinutes, nightsBetween } from '../lib/dates.js';
+import { fmtDayLong, fmtDayShort, fmtMinutes, nightsBetween, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY } from '../lib/dates.js';
 import { currentDayChip } from '../lib/now.js';
+import { SEGMENT_KINDS } from '../lib/drafts.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
 import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
@@ -35,14 +36,16 @@ function renderTransport(s, trip) {
 
 function renderAccom(s) {
   // nights was dropped from the schema (3.0.0): derive it from the dates.
+  // host and ref are optional since 3.2.0 (a stay you have only just decided
+  // on has neither), so their lines are omitted rather than shown empty.
   const nights = nightsBetween(s.checkin.date, s.checkout.date);
   return `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;gap:8px">
-    <span><i class="ti ti-door-enter" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> In after ${esc(s.checkin.from)} · ${fmtDayLong(s.checkin.date)}</span>
-    <span><i class="ti ti-door-exit" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Out by ${esc(s.checkout.by)} · ${fmtDayLong(s.checkout.date)}</span>
-    <span>${nights} night${nights !== 1 ? 's' : ''} · Host: ${esc(s.host)}</span>
+    <span><i class="ti ti-door-enter" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> In after ${esc(s.checkin.from || DEFAULT_CHECKIN_FROM)} · ${fmtDayLong(s.checkin.date)}</span>
+    <span><i class="ti ti-door-exit" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Out by ${esc(s.checkout.by || DEFAULT_CHECKOUT_BY)} · ${fmtDayLong(s.checkout.date)}</span>
+    <span>${nights} night${nights !== 1 ? 's' : ''}${s.host ? ` · Host: ${esc(s.host)}` : ''}</span>
     ${s.self_checkin ? '<span><i class="ti ti-key" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Self check-in</span>' : ''}
     ${s.phone ? `<span><i class="ti ti-phone" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.phone)}</span>` : ''}
-    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">Ref: <code>${esc(s.ref)}</code></div>
+    ${s.ref ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">Ref: <code>${esc(s.ref)}</code></div>` : ''}
   </div>`;
 }
 
@@ -89,6 +92,19 @@ export function jumpToDay(date, behavior = 'smooth') {
   jumpTo('hvlist', date, behavior);
 }
 
+/* One button per addable segment type (issue #76). Like the Lists view's
+   quick-add these are always on rather than gated on edit mode: an itinerary
+   with nothing in it would otherwise hide the only way to start it. */
+const addBar = `<div class="hadd">
+  <span class="hadd-lbl">Add to the itinerary</span>
+  ${SEGMENT_KINDS.map(k => `<button class="hli-chip" onclick="hAddSegment('${k.type}')"><i class="ti ${segIcon({ type: k.type })}" aria-hidden="true"></i> ${k.label}</button>`).join('')}
+</div>`;
+
+const emptyState = `<div style="font-size:13px;color:var(--color-text-secondary);padding:1rem 0">
+  Nothing planned yet. Add travel, a stay or something to do below — or ask the AI assistant,
+  or load a <code>HolidayItinerary</code> file. Ideas that aren't plans yet belong on the Lists tab.
+</div>`;
+
 export function renderList() {
   const HD = state.HD;
   const sorted = sortSegments(HD.segments);
@@ -101,7 +117,7 @@ export function renderList() {
   const todayBtn = today ? `<button class="hjump-chip hday-today" data-k="${esc(today)}" onclick="hJumpDay(this.dataset.k)"><i class="ti ti-calendar-pin" aria-hidden="true"></i> Today</button>` : '';
   const nav = days.length > 1 ? `<div class="hjump-nav">${todayBtn}${days.map(d =>
     `<button class="hjump-chip${d === today ? ' is-today' : ''}" data-k="${esc(d)}" onclick="hJumpDay(this.dataset.k)">${fmtDayShort(d)}</button>`).join('')}</div>` : '';
-  document.getElementById('hvlist').innerHTML = nav + Object.entries(grp).map(([date, segs]) => `
+  document.getElementById('hvlist').innerHTML = nav + (days.length ? '' : emptyState) + Object.entries(grp).map(([date, segs]) => `
     <div class="hjump-a" data-k="${esc(date)}" style="margin-bottom:1.75rem">
       <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;display:flex;align-items:center;gap:8px">
         ${fmtDayLong(date)}<span style="flex:1;height:.5px;background:var(--color-border-tertiary);display:block"></span>
@@ -127,7 +143,7 @@ export function renderList() {
           ${detail}${renderWarnings(s)}${renderNotes(s)}
         </div>`;
       }).join('')}
-    </div>`).join('');
+    </div>`).join('') + addBar;
   bindJumpSpy('hvlist');
   updateActiveChip('hvlist');
   // Open at the current day once per page load; later re-renders (edits, AI
