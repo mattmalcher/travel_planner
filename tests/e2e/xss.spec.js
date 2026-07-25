@@ -77,6 +77,23 @@ const xssItinerary = {
         }
       ]
     }
+  ],
+  phrases: [
+    {
+      id: `phr-1 ${IMG}`,
+      name: `Getting by ${IMG}`,
+      language: `French ${IMG}`,
+      kind: 'greetings',
+      items: [
+        {
+          id: 'ph-1',
+          text: `Hello ${IMG}`,
+          local: `Bonjour ${IMG}`,
+          pronunciation: `bon-ZHOOR ${IMG}`,
+          note: `Note ${SCRIPT}`
+        }
+      ]
+    }
   ]
 };
 
@@ -144,6 +161,16 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
     await expect(page.locator('#hvlists img[src="x"]')).toHaveCount(0);
     await expect(page.locator('#hvlists a[href^="javascript:"]')).toHaveCount(0);
     await page.locator('#hvlists .hli', { hasText: 'Break the chip' }).locator('.hli-chip').click();
+
+    // Phrases view (issue #75): every field on the card is itinerary-supplied,
+    // including the language subtitle and the pronunciation line.
+    await page.click('.htab[data-v="phrases"]');
+    await expect(page.locator('#hvphrases')).toContainText(`Getting by ${IMG}`);
+    await expect(page.locator('#hvphrases')).toContainText(`French ${IMG}`);
+    await expect(page.locator('#hvphrases')).toContainText(`Bonjour ${IMG}`);
+    await expect(page.locator('#hvphrases')).toContainText(`bon-ZHOOR ${IMG}`);
+    await expect(page.locator('#hvphrases')).toContainText(`Note ${SCRIPT}`);
+    await expect(page.locator('#hvphrases img[src="x"]')).toHaveCount(0);
 
     // The edit form (issue #65) puts itinerary strings into value attributes:
     // they must land as literal input values, not markup.

@@ -82,6 +82,7 @@ test('a blank itinerary is a valid empty document shape', () => {
   const doc0 = blankItinerary(newTripDraft('2026-07-25'));
   assert.deepEqual(doc0.segments, []);
   assert.deepEqual(doc0.lists, []);
+  assert.deepEqual(doc0.phrases, []);
   // An itinerary being built up starts with nothing planned, so the schema
   // must not insist on a first segment.
   assert.equal(schema.properties.segments.minItems, undefined);

@@ -1,16 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { itineraryDigest, segmentLine, costLine, listLines, listItemLine } from '../../src/lib/digest.js';
+import { itineraryDigest, segmentLine, costLine, listLines, listItemLine, phraseLines, phraseLine } from '../../src/lib/digest.js';
 
 const paris = JSON.parse(readFileSync(new URL('../../examples/paris_weekend.json', import.meta.url), 'utf8'));
 
 test('digest of the paris_weekend fixture: trip header + one line per segment', () => {
   const d = itineraryDigest(paris);
   const lines = d.split('\n');
-  // header + segments + lists section ("lists:" + a header and item line per list/item)
+  // header + segments + lists section ("lists:" + a header and item line per
+  // list/item) + phrases section, which has the same shape
   const listCount = paris.lists.length + paris.lists.reduce((n, l) => n + l.items.length, 0);
-  assert.equal(lines.length, 1 + paris.segments.length + 1 + listCount);
+  const phraseCount = paris.phrases.length + paris.phrases.reduce((n, g) => n + g.items.length, 0);
+  assert.equal(lines.length, 1 + paris.segments.length + 1 + listCount + 1 + phraseCount);
   assert.equal(lines[0], 'trip: Paris Weekend (example) | Judy Jetson, George Jetson | 2026-09-18 → 2026-09-20 | GBP');
   assert.equal(lines[1], "seg-1 | transport/train | 2026-09-18 16:31 London St Pancras Int'l → 19:49 Paris Gare du Nord | Eurostar ref AB1234 | paid GBP 156");
   assert.equal(lines[2], 'seg-2 | accommodation | 2026-09-18, 2 nights | Cosy Studio near Sacré-Cœur ref XY9876Z | paid GBP 174.48 | +notes | +warnings(1)');
@@ -34,6 +36,30 @@ test('listItemLine flags omitted detail (note, url) and the promoted segment', (
 test('documents without lists produce no lists section', () => {
   assert.deepEqual(listLines({ segments: [] }), []);
   assert.deepEqual(listLines({ lists: [] }), []);
+});
+
+/* Phrases (issue #75): both wordings are inlined — a translation is the point
+   of the entry and the model needs to see whether one is already there — and
+   only the note is flagged. */
+
+test('phrases appear in the digest with a header per group and a line per phrase', () => {
+  const lines = itineraryDigest(paris).split('\n');
+  const at = lines.indexOf('phrases:');
+  assert.ok(at > 0, 'phrases section present');
+  assert.equal(lines[at + 1], 'phr-basics | Getting by | French | greetings | 3 phrases');
+  assert.equal(lines[at + 2], '  ph-1 | Good morning = Bonjour /bon-ZHOOR/ +note');
+  assert.equal(lines[at + 3], '  ph-2 | Do you speak English? = Parlez-vous anglais ? /par-lay VOO on-GLEH/');
+});
+
+test('phraseLine marks a phrase that has not been translated yet', () => {
+  assert.equal(phraseLine({ id: 'ph-9', text: 'Is there a vegetarian option?' }),
+    '  ph-9 | Is there a vegetarian option? = (untranslated)');
+});
+
+test('documents without a phrasebook produce no phrases section', () => {
+  assert.deepEqual(phraseLines({ segments: [] }), []);
+  assert.deepEqual(phraseLines({ phrases: [] }), []);
+  assert.deepEqual(phraseLines({ phrases: [null] }), ['phrases:']);
 });
 
 test('digest is a fraction of the raw itinerary size', () => {

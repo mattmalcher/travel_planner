@@ -20,6 +20,11 @@ function listLabel(list) {
   return (list.name || 'list') + (list.id ? ' (' + list.id + ')' : '');
 }
 
+function groupLabel(group) {
+  if (!group) return 'phrases';
+  return (group.name || 'phrases') + (group.language ? ' — ' + group.language : '') + (group.id ? ' (' + group.id + ')' : '');
+}
+
 export function showPreview() {
   const v = validateSafe(state.draft);
   const ops = state.ops.map(o => {
@@ -30,6 +35,9 @@ export function showPreview() {
     if (o.kind === 'add-list') return `<div class="hpv-op" style="color:var(--color-text-success)">+ Added list ${esc(listLabel(o.after))}</div>`;
     if (o.kind === 'remove-list') return `<div class="hpv-op" style="color:var(--color-text-danger)">− Removed list ${esc(listLabel(o.before))}</div>`;
     if (o.kind === 'update-list') return `<div class="hpv-op" style="color:var(--color-text-warning)">~ Updated list ${esc(listLabel(o.after))}</div>`;
+    if (o.kind === 'add-phrases') return `<div class="hpv-op" style="color:var(--color-text-success)">+ Added phrase group ${esc(groupLabel(o.after))}</div>`;
+    if (o.kind === 'remove-phrases') return `<div class="hpv-op" style="color:var(--color-text-danger)">− Removed phrase group ${esc(groupLabel(o.before))}</div>`;
+    if (o.kind === 'update-phrases') return `<div class="hpv-op" style="color:var(--color-text-warning)">~ Updated phrase group ${esc(groupLabel(o.after))}</div>`;
     return '';
   }).join('');
   const details = state.ops.map((o, i) => {

@@ -18,6 +18,10 @@ export function buildTools() {
     { type: 'function', function: { name: 'add_list', description: 'Add a new list (a pool of intentions: packing, foods to try, restaurant options). List and item ids are assigned automatically and returned in the result — you may omit them from the payload.', parameters: { type: 'object', properties: { list: { type: 'object', description: 'A complete List object conforming to the HolidayItinerary schema (ids optional — they are assigned).' } }, required: ['list'] } } },
     { type: 'function', function: { name: 'patch_list', description: 'Update part of an existing list (matched by id) via JSON Merge Patch: nested objects merge, arrays and scalars replace, null removes a field. Note the items array replaces wholesale — send the complete items array when changing any item (e.g. ticking one off with done:true, or recording a scheduled item\'s segment_id).', parameters: { type: 'object', properties: { id: { type: 'string', description: 'id of the list to modify' }, changes: { type: 'object', description: 'An object containing only the fields to change.' } }, required: ['id', 'changes'] } } },
     { type: 'function', function: { name: 'remove_list', description: 'Remove the list with the given id (its items are gone too; segments an item was scheduled into remain).', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } },
+    { type: 'function', function: { name: 'get_phrase_group', description: 'Fetch the full JSON of one or more phrasebook groups by id (reflects your own pending edits from earlier in this turn). You must read a group this way before editing it with patch_phrase_group — the digest omits the per-phrase note, which an unread edit could silently destroy. Batch ids to save round trips.', parameters: { type: 'object', properties: { ids: { type: 'array', items: { type: 'string' }, description: 'One or more phrase group ids, e.g. ["phr-greetings"]' } }, required: ['ids'] } } },
+    { type: 'function', function: { name: 'add_phrase_group', description: 'Add a new phrasebook group (things to be able to say in one situation: greetings, ordering food, emergencies). Group and phrase ids are assigned automatically and returned in the result — you may omit them from the payload.', parameters: { type: 'object', properties: { group: { type: 'object', description: 'A complete PhraseGroup object conforming to the HolidayItinerary schema (ids optional — they are assigned).' } }, required: ['group'] } } },
+    { type: 'function', function: { name: 'patch_phrase_group', description: 'Update part of an existing phrasebook group (matched by id) via JSON Merge Patch: nested objects merge, arrays and scalars replace, null removes a field. Note the items array replaces wholesale — send the complete items array when changing any phrase (e.g. filling in translations).', parameters: { type: 'object', properties: { id: { type: 'string', description: 'id of the phrase group to modify' }, changes: { type: 'object', description: 'An object containing only the fields to change.' } }, required: ['id', 'changes'] } } },
+    { type: 'function', function: { name: 'remove_phrase_group', description: 'Remove the phrasebook group with the given id (its phrases go with it).', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } } },
   ];
   if (localStorage.getItem('hOpenRouterWeb') === '1')
     tools.push({ type: 'openrouter:web_search', parameters: { engine: 'auto', max_results: 3 } });
@@ -84,6 +88,44 @@ function listError(list) {
   if (!window.hValidateList) return null;
   const v = window.hValidateList(list);
   return v.ok ? null : 'ERROR — list failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2);
+}
+
+/* --- phrases (issue #75): the list rules again, over doc.phrases. A phrase
+       group is a list of things to say and a phrase is its item, so the
+       id-assignment, read-before-edit and validation machinery is the same
+       shape — only the branch of the document differs. --- */
+
+function draftGroups() {
+  return Array.isArray(state.draft.phrases) ? state.draft.phrases : (state.draft.phrases = []);
+}
+
+function groupReadGuard(id) {
+  if (state.phraseReads.has(id)) return null;
+  return 'ERROR: phrase group "' + id + '" has not been read this turn. Call get_phrase_group first — its phrases carry a note field the digest does not show, which an unread edit could lose — then retry.';
+}
+
+function noSuchGroup(id) {
+  const known = draftGroups().map(g => g && g.id).filter(Boolean);
+  return 'ERROR: no phrase group with id "' + id + '". Known phrase group ids: ' + (known.join(', ') || '(none)') + '.';
+}
+
+/* Document-unique phrase ids, assigned exactly as list item ids are: `self` is
+   excluded from the taken-id scan so a group's own unchanged phrases keep
+   theirs. */
+function assignPhraseIds(self, groups) {
+  const taken = new Set();
+  for (const g of groups) if (g && g !== self) for (const p of g.items || []) if (p && p.id) taken.add(p.id);
+  for (const p of self.items || []) {
+    if (!p) continue;
+    if (!p.id || taken.has(p.id)) p.id = newId('ph-', taken);
+    taken.add(p.id);
+  }
+}
+
+function groupError(group) {
+  if (!window.hValidatePhraseGroup) return null;
+  const v = window.hValidatePhraseGroup(group);
+  return v.ok ? null : 'ERROR — phrase group failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2);
 }
 
 /* Payload params are typed objects in the tool schemas (issue #42), but some
@@ -192,6 +234,41 @@ export function applyTool(tc) {
       if (idx < 0) return noSuchList(args.id);
       state.ops.push({ kind: 'remove-list', id: args.id, before: lists[idx] });
       lists.splice(idx, 1);
+    } else if (name === 'get_phrase_group') {
+      const ids = Array.isArray(args.ids) ? args.ids : [args.ids].filter(Boolean);
+      if (!ids.length) return 'ERROR: get_phrase_group needs at least one phrase group id.';
+      return ids.map(id => {
+        const group = draftGroups().find(g => g && g.id === id);
+        if (!group) return noSuchGroup(id);
+        state.phraseReads.add(id);
+        return JSON.stringify(group);
+      }).join('\n');
+    } else if (name === 'add_phrase_group') {
+      const group = objArg(args, 'group');
+      const groups = draftGroups();
+      if (!group.id || groups.some(g => g && g.id === group.id)) group.id = newId('phr-', new Set(groups.map(g => g && g.id)));
+      assignPhraseIds(group, groups);
+      const bad = groupError(group); if (bad) return bad;
+      groups.push(group); state.ops.push({ kind: 'add-phrases', after: group });
+      state.phraseReads.add(group.id); // the model authored it in full, so it may edit it without a read
+      const phraseIds = (group.items || []).map(p => p && p.id).filter(Boolean);
+      return 'OK — created phrase group "' + group.id + '"' + (phraseIds.length ? ' with phrase ids ' + phraseIds.join(', ') : '') + '. Use these ids for any further edits.';
+    } else if (name === 'patch_phrase_group') {
+      const groups = draftGroups();
+      const idx = groups.findIndex(g => g && g.id === args.id);
+      if (idx < 0) return noSuchGroup(args.id);
+      const unread = groupReadGuard(args.id); if (unread) return unread;
+      const group = mergePatch(groups[idx], objArg(args, 'changes'));
+      assignPhraseIds(group, groups.map((g, j) => j === idx ? group : g));
+      const bad = groupError(group); if (bad) return bad;
+      state.ops.push({ kind: 'update-phrases', id: args.id, before: groups[idx], after: group });
+      groups[idx] = group;
+    } else if (name === 'remove_phrase_group') {
+      const groups = draftGroups();
+      const idx = groups.findIndex(g => g && g.id === args.id);
+      if (idx < 0) return noSuchGroup(args.id);
+      state.ops.push({ kind: 'remove-phrases', id: args.id, before: groups[idx] });
+      groups.splice(idx, 1);
     } else if (name === 'patch_trip') {
       const trip = mergePatch(state.draft.trip, objArg(args, 'changes'));
       const bad = tripError(trip); if (bad) return bad;

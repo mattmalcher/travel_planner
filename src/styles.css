@@ -9,6 +9,10 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .htabs::-webkit-scrollbar{display:none}
 .htab{flex-shrink:0;white-space:nowrap;padding:.55rem .9rem;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:5px;transition:color .15s;user-select:none}
 .htab:hover{color:var(--color-text-primary)}.htab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
+/* Six tabs (Phrases arrived with issue #75) no longer fit a phone at the full
+   padding, and the strip's horizontal scroll would leave Budget off the edge
+   with nothing to hint it is there. Tightening the gaps fits them all. */
+@media (max-width:520px){.htabs{padding:0 .6rem}.htab{padding:.55rem .55rem;gap:4px}}
 .hseg{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:.8rem 1rem;margin-bottom:.5rem;scroll-margin-top:56px}
 .hseg.hl{animation:hseg-flash 1.6s ease-out}
 @keyframes hseg-flash{0%,55%{box-shadow:0 0 0 2.5px var(--color-text-info)}100%{box-shadow:0 0 0 2.5px transparent}}
@@ -173,4 +177,25 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:.5rem;padding-top:.75rem;border-top:.5px solid var(--color-border-tertiary)}
 .hadd-lbl{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em}
 .hli-progress{font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:999px;padding:2px 8px}
+/* Phrases view (issue #75). A phrase row is read aloud, not scanned past, so
+   it stacks instead of sitting on one line: the local wording is the biggest
+   thing on it, your own language is the small label above, and pronunciation
+   and note follow underneath. The add/undo rows are the Lists view's. */
+.hph{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-top:.5px solid var(--color-border-tertiary)}
+.hph:first-child{border-top:none}
+.hph-main{flex:1;min-width:0}
+.hph-text{font-size:11px;color:var(--color-text-secondary)}
+.hph-local{font-size:14px;font-weight:500;margin-top:1px;overflow-wrap:anywhere}
+.hph-local.hph-todo{font-weight:400;font-size:13px;font-style:italic;color:var(--color-text-tertiary)}
+.hph-say{font-size:12px;color:var(--color-text-secondary);font-style:italic;margin-top:2px}
+.hph-note{font-size:11px;color:var(--color-text-tertiary);margin-top:3px}
+.hph-todo-count{background:var(--color-background-warning);color:var(--color-text-warning)}
+/* Both actions ride with the pencils in edit mode; like .hli-edit/.hli-del
+   they set a display, so the hidden default is restated at that specificity. */
+.hph-acts{display:flex;gap:4px;flex-shrink:0}
+.hph-edit,.hph-del{display:inline-flex;align-items:center;font-size:11px;font-family:inherit;padding:1px 6px;border-radius:999px;border:.5px solid transparent;background:var(--color-background-primary);color:var(--color-text-tertiary);cursor:pointer;transition:color .15s}
+.hph-edit:hover{color:var(--color-text-primary);border-color:var(--color-border-secondary)}
+.hph-del:hover{color:var(--color-text-danger);border-color:var(--color-border-secondary)}
+.hph-edit.hedit-btn,.hph-del.hedit-btn{display:none}
+#happ.hedit-on .hph-edit.hedit-btn,#happ.hedit-on .hph-del.hedit-btn{display:inline-flex}
 #hswbadge{display:none;position:fixed;bottom:10px;right:10px;z-index:900;align-items:center;gap:5px;font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:999px;padding:3px 10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}

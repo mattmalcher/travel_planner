@@ -1,5 +1,5 @@
 {
-  "schema_version": "3.1.0",
+  "schema_version": "3.3.0",
   "trip": {
     "name": "Paris Weekend (example)",
     "travellers": ["Judy Jetson", "George Jetson"],
@@ -73,6 +73,67 @@
         { "id": "li-4", "name": "Passports", "done": true },
         { "id": "li-5", "name": "Eurostar tickets (offline copies)" },
         { "id": "li-6", "name": "Comfortable walking shoes" }
+      ]
+    }
+  ],
+  "phrases": [
+    {
+      "id": "phr-basics",
+      "name": "Getting by",
+      "language": "French",
+      "kind": "greetings",
+      "items": [
+        {
+          "id": "ph-1",
+          "text": "Good morning",
+          "local": "Bonjour",
+          "pronunciation": "bon-ZHOOR",
+          "note": "Say it on entering any shop — skipping it reads as rude."
+        },
+        {
+          "id": "ph-2",
+          "text": "Do you speak English?",
+          "local": "Parlez-vous anglais ?",
+          "pronunciation": "par-lay VOO on-GLEH"
+        },
+        {
+          "id": "ph-3",
+          "text": "Sorry, I don't understand",
+          "local": "Désolé, je ne comprends pas",
+          "pronunciation": "day-zo-LAY, zhuh nuh kom-PRON pa"
+        }
+      ]
+    },
+    {
+      "id": "phr-food",
+      "name": "Ordering food",
+      "language": "French",
+      "kind": "food",
+      "items": [
+        {
+          "id": "ph-4",
+          "text": "A table for two, please",
+          "local": "Une table pour deux, s'il vous plaît",
+          "pronunciation": "oon TAB-luh poor DUH, seel voo PLEH"
+        },
+        {
+          "id": "ph-5",
+          "text": "Two coffees, please",
+          "local": "Deux cafés, s'il vous plaît",
+          "pronunciation": "duh ka-FAY, seel voo PLEH",
+          "note": "A plain \"café\" is an espresso; ask for \"un allongé\" if you want it longer."
+        },
+        {
+          "id": "ph-6",
+          "text": "Could we have the bill?",
+          "local": "L'addition, s'il vous plaît",
+          "pronunciation": "la-dee-see-ON, seel voo PLEH",
+          "note": "It won't arrive until you ask."
+        },
+        {
+          "id": "ph-7",
+          "text": "Is there a vegetarian option?"
+        }
       ]
     }
   ]
