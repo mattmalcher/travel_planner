@@ -79,7 +79,7 @@
       "items": {
         "$ref": "#/definitions/List"
       },
-      "description": "Pools of intentions that aren't (yet) plans — packing lists, foods to try, candidate restaurants. Items are checked off in place (done) or promoted into an ordinary segment (segment_id). Lists never appear on the timeline, budget, map or gantt: if something gets a date or a cost, it becomes a segment."
+      "description": "Pools of intentions that aren't (yet) plans — packing lists, foods to try, candidate restaurants. Items are checked off in place (done) or promoted into an ordinary segment (segment_id). Lists never appear on the itinerary, schedule, budget or map views: if something gets a date or a cost, it becomes a segment."
     }
   },
   "additionalProperties": false,
