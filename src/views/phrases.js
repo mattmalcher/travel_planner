@@ -9,7 +9,8 @@
 // the two tabs behave alike — quick-add and "New group" always on (issue #76),
 // the pencils and the inline × behind edit mode with one level of undo (issue
 // #69), and a jump strip once there is more than one group.
-import { state, persist } from '../state.js';
+import { state } from '../state.js';
+import { persist } from '../store.js';
 import { esc } from '../lib/escape.js';
 import { newId } from '../lib/ids.js';
 import { phraseCount, untranslated, takenPhraseIds } from '../lib/phrases.js';

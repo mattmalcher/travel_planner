@@ -5,16 +5,23 @@
     and drops descriptions and structural noise. Anything this summary omits
     is still enforced by the ajv validation of every tool call, whose errors
     are fed back to the model. */
+/* Top-level bookkeeping the viewer owns, not the model (issue #80): the trip
+   library maintains these, no tool call can reach them, and listing them here
+   would only invite a model to invent a trip_id or renumber a rev. */
+const APP_MANAGED = new Set(['trip_id', 'rev', 'updated_at', 'updated_by', 'forked_from']);
+
 export function condenseSchema(schema) {
-  const lines = ['Document: ' + objBrief(schema)];
+  const lines = ['Document: ' + objBrief(schema, APP_MANAGED)];
   for (const [name, def] of Object.entries(schema.definitions || {}))
     lines.push(name + ': ' + objBrief(def));
   return lines.join('\n');
 }
 
-function objBrief(def) {
+function objBrief(def, omit) {
   const req = new Set(def.required || []);
-  const parts = Object.entries(def.properties || {}).map(([k, v]) => k + (req.has(k) ? '*' : '') + ':' + hint(v));
+  const parts = Object.entries(def.properties || {})
+    .filter(([k]) => !(omit && omit.has(k)))
+    .map(([k, v]) => k + (req.has(k) ? '*' : '') + ':' + hint(v));
   if (def.additionalProperties && typeof def.additionalProperties === 'object')
     parts.push('<any key>:' + hint(def.additionalProperties));
   return '{' + parts.join(', ') + '}';

@@ -13,6 +13,7 @@
  * Pure: no DOM, no state. app.js supplies the document and opens the modal.
  */
 import { newId } from './ids.js';
+import { newTripId } from './library.js';
 import {
   DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN,
   DEFAULT_TRANSPORT_TIME, DEFAULT_TRANSPORT_DURATION_MIN,
@@ -81,7 +82,12 @@ export function newTripDraft(todayIso) {
   return { start: todayIso, end: todayIso, currency_primary: DEFAULT_CURRENCY };
 }
 
-/** The document a from-scratch trip starts life as: nothing planned yet. */
+/**
+ * The document a from-scratch trip starts life as: nothing planned yet, and
+ * its own identity in the trip library from the first save (issue #80) — a
+ * fresh `trip_id` and `rev: 1`, so it is a trip of its own rather than
+ * something that has to be told apart from the others later.
+ */
 export function blankItinerary(trip) {
-  return { trip, segments: [], lists: [], phrases: [] };
+  return { trip_id: newTripId(), rev: 1, trip, segments: [], lists: [], phrases: [] };
 }
