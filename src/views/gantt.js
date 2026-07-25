@@ -1,6 +1,7 @@
-// Gantt view: three lanes (accommodation / travel / events) on a shared
-// vertical time axis, in proportional or compact mode. Geometry comes from
-// lib/gantt-layout.js; this file builds blocks and renders them.
+// Gantt view — labelled "Schedule" in the UI (issue #71): three lanes
+// (accommodation / travel / events) on a shared vertical time axis, in
+// proportional or compact mode. Geometry comes from lib/gantt-layout.js;
+// this file builds blocks and renders them.
 import { state } from '../state.js';
 import { revealSegment } from '../app.js';
 import { esc } from '../lib/escape.js';
@@ -55,7 +56,7 @@ export function renderGantt() {
   const toPx = (dateStr, timeStr) => scale.toPx(toMs(dateStr, timeStr));
 
   // segIdx ties a block back to its segment so the popover can jump to the
-  // segment's timeline card (issue #21).
+  // segment's itinerary card (issue #21).
   const accomBlocks = [], travelBlocks = [], eventBlocks = [];
   HD.segments.forEach((s, segIdx) => {
     if (s.type === 'accommodation') {
@@ -153,7 +154,7 @@ export function renderGantt() {
   setupPopover();
 }
 
-// Lazily wire up the timeline popover. A single shared element is positioned
+// Lazily wire up the block popover. A single shared element is positioned
 // next to whichever block is hovered (or tapped); content is read from
 // state.ganttBlocks so nothing needs to be escaped into markup.
 function setupPopover() {
@@ -175,7 +176,7 @@ function setupPopover() {
     if (b.sub) { const r = document.createElement('div'); r.className = 'hgt-pop-row'; r.textContent = b.sub; pop.appendChild(r); }
     const link = document.createElement('button');
     link.className = 'hgt-pop-link';
-    link.innerHTML = '<i class="ti ti-list-details" aria-hidden="true"></i> Open in timeline';
+    link.innerHTML = '<i class="ti ti-list-details" aria-hidden="true"></i> Open in itinerary';
     link.onclick = () => { hide(); revealSegment(b.segIdx); };
     pop.appendChild(link);
     pop.style.display = 'block';
@@ -189,7 +190,7 @@ function setupPopover() {
     pop.style.left = left + 'px'; pop.style.top = top + 'px';
   }
   // Hiding is briefly deferred on mouseout so the cursor can cross the gap
-  // between a block and the popover to reach its "Open in timeline" action.
+  // between a block and the popover to reach its "Open in itinerary" action.
   let hideTimer;
   function hide() { clearTimeout(hideTimer); pop.style.display = 'none'; }
   function scheduleHide() { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 250); }

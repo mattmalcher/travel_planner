@@ -19,7 +19,7 @@ export function fmtDayLong(iso) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long' });
 }
 
-/** "2026-09-18" → "Fri 18" (timeline date-strip chips, issue #21) */
+/** "2026-09-18" → "Fri 18" (itinerary date-strip chips, issue #21) */
 export function fmtDayShort(iso) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
 }

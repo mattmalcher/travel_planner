@@ -3,7 +3,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .hv{display:none}.hv.on{display:block}
 /* The tab strip scrolls within itself rather than pushing the page wide:
-   five tabs overflow a narrow phone, and the days timeline already uses this
+   five tabs overflow a narrow phone, and the day jump strip already uses this
    same contained horizontal scroll (issue #66). */
 .htabs{display:flex;border-bottom:.5px solid var(--color-border-tertiary);padding:0 1.25rem;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .htabs::-webkit-scrollbar{display:none}
@@ -12,13 +12,16 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .hseg{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:.8rem 1rem;margin-bottom:.5rem;scroll-margin-top:56px}
 .hseg.hl{animation:hseg-flash 1.6s ease-out}
 @keyframes hseg-flash{0%,55%{box-shadow:0 0 0 2.5px var(--color-text-info)}100%{box-shadow:0 0 0 2.5px transparent}}
-.hday{scroll-margin-top:54px}
-.hday-nav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:.6rem 1.25rem;margin:-1.25rem -1.25rem 1rem;background:rgba(248,250,252,.92);backdrop-filter:blur(4px);border-bottom:.5px solid var(--color-border-tertiary);scrollbar-width:none}
-.hday-chip{flex-shrink:0;font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .15s}
-.hday-chip:hover{color:var(--color-text-primary)}
-.hday-chip.on{background:var(--color-text-primary);border-color:var(--color-text-primary);color:var(--color-background-primary)}
-.hday-chip.hday-today{border-color:var(--color-text-danger);color:var(--color-text-danger);font-weight:600}
-.hday-chip.is-today::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--color-text-danger);margin-right:5px;vertical-align:1px}
+/* Sticky jump strip, shared by the Itinerary view's day chips (issue #21) and
+   the Lists view's list chips (issue #69): the same widget over different
+   anchors (.hjump-a), driven by views/jump-nav.js. */
+.hjump-a{scroll-margin-top:56px}
+.hjump-nav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:.6rem 1.25rem;margin:-1.25rem -1.25rem 1rem;background:rgba(248,250,252,.92);backdrop-filter:blur(4px);border-bottom:.5px solid var(--color-border-tertiary);scrollbar-width:none}
+.hjump-chip{flex-shrink:0;font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .15s;max-width:11rem;overflow:hidden;text-overflow:ellipsis}
+.hjump-chip:hover{color:var(--color-text-primary)}
+.hjump-chip.on{background:var(--color-text-primary);border-color:var(--color-text-primary);color:var(--color-background-primary)}
+.hjump-chip.hday-today{border-color:var(--color-text-danger);color:var(--color-text-danger);font-weight:600}
+.hjump-chip.is-today::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--color-text-danger);margin-right:5px;vertical-align:1px}
 .hbadge{font-size:10px;font-weight:500;padding:2px 6px;border-radius:999px;white-space:nowrap}
 .hbadge.paid{background:var(--color-background-success);color:var(--color-text-success)}
 .hbadge.pending,.hbadge.partial{background:var(--color-background-warning);color:var(--color-text-warning)}
@@ -143,7 +146,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hli-local{color:var(--color-text-secondary);font-style:italic}
 .hli.done .hli-local{color:var(--color-text-tertiary)}
 .hli-note{width:100%;padding-left:24px;font-size:11px;color:var(--color-text-tertiary)}
-.hli-chip,.hli-edit{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;font-family:inherit;padding:1px 8px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;text-decoration:none;transition:color .15s}
+.hli-chip,.hli-edit,.hli-del{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;font-family:inherit;padding:1px 8px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;text-decoration:none;transition:color .15s}
 .hli-chip:hover,.hli-edit:hover{color:var(--color-text-primary)}
 /* The chip rules above set a display, which outranks the single-class
    .hedit-btn{display:none} — so restate the hidden default at the same
@@ -151,6 +154,15 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hli-edit.hedit-btn{display:none}
 #happ.hedit-on .hli-edit.hedit-btn{display:inline-flex}
 .hli-chip.broken{background:var(--color-background-warning);border-color:transparent;color:var(--color-text-warning);cursor:default}
+/* Delete rides with the pencils in edit mode (so it needs the same restated
+   hidden default as .hli-edit above), and is undone from the row below rather
+   than guarded by a confirm (issue #69). Not an .hli-chip: that class means
+   the row's link/schedule action, which the tests select on. */
+.hli-del{border-color:transparent;color:var(--color-text-tertiary);padding:1px 6px}
+.hli-del:hover{color:var(--color-text-danger);border-color:var(--color-border-secondary)}
+.hli-del.hedit-btn{display:none}
+#happ.hedit-on .hli-del.hedit-btn{display:inline-flex}
+.hli-undo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary)}
 /* Quick-add is not gated on edit mode (issue #72): adding an intention is the
    point of the Lists view, so the box is always there. */
 .hli-add{display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:.5px solid var(--color-border-tertiary)}

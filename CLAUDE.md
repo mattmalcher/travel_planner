@@ -1,8 +1,10 @@
 # CLAUDE.md
 
 Holiday itinerary viewer: a standalone HTML app for `HolidayItinerary` JSON
-files with timeline, budget, map and gantt views plus an optional
-OpenRouter-backed AI editor. **Source is modular (`src/`); the deliverable is
+files with itinerary, map, schedule and budget views plus an optional
+OpenRouter-backed AI editor. (Tab labels are the user's words since issue #71;
+the code keeps the internal view names — `list` for Itinerary, `gantt` for
+Schedule.) **Source is modular (`src/`); the deliverable is
 a single self-contained HTML file built into `dist/` — never edit or commit
 build output.**
 
@@ -54,6 +56,8 @@ src/
     escape.js       esc() html escaping
   views/            DOM rendering only; maths belongs in lib/
     badges.js list.js budget.js map.js gantt.js lists.js edit-form.js
+    jump-nav.js     the sticky jump strip shared by the itinerary's day chips
+                    and the Lists view's list chips (issues #21, #69)
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape

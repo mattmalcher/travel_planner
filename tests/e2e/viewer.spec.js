@@ -79,7 +79,7 @@ test.describe('Holiday Itinerary Viewer', () => {
 
   test('should load the page with the upload screen visible and app hidden', async ({ page }) => {
     // Check page title / header
-    await expect(page.locator('h2.sr-only')).toHaveText('Holiday itinerary viewer — upload a HolidayItinerary JSON to explore timeline, budget and map views');
+    await expect(page.locator('h2.sr-only')).toHaveText('Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views');
     
     // Check upload view elements are visible
     const uploadDiv = page.locator('#hupl');
@@ -106,10 +106,23 @@ test.describe('Holiday Itinerary Viewer', () => {
     // Verify trip name (dates/travellers were removed from the header in #66)
     await expect(page.locator('#htname')).toHaveText('Summer Rail Tour 2026');
 
-    // Verify Timeline contains correct segments
-    const timeline = page.locator('#hvlist');
-    await expect(timeline).toBeVisible();
-    await expect(timeline.locator('.hseg')).toHaveCount(2);
+    // Verify the itinerary view contains the correct segments
+    const itinerary = page.locator('#hvlist');
+    await expect(itinerary).toBeVisible();
+    await expect(itinerary.locator('.hseg')).toHaveCount(2);
+  });
+
+  test('should label the tabs in the user\'s words (issue #71)', async ({ page }) => {
+    await page.setInputFiles('#hfile', {
+      name: 'generic_itinerary.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(genericItinerary))
+    });
+
+    // The internal view names (data-v) are unchanged; only the labels moved.
+    await expect(page.locator('.htab[data-v="list"]')).toHaveText('Itinerary');
+    await expect(page.locator('.htab[data-v="gantt"]')).toHaveText('Schedule');
+    await expect(page.locator('.htab')).toHaveText(['Itinerary', 'Map', 'Schedule', 'Lists', 'Budget']);
   });
 
   test('should allow switching tabs and update views accordingly', async ({ page }) => {
@@ -120,7 +133,7 @@ test.describe('Holiday Itinerary Viewer', () => {
       buffer: Buffer.from(JSON.stringify(genericItinerary))
     });
 
-    // Initially "Timeline" tab is active, others inactive
+    // Initially the Itinerary tab is active, others inactive
     await expect(page.locator('.htab[data-v="list"]')).toHaveClass(/on/);
     await expect(page.locator('.htab[data-v="budget"]')).not.toHaveClass(/on/);
     await expect(page.locator('.htab[data-v="map"]')).not.toHaveClass(/on/);
@@ -488,7 +501,7 @@ test.describe('Holiday Itinerary Viewer', () => {
     });
 
     // One chip per day, labelled with weekday + day of month.
-    const chips = page.locator('#hvlist .hday-chip');
+    const chips = page.locator('#hvlist .hjump-chip');
     await expect(chips).toHaveCount(3);
     await expect(chips.nth(0)).toHaveText('Sat 1');
     await expect(chips.nth(2)).toHaveText('Mon 3');
@@ -496,7 +509,7 @@ test.describe('Holiday Itinerary Viewer', () => {
     // Clicking the last chip smooth-scrolls that day's section up under the
     // strip, so poll until the scroll animation lands it there.
     await chips.nth(2).click();
-    await expect.poll(() => page.locator('#hvlist .hday[data-d="2026-08-03"]')
+    await expect.poll(() => page.locator('#hvlist .hjump-a[data-k="2026-08-03"]')
       .evaluate(el => el.getBoundingClientRect().top)).toBeLessThan(120);
     expect(await page.evaluate(() => globalThis.scrollY)).toBeGreaterThan(200);
 
@@ -504,7 +517,7 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(chips.nth(2)).toHaveClass(/on/);
   });
 
-  test('should link from a gantt block popover to the timeline (issue #21)', async ({ page }) => {
+  test('should link from a gantt block popover to the itinerary (issue #21)', async ({ page }) => {
     await page.setInputFiles('#hfile', {
       name: 'generic_itinerary.json',
       mimeType: 'application/json',
@@ -512,7 +525,7 @@ test.describe('Holiday Itinerary Viewer', () => {
     });
 
     // Single-day itineraries get no date strip.
-    await expect(page.locator('#hvlist .hday-nav')).toHaveCount(0);
+    await expect(page.locator('#hvlist .hjump-nav')).toHaveCount(0);
 
     await page.click('.htab[data-v="gantt"]');
     const blk = page.locator('#hvgantt .hgt-blk').first(); // accommodation lane
@@ -520,7 +533,7 @@ test.describe('Holiday Itinerary Viewer', () => {
     const pop = page.locator('.hgt-pop');
     await expect(pop).toBeVisible();
     const link = pop.locator('.hgt-pop-link');
-    await expect(link).toContainText('Open in timeline');
+    await expect(link).toContainText('Open in itinerary');
 
     await link.click();
     // Back on the timeline with the segment's card flashed for orientation.
@@ -557,13 +570,13 @@ test.describe('Holiday Itinerary Viewer', () => {
 
     // The date strip gets a Today shortcut targeting the current day, and
     // today's own chip is marked.
-    const todayBtn = page.locator('#hvlist .hday-chip.hday-today');
+    const todayBtn = page.locator('#hvlist .hjump-chip.hday-today');
     await expect(todayBtn).toContainText('Today');
-    await expect(todayBtn).toHaveAttribute('data-d', '2026-08-02');
-    await expect(page.locator('#hvlist .hday-chip.is-today')).toHaveText('Sun 2');
+    await expect(todayBtn).toHaveAttribute('data-k', '2026-08-02');
+    await expect(page.locator('#hvlist .hjump-chip.is-today')).toHaveText('Sun 2');
 
     // The timeline opened at the current day rather than the top of the trip.
-    await expect.poll(() => page.locator('#hvlist .hday[data-d="2026-08-02"]')
+    await expect.poll(() => page.locator('#hvlist .hjump-a[data-k="2026-08-02"]')
       .evaluate(el => el.getBoundingClientRect().top)).toBeLessThan(120);
 
     // The gantt shows a current-time line at 14:30 on day 2 of the
@@ -598,9 +611,9 @@ test.describe('Holiday Itinerary Viewer', () => {
       buffer: Buffer.from(JSON.stringify(futureTrip))
     });
 
-    await expect(page.locator('#hvlist .hday-chip')).toHaveCount(2);
-    await expect(page.locator('#hvlist .hday-chip.hday-today')).toHaveCount(0);
-    await expect(page.locator('#hvlist .hday-chip.is-today')).toHaveCount(0);
+    await expect(page.locator('#hvlist .hjump-chip')).toHaveCount(2);
+    await expect(page.locator('#hvlist .hjump-chip.hday-today')).toHaveCount(0);
+    await expect(page.locator('#hvlist .hjump-chip.is-today')).toHaveCount(0);
 
     await page.click('.htab[data-v="gantt"]');
     await expect(page.locator('#hvgantt .hgt-now')).toBeHidden();
