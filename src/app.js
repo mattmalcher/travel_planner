@@ -35,7 +35,9 @@ export function load(data) {
        schema-validated before loading; both checks are advisory with a
        "load anyway" escape hatch, mirroring the localStorage guard --- */
 
-function showUploadWarning(html, buttons) {
+/** The warning slot on the opening screen. Exported because an incoming share
+    link (issue #81) reports its failures in the same place an upload does. */
+export function showUploadWarning(html, buttons) {
   const w = document.getElementById('hverwarn');
   const actions = buttons || [
     '<button onclick="hUploadAnyway()" style="font-size:12px">Load anyway</button>',
@@ -181,7 +183,8 @@ export function revealSegment(idx) {
  * writes (issue #15) — the loaded trip, or one revision out of a trip's
  * history, in which case `suffix` distinguishes the file (issue #80).
  * The downloaded file keeps trip_id/rev, so re-uploading it lands back on the
- * trip it came from rather than starting a second copy.
+ * trip it came from rather than starting a second copy — as does a share
+ * link, which carries the same document (issue #81, src/share.js).
  */
 export function downloadDoc(doc, suffix) {
   const out = { schema_version: H_SCHEMA_VERSION, ...doc };

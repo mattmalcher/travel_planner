@@ -44,6 +44,7 @@ function revisionRows(tripId) {
   return [...list].reverse().map(r => `<div class="hlib-rev">
       <span class="hlib-rev-meta">rev ${r.rev}${r.updated_at ? ` · ${esc(new Date(r.updated_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}` : ''}${r.updated_by ? ` · ${esc(r.updated_by)}` : ''}</span>
       <button onclick="hLibRestore('${esc(tripId)}',${r.rev})" title="Restore this revision"><i class="ti ti-restore" aria-hidden="true"></i> Restore</button>
+      <button onclick="hLibShareRev('${esc(tripId)}',${r.rev})" title="Share this revision as a link"><i class="ti ti-share" aria-hidden="true"></i></button>
       <button onclick="hLibDownloadRev('${esc(tripId)}',${r.rev})" title="Download this revision as JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
     </div>`).join('');
 }
@@ -151,8 +152,9 @@ export async function libRestore(tripId, rev) {
   load(doc);
 }
 
-/** Download one revision as JSON — the durable copy of an older version, and
-    the thing to send someone until share links land (issue #81). */
+/** Download one revision as JSON — the durable copy of an older version. Its
+    neighbour on the row shares the same revision as a link (issue #81), which
+    is the same document by a shorter route. */
 export async function libDownloadRev(tripId, rev) {
   const doc = await revisionDoc(tripId, rev);
   if (!doc) { alert('That revision is no longer stored.'); return; }

@@ -55,6 +55,9 @@
       <button onclick="hLibOpen()" style="font-size:12px" title="Switch trip"><i class="ti ti-luggage" aria-hidden="true"></i></button>
       <button onclick="hChatOpen()" style="font-size:12px" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
       <button id="hedit-toggle" onclick="hToggleEdit()" style="font-size:12px" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+      <!-- Share a link with the whole itinerary in it (issue #81) — a shared
+           secret, which the confirmation on the link says out loud. -->
+      <button onclick="hShare()" style="font-size:12px" title="Share a link to this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
       <button onclick="hDownload()" style="font-size:12px" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
       <button onclick="hCloseTrip()" style="font-size:12px" title="Close this trip — it stays in your saved trips"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
     </div>
@@ -149,6 +152,9 @@
         <input class="hset-in" id="hlib-by" type="text" placeholder="e.g. Matt" autocomplete="off" onchange="hLibSaveName()" onblur="hLibSaveName()">
       </div>
       <div style="font-size:11px;color:var(--color-text-tertiary);line-height:1.4">
+        A share link carries the itinerary inside the link itself — anyone holding it can read the whole trip, booking references included, and the copy they open is a snapshot rather than a live view.
+      </div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);line-height:1.4">
         Saved trips live in this browser only — treat them as a cache, not an archive, and download a trip to keep it. iOS clears a site's storage after about a week of not visiting; adding this page to your Home Screen exempts it.
       </div>
       <div style="display:flex;justify-content:flex-end">
@@ -188,6 +194,10 @@
 <!-- Shown by sw-register.js only when this page load was served from the
      service worker's offline cache. -->
 <div id="hswbadge" title="Loaded from the offline cache"><i class="ti ti-cloud-check" aria-hidden="true"></i> Offline ready</div>
+
+<!-- Confirmation that a share link went to the clipboard, with the warning
+     that goes with it (issue #81). Tap to dismiss; it also self-dismisses. -->
+<div id="hshare-toast" onclick="hShareToastClose()" title="Dismiss"></div>
 
 <!-- build:app -->
 <!-- build:validate -->
