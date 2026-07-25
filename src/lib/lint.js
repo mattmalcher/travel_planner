@@ -92,5 +92,23 @@ export function lintItinerary(doc) {
   for (const d of danglingListRefs(doc))
     warnings.push(`list "${d.listId}": item "${d.itemId}" was scheduled as segment "${d.segmentId}" which no longer exists`);
 
+  // Phrases (issue #75): group ids unique, phrase ids unique across the whole
+  // phrasebook (the AI tools address a phrase by id alone). Nothing to dangle
+  // — a phrase points at nothing.
+  const groupIds = new Set();
+  const phraseIds = new Set();
+  (Array.isArray(doc.phrases) ? doc.phrases : []).forEach(group => {
+    if (!group) return;
+    if (group.id) {
+      if (groupIds.has(group.id)) warnings.push(`duplicate phrase group id "${group.id}" — edits by id will only ever reach the first match`);
+      groupIds.add(group.id);
+    }
+    (Array.isArray(group.items) ? group.items : []).forEach(phrase => {
+      if (!phrase || !phrase.id) return;
+      if (phraseIds.has(phrase.id)) warnings.push(`duplicate phrase id "${phrase.id}" — phrase ids must be unique across all phrase groups`);
+      phraseIds.add(phrase.id);
+    });
+  });
+
   return warnings;
 }

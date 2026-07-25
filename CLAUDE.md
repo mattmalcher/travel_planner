@@ -1,10 +1,10 @@
 # CLAUDE.md
 
 Holiday itinerary viewer: a standalone HTML app for `HolidayItinerary` JSON
-files with itinerary, map, schedule and budget views plus an optional
-OpenRouter-backed AI editor. (Tab labels are the user's words since issue #71;
-the code keeps the internal view names — `list` for Itinerary, `gantt` for
-Schedule.) **Source is modular (`src/`); the deliverable is
+files with itinerary, map, schedule, lists, phrases and budget views plus an
+optional OpenRouter-backed AI editor. (Tab labels are the user's words since
+issue #71; the code keeps the internal view names — `list` for Itinerary,
+`gantt` for Schedule.) **Source is modular (`src/`); the deliverable is
 a single self-contained HTML file built into `dist/` — never edit or commit
 build output.**
 
@@ -48,6 +48,7 @@ src/
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
     lists.js        list progress/partition, dangling segment_id detection
                     (issue #40), document-wide id sets for manual adds (#72)
+    phrases.js      phrasebook counts + document-wide id sets (issue #75)
     ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
     drafts.js       starting points for hand-added things: segment drafts per
                     type, the from-scratch trip, the blank document (issue #76)
@@ -58,8 +59,11 @@ src/
     escape.js       esc() html escaping
   views/            DOM rendering only; maths belongs in lib/
     badges.js list.js budget.js map.js gantt.js lists.js edit-form.js
-    jump-nav.js     the sticky jump strip shared by the itinerary's day chips
-                    and the Lists view's list chips (issues #21, #69)
+    phrases.js      the phrasebook tab (issue #75) — reference, not a
+                    checklist: no tick-off, no Schedule, no cost
+    jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
+                    the Lists view's list chips and the Phrases view's group
+                    chips (issues #21, #69, #75)
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
@@ -91,15 +95,27 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   `form-spec.js`. The JSON tab stays the escape hatch for everything the form
   doesn't cover, so both directions must round-trip without dropping fields.
   The same modal edits the trip, segments, lists and list items (issue #72),
-  and *adds* them too (issue #76: `new-trip`, `new-segment`, `new-list`) — a
-  new editable thing is a `LAYOUT` entry plus a target branch in
+  phrase groups and phrases (issue #75), and *adds* them too (issue #76:
+  `new-trip`, `new-segment`, `new-list`, `new-phrase-group`) — a new editable
+  thing is a `LAYOUT` entry plus a target branch in
   `openModal`/`saveEdit`/`deleteEdit`/`validateEdit`, not a second modal.
 - **Adding is never behind edit mode**: the pencils and inline deletes are
-  (`.hedit-btn`), but the itinerary's add row, the Lists quick-add and
-  "New list" are always on — an empty itinerary would otherwise hide the only
-  way to start it. Drafts come from `lib/drafts.js` and deliberately leave
-  every *required* field blank so validation, not an invented placeholder,
-  tells the user what is missing.
+  (`.hedit-btn`), but the itinerary's add row, the Lists/Phrases quick-adds and
+  "New list"/"New group" are always on — an empty itinerary would otherwise
+  hide the only way to start it. Drafts come from `lib/drafts.js` and
+  deliberately leave every *required* field blank so validation, not an
+  invented placeholder, tells the user what is missing.
+- **The three kinds of thing a document holds** are distinct on purpose:
+  `segments` are plans (they have a date and a cost, so they reach the
+  itinerary, schedule, budget and map), `lists` are intentions you tick off or
+  promote into a segment, and `phrases` are reference material you never tick
+  off at all. Anything that gains a date or a cost becomes a segment; nothing
+  in `lists` or `phrases` is ever counted into the budget.
+- **Icon names must exist in the Tabler webfont**: an unknown `ti-*` class
+  renders as nothing at all, silently (the Schedule tab shipped a blank
+  `ti-chart-gantt` this way). `tests/unit/icons.test.js` checks every name in
+  `src/` against the pinned `@tabler/icons-webfont` devDependency, which must
+  stay at the version `src/index.html` loads from the CDN.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add

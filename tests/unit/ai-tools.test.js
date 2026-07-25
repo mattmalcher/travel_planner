@@ -22,18 +22,26 @@ const baseList = () => ({
   items: [{ id: 'li-1', name: 'Custard tart', note: 'best warm' }],
 });
 
+const baseGroup = () => ({
+  id: 'phr-basics', name: 'Getting by', language: 'French', kind: 'greetings',
+  items: [{ id: 'ph-1', text: 'Good morning', local: 'Bonjour', note: 'say it on entering a shop' }],
+});
+
 beforeEach(() => {
   state.draft = {
     trip: { name: 'Trip', travellers: ['Judy Jetson'], start: '2026-09-18', end: '2026-09-28', currency_primary: 'GBP' },
     segments: [baseSegment()],
     lists: [baseList()],
+    phrases: [baseGroup()],
   };
   state.ops = [];
   state.reads = new Set();
   state.listReads = new Set();
+  state.phraseReads = new Set();
   delete globalThis.window.hValidateSegment;
   delete globalThis.window.hValidateTrip;
   delete globalThis.window.hValidateList;
+  delete globalThis.window.hValidatePhraseGroup;
 });
 
 test('tool schemas type payload params as objects, not *_json strings', () => {
@@ -245,6 +253,74 @@ test('list tools work on a document that has no lists array yet', () => {
   delete state.draft.lists;
   assert.match(applyTool(call('add_list', { list: { name: 'First' } })), /^OK/);
   assert.equal(state.draft.lists.length, 1);
+});
+
+/* Phrases (issue #75): the list tools' contract over doc.phrases — assigned
+   document-unique ids, read-before-edit, schema validation at tool time. */
+
+test('get_phrase_group returns full group JSON and marks it read', () => {
+  const res = applyTool(call('get_phrase_group', { ids: ['phr-basics'] }));
+  assert.deepEqual(JSON.parse(res), baseGroup());
+  assert.ok(state.phraseReads.has('phr-basics'));
+});
+
+test('patch_phrase_group enforces the read-before-edit guard', () => {
+  // The realistic edit: filling in a translation without losing the note the
+  // digest only flagged.
+  const changes = { items: [{ id: 'ph-1', text: 'Good morning', local: 'Bonjour', pronunciation: 'bon-ZHOOR', note: 'say it on entering a shop' }] };
+  assert.match(applyTool(call('patch_phrase_group', { id: 'phr-basics', changes })), /has not been read this turn/);
+  state.phraseReads.add('phr-basics');
+  assert.match(applyTool(call('patch_phrase_group', { id: 'phr-basics', changes })), /^OK/);
+  assert.equal(state.draft.phrases[0].items[0].pronunciation, 'bon-ZHOOR');
+  assert.deepEqual(state.ops.map(o => o.kind), ['update-phrases']);
+});
+
+test('add_phrase_group assigns group and phrase ids and returns them', () => {
+  const res = applyTool(call('add_phrase_group', { group: { name: 'Ordering food', language: 'French', items: [{ text: 'The bill, please' }] } }));
+  const m = res.match(/^OK — created phrase group "(phr-[a-z0-9]{5})" with phrase ids (ph-[a-z0-9]{5})/);
+  assert.ok(m, res);
+  const added = state.draft.phrases[1];
+  assert.equal(added.id, m[1]);
+  assert.equal(added.items[0].id, m[2]);
+  assert.ok(state.phraseReads.has(m[1])); // authored in full — editable without a read
+});
+
+test('add_phrase_group overrides colliding group and phrase ids instead of duplicating', () => {
+  const res = applyTool(call('add_phrase_group', { group: { id: 'phr-basics', name: 'Again', items: [{ id: 'ph-1', text: 'x' }] } }));
+  assert.match(res, /^OK/);
+  const added = state.draft.phrases[1];
+  assert.notEqual(added.id, 'phr-basics');
+  assert.notEqual(added.items[0].id, 'ph-1');
+});
+
+test('remove_phrase_group removes by id and records the op', () => {
+  assert.match(applyTool(call('remove_phrase_group', { id: 'phr-basics' })), /^OK/);
+  assert.deepEqual(state.draft.phrases, []);
+  assert.deepEqual(state.ops.map(o => o.kind), ['remove-phrases']);
+});
+
+test('wrong phrase group ids list the known ids so the model can self-correct', () => {
+  for (const res of [
+    applyTool(call('get_phrase_group', { ids: ['phr-9'] })),
+    applyTool(call('patch_phrase_group', { id: 'phr-9', changes: { name: 'x' } })),
+    applyTool(call('remove_phrase_group', { id: 'phr-9' })),
+  ]) {
+    assert.match(res, /^ERROR: no phrase group with id "phr-9"/);
+    assert.match(res, /Known phrase group ids: phr-basics/);
+  }
+});
+
+test('phrase group validation failures are returned as errors', () => {
+  globalThis.window.hValidatePhraseGroup = () => ({ ok: false, errors: [{ path: '/', message: 'stub: bad group' }] });
+  const res = applyTool(call('add_phrase_group', { group: { name: 'Broken' } }));
+  assert.match(res, /^ERROR — phrase group failed schema validation/);
+  assert.equal(state.draft.phrases.length, 1);
+});
+
+test('phrase tools work on a document that has no phrases array yet', () => {
+  delete state.draft.phrases;
+  assert.match(applyTool(call('add_phrase_group', { group: { name: 'First' } })), /^OK/);
+  assert.equal(state.draft.phrases.length, 1);
 });
 
 test('unparseable tool arguments are reported, not thrown', () => {
