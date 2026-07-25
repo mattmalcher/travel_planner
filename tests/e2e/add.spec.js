@@ -7,6 +7,7 @@
 // racing the esm.sh import. What the drafts actually leave for the schema to
 // reject is covered by tests/unit/drafts.test.js.
 import { test, expect } from '@playwright/test';
+import { savedDoc, savedIndex } from './library.js';
 
 const AJV_STUB = `
 // The app validates a segment against the ONE subschema its type names, and
@@ -71,7 +72,7 @@ test.describe('Adding by hand', () => {
     expect(errors).toEqual([]);
 
     // It is the saved itinerary from here on, like any loaded file.
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.trip.name).toBe('Weekend in Paris');
     expect(saved.trip.travellers).toEqual(['Judy Jetson', 'George Jetson']);
     expect(saved.segments).toEqual([]);
@@ -92,7 +93,8 @@ test.describe('Adding by hand', () => {
     await page.locator('#hedit-ft').getByRole('button', { name: 'Cancel' }).click();
     await expect(page.locator('#hedit-modal')).toBeHidden();
     await expect(page.locator('#hupl')).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem('hItinerary'))).toBeNull();
+    expect(await savedDoc(page)).toBeNull();
+    expect(await savedIndex(page)).toEqual([]);
   });
 
   test('adds an event to the itinerary from the add row', async ({ page }) => {
@@ -116,7 +118,7 @@ test.describe('Adding by hand', () => {
     await expect(page.locator('#hvlist')).not.toContainText('Nothing planned yet');
     await expect(page.locator('#hvbudget')).toContainText('Jazz at Le Petit Exemple');
 
-    const segs = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments);
+    const segs = (await savedDoc(page)).segments;
     expect(segs).toHaveLength(1);
     expect(segs[0].type).toBe('event');
     expect(segs[0].cost).toEqual({ status: 'not_booked' });
@@ -153,7 +155,7 @@ test.describe('Adding by hand', () => {
     await expect(page.locator('#hvlist')).not.toContainText('Host:');
     await expect(page.locator('#hvlist')).not.toContainText('Ref:');
 
-    const doc = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const doc = await savedDoc(page);
     expect(doc.segments).toHaveLength(2);
     expect(new Set(doc.segments.map(s => s.id)).size).toBe(2);
     // Only a draft promoted from a list item gets linked back to one.
@@ -168,13 +170,13 @@ test.describe('Adding by hand', () => {
     await save(page).click();
     await expect(page.locator('#hedit-err')).toContainText("required property 'name'");
     await expect(page.locator('#hedit-modal')).toBeVisible();
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments)).toEqual([]);
+    expect((await savedDoc(page)).segments).toEqual([]);
 
     await page.evaluate('globalThis.__SEG_VALID__ = true');
     await field(page, 'name').fill('Jazz at Le Petit Exemple');
     await save(page).click();
     await expect(page.locator('#hedit-modal')).toBeHidden();
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments)).toHaveLength(1);
+    expect((await savedDoc(page)).segments).toHaveLength(1);
   });
 
   test('the add row is on an existing itinerary too, without edit mode', async ({ page }) => {

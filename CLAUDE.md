@@ -30,7 +30,10 @@ src/
   index.html        skeleton markup; build replaces the three <!-- build:* --> placeholders
   styles.css        all CSS (inlined & minified by the build)
   main.js           entry point: window.* handler exports, DOM wiring, boot
-  state.js          THE shared mutable state object + persist(); schema version constant
+  state.js          THE shared mutable state object; schema version constant
+  store.js          localStorage binding for the trip library (issue #80):
+                    persist() — the single write path — plus boot, import
+                    decisions, revision recording and restore
   render.js         updateHeader / renderAll / refreshAfterChange (post-edit re-render)
   app.js            load/reset, tab switching, edit modal (form ⇄ JSON), version guard
   form-spec.js      edit-modal field descriptors — the __H_FORM_SPEC__ placeholder
@@ -46,6 +49,10 @@ src/
     sort.js         segDate/segTime/sortSegments (shared list+map ordering)
     dates.js        formatting, toMs/msToIso, and ALL default times (issue #13)
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
+    library.js      the trip library: document identity (trip_id/rev), the
+                    index, revision history, import decisions, quota policy —
+                    the store is a parameter, so all of it is unit-testable
+    codec.js        deflate-raw + base64url for stored revisions (#81 reuses it)
     lists.js        list progress/partition, dangling segment_id detection
                     (issue #40), document-wide id sets for manual adds (#72)
     phrases.js      phrasebook counts + document-wide id sets (issue #75)
@@ -61,6 +68,8 @@ src/
     badges.js list.js budget.js map.js gantt.js lists.js edit-form.js
     phrases.js      the phrasebook tab (issue #75) — reference, not a
                     checklist: no tick-off, no Schedule, no cost
+    library.js      the trip switcher and the opening screen's saved-trips
+                    list — one row renderer, revision history under each
     jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
                     the Lists view's list chips and the Phrases view's group
                     chips (issues #21, #69, #75)
@@ -84,6 +93,16 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   injected from `schema.version` at build time — never hardcode it. Bump the
   schema's MAJOR version on any breaking change to the stored itinerary
   shape (localStorage is shared across deployments on the same origin).
+- **The library owns document identity**: `trip_id`, `rev`, `updated_at` and
+  `updated_by` are the app's bookkeeping, settled by `persist()` in `store.js`
+  — never written by a view, a form or the AI (they are kept out of the AI's
+  schema brief on purpose). `rev` bumps only when the content really changed,
+  and restoring an old revision *appends* it as the next rev rather than
+  rewinding the counter; a rewound rev would collide with one the other person
+  already has and break fork detection. `state.HD` stays the one loaded
+  document and the same object across a save (`copyIdentity`) — views hold
+  references to it. Working copies are precious and history is expendable: on
+  `QuotaExceededError`, revisions are pruned and the save retried.
 - **Escape everything** interpolated into HTML that comes from an itinerary
   file or an AI reply — use `esc()` from `lib/escape.js` (issue #9). For any
   URL going into an `href`/`src`, gate it through `safeUrl()` first so only
@@ -138,5 +157,9 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 
 ## Follow-ups deliberately not done here
 
+- Share links (issue #81). The trip library is its prerequisite — `trip_id`
+  and `rev` are what let an incoming shared trip land intelligently — and
+  `lib/codec.js` is already the encoder it needs. Until then the revision
+  rows offer **Download** where they will offer *Share*.
 - `tsc --checkJs` + JSDoc types and schema-generated types
   (`json-schema-to-typescript`) — adopt per-module as files are touched.

@@ -1,6 +1,7 @@
 // Diff preview for AI edits: lists the recorded operations, blocks Apply
 // while the draft fails schema validation, and swaps the draft in on apply.
-import { state, persist } from '../state.js';
+import { state } from '../state.js';
+import { persist } from '../store.js';
 import { esc } from '../lib/escape.js';
 import { lintItinerary } from '../lib/lint.js';
 import { updateHeader, refreshAfterChange, showApp } from '../render.js';

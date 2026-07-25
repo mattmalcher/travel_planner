@@ -18,6 +18,7 @@ export const state = {
   editFields: null,    // form field descriptors for it, null when JSON-only (issue #65)
   editMode: 'form',    // which editor tab is showing: 'form' or 'json'
   pendingUpload: null, // uploaded doc held back by the version/validation guard (issue #15)
+  pendingImport: null, // uploaded doc waiting on a replace/keep-both decision (issue #80)
 };
 
 /* Schema version this build of the app expects. The placeholder below is
@@ -32,7 +33,7 @@ export function major(v) {
   return String(v || '').split('.')[0];
 }
 
-export function persist() {
-  localStorage.setItem('hItinerary', JSON.stringify(state.HD));
-  localStorage.setItem('hSchemaVersion', H_SCHEMA_VERSION);
-}
+/* persist() used to live here, writing the single `hItinerary` slot. It moved
+   to store.js when that slot became a library of trips (issue #80) — saving
+   now needs a clock, an encoder and the library's index, none of which belong
+   in the state object. */

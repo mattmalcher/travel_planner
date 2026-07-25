@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { savedDoc } from './library.js';
 
 // Minimal itinerary the AI assistant will edit.
 const baseItinerary = {
@@ -124,7 +125,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     await applyBtn.click();
 
     await expect(page.locator('#hvlist')).toContainText('CD5678');
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const stored = await savedDoc(page);
     expect(stored.segments.map(s => s.id)).toContain('seg-2');
     await expect(preview).toBeHidden();
 
@@ -158,7 +159,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     expect(JSON.parse(readResult.content)).toEqual(baseItinerary.segments[0]);
 
     // Patched fields changed; everything else on the segment survived the merge.
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const stored = await savedDoc(page);
     const seg = stored.segments.find(s => s.id === 'seg-1');
     expect(seg.departs.time).toBe('17:01');
     expect(seg.departs.place).toBe("London St Pancras Int'l");
@@ -191,7 +192,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     // …and only the read-then-retry patch landed (a single update op).
     await expect(preview).toContainText('Updated transport (seg-1)');
     await preview.getByRole('button', { name: 'Apply changes' }).click();
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const stored = await savedDoc(page);
     expect(stored.segments.find(s => s.id === 'seg-1').notes).toBe('Upgraded to Standard Premier');
   });
 
@@ -212,7 +213,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     await preview.getByRole('button', { name: 'Apply changes' }).click();
 
     // Only the name changed; the fields the patch omitted survived.
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const stored = await savedDoc(page);
     expect(stored.trip.name).toBe('Paris & Lyon 2026');
     expect(stored.trip.travellers).toEqual(['Judy Jetson', 'George Jetson']);
     expect(stored.trip.currency_primary).toBe('GBP');
@@ -264,7 +265,7 @@ test.describe('AI assistant (OpenRouter)', () => {
     await expect(preview.getByRole('button', { name: 'Apply changes' })).toBeDisabled();
 
     // Itinerary in storage is unchanged (no seg-2 applied).
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const stored = await savedDoc(page);
     expect(stored.segments.map(s => s.id)).not.toContain('seg-2');
   });
 });
