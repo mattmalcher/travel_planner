@@ -155,8 +155,9 @@ test.describe('Lists view', () => {
   });
 });
 
-// Manual authoring (issue #72): everything below needs edit mode on — the
-// affordances are the same .hedit-btn set the timeline and trip header use.
+// Manual authoring (issue #72): adding is always available; the pencils (item
+// details, the list itself, deletion) need edit mode on, using the same
+// .hedit-btn set the timeline and trip header use.
 test.describe('Editing lists by hand', () => {
 
   test.beforeEach(async ({ page }) => {
@@ -171,18 +172,25 @@ test.describe('Editing lists by hand', () => {
     await page.click('.htab[data-v="lists"]');
   });
 
-  test('the edit affordances only appear in edit mode', async ({ page }) => {
+  test('adding is always available; the pencils wait for edit mode', async ({ page }) => {
     const food = page.locator('#hvlists .hseg').first();
-    await expect(food.locator('.hli-add')).toBeHidden();
-    await expect(page.getByRole('button', { name: 'New list' })).toBeHidden();
+    // Add affordances are on without edit mode.
+    await expect(food.locator('.hli-add')).toBeVisible();
+    await expect(food.locator('.hli-add-in')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New list' })).toBeVisible();
+    // Editing an existing list or item still is not.
+    await expect(food.getByRole('button', { name: 'Edit list' })).toBeHidden();
+    await expect(food.locator('.hli').first().getByRole('button', { name: 'Edit item' })).toBeHidden();
 
     await page.click('#hedit-toggle');
+    await expect(food.getByRole('button', { name: 'Edit list' })).toBeVisible();
+    await expect(food.locator('.hli').first().getByRole('button', { name: 'Edit item' })).toBeVisible();
+    // …and the add affordances are unaffected by the toggle.
     await expect(food.locator('.hli-add')).toBeVisible();
     await expect(page.getByRole('button', { name: 'New list' })).toBeVisible();
   });
 
   test('quick-add appends an item and stays ready for the next one', async ({ page }) => {
-    await page.click('#hedit-toggle');
     const food = page.locator('#hvlists .hseg').first();
     const box = food.locator('.hli-add-in');
 
@@ -298,7 +306,6 @@ test.describe('Editing lists by hand', () => {
       name: 'no-lists.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bare))
     });
     await page.click('.htab[data-v="lists"]');
-    await page.click('#hedit-toggle');
     await expect(page.locator('#hvlists')).toContainText('No lists yet');
 
     await page.getByRole('button', { name: 'New list' }).click();
@@ -316,7 +323,6 @@ test.describe('Editing lists by hand', () => {
   });
 
   test('New list creates one, ready to take items', async ({ page }) => {
-    await page.click('#hedit-toggle');
     await page.getByRole('button', { name: 'New list' }).click();
     await expect(page.locator('#hedit-title')).toHaveText('New list');
     await expect(page.locator('#hedit-del')).toBeHidden(); // nothing to delete yet

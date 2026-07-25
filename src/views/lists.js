@@ -1,10 +1,12 @@
 // Lists view (issue #40): pools of intentions that aren't (yet) plans.
-// Read-only behaviour is two actions per item — check it off in place, or
-// promote it into an ordinary segment via "Schedule" (see openScheduleItem in
-// app.js). Edit mode (the header pencil) adds manual authoring without an LLM
-// round trip (issue #72): a quick-add row per list for the common case of
-// typing a name, and the ordinary edit modal for the detail fields, the list
-// itself, and deletion. All counting/partitioning maths lives in lib/lists.js.
+// Every item offers two actions — check it off in place, or promote it into an
+// ordinary segment via "Schedule" (see openScheduleItem in app.js).
+// Manual authoring needs no LLM round trip (issue #72), and *adding* needs no
+// edit mode either: the quick-add row per list and the "New list" button are
+// always on, since jotting something down is what this view is for. The
+// pencils — item detail fields, the list itself, deletion — stay behind edit
+// mode with the rest of the app's editing. All counting/partitioning maths
+// lives in lib/lists.js.
 import { state, persist } from '../state.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { newId } from '../lib/ids.js';
@@ -89,16 +91,16 @@ function itemRow(item, li, ii, segIds) {
   </div>`;
 }
 
-/** The quick-add row under each list — only visible in edit mode. */
+/** The quick-add row under each list — always shown, no edit mode needed. */
 function addRow(li) {
-  return `<div class="hli-add hedit-btn">
+  return `<div class="hli-add">
     <input class="hli-add-in" type="text" data-li="${li}" placeholder="Add an item…"
       aria-label="Add an item" onkeydown="hListAddKey(event,${li})">
     <button class="hli-chip" onclick="hListAdd(${li})"><i class="ti ti-plus" aria-hidden="true"></i> Add</button>
   </div>`;
 }
 
-const newListBtn = `<button class="hedit-btn" onclick="hOpenAddList()" style="font-size:12px"><i class="ti ti-plus" aria-hidden="true"></i> New list</button>`;
+const newListBtn = `<button onclick="hOpenAddList()" style="font-size:12px"><i class="ti ti-plus" aria-hidden="true"></i> New list</button>`;
 
 export function renderLists() {
   const HD = state.HD;
@@ -107,8 +109,8 @@ export function renderLists() {
   if (!lists.length) {
     box.innerHTML = `<div style="font-size:13px;color:var(--color-text-secondary);padding:1rem 0">
       No lists yet. Lists hold intentions that aren't plans — foods to try, packing, restaurant options.
-      Add one below (turn on edit mode with the pencil, top right), with the AI assistant, or in the itinerary
-      JSON (<code>lists</code>), then tick items off here or schedule them into the timeline.
+      Add one below, with the AI assistant, or in the itinerary JSON (<code>lists</code>), then tick
+      items off here or schedule them into the timeline.
       <div style="margin-top:.7rem">${newListBtn}</div></div>`;
     return;
   }
