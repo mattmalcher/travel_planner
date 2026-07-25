@@ -102,7 +102,7 @@ test.describe('Lists view', () => {
   test('a promoted item links to its segment; a dangling one warns instead', async ({ page }) => {
     const food = page.locator('#hvlists .hseg').first();
 
-    // Working link chip jumps to the segment's timeline card and flashes it.
+    // Working link chip jumps to the segment's itinerary card and flashes it.
     await food.locator('.hli', { hasText: 'Jazz-club cocktail' }).locator('.hli-chip').click();
     await expect(page.locator('.htab[data-v="list"]')).toHaveClass(/on/);
     await expect(page.locator('#hvlist .hseg.hl')).toContainText('Jazz at Le Petit Exemple');
@@ -145,7 +145,7 @@ test.describe('Lists view', () => {
     await page.click('text=Save');
     await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
 
-    // The segment exists on the timeline and the item now links to it.
+    // The segment exists on the itinerary and the item now links to it.
     await expect(page.locator('#hvlist .hseg')).toHaveCount(2);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
     expect(saved.segments).toHaveLength(2);
@@ -155,9 +155,10 @@ test.describe('Lists view', () => {
   });
 });
 
-// Manual authoring (issue #72): adding is always available; the pencils (item
-// details, the list itself, deletion) need edit mode on, using the same
-// .hedit-btn set the timeline and trip header use.
+// Manual authoring (issue #72): adding — and, since issue #69, deleting an
+// item — is always available; the pencils (item detail fields, the list
+// itself) need edit mode on, using the same .hedit-btn set the itinerary and
+// trip header use.
 test.describe('Editing lists by hand', () => {
 
   test.beforeEach(async ({ page }) => {
@@ -259,7 +260,7 @@ test.describe('Editing lists by hand', () => {
     await expect(page.locator('#hedit-modal')).toHaveClass(/on/);
 
     page.once('dialog', d => {
-      expect(d.message()).toContain('stays on the timeline');
+      expect(d.message()).toContain('stays on the itinerary');
       d.accept();
     });
     await page.click('#hedit-del');
@@ -269,6 +270,79 @@ test.describe('Editing lists by hand', () => {
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
     expect(saved.lists[0].items.map(i => i.id)).toEqual(['li-1', 'li-3']);
     expect(saved.segments).toHaveLength(1); // the promoted segment is untouched
+  });
+
+  test('the × deletes an item straight away, and Undo puts it back (issue #69)', async ({ page }) => {
+    const food = page.locator('#hvlists .hseg').first();
+    const row = food.locator('.hli', { hasText: 'Custard tart' });
+
+    // No edit mode and no confirm — deleting is as cheap as adding.
+    await expect(row.getByRole('button', { name: 'Delete item' })).toBeVisible();
+    await row.getByRole('button', { name: 'Delete item' }).click();
+    await expect(food.locator('.hli-progress')).toHaveText('0/2');
+    await expect(food.locator('.hli', { hasText: 'Custard tart' })).toHaveCount(0);
+    let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(saved.lists[0].items.map(i => i.id)).toEqual(['li-2', 'li-3']);
+
+    // The undo offer sits in the list the item came from, and restores it in
+    // place with everything it held.
+    const undo = food.locator('.hli-undo');
+    await expect(undo).toContainText('Custard tart');
+    await expect(page.locator('#hvlists .hli-undo')).toHaveCount(1);
+    await undo.getByRole('button', { name: 'Undo' }).click();
+
+    await expect(food.locator('.hli-progress')).toHaveText('0/3');
+    await expect(food.locator('.hli').first()).toContainText('Custard tart');
+    await expect(food.locator('.hli-undo')).toHaveCount(0);
+    saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(saved.lists[0].items[0]).toMatchObject({
+      id: 'li-1', name: 'Custard tart', local_name: 'Flan pâtissier', note: 'From a proper bakery.'
+    });
+  });
+
+  test('deleting a promoted item leaves its segment alone; the next change retires the undo', async ({ page }) => {
+    const food = page.locator('#hvlists .hseg').first();
+    await food.locator('.hli', { hasText: 'Jazz-club cocktail' })
+      .getByRole('button', { name: 'Delete item' }).click();
+    await expect(food.locator('.hli-undo')).toBeVisible();
+
+    // The segment it was scheduled into is a segment now — untouched.
+    await expect(page.locator('#hvlist .hseg')).toHaveCount(1);
+
+    // Adding an item is a new action, so the stale undo goes away.
+    await food.locator('.hli-add-in').fill('Croissant');
+    await food.locator('.hli-add-in').press('Enter');
+    await expect(food.locator('.hli-undo')).toHaveCount(0);
+
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    expect(saved.lists[0].items.map(i => i.name)).toEqual(['Custard tart', 'Lost dinner', 'Croissant']);
+    expect(saved.segments).toHaveLength(1);
+  });
+
+  test('the jump strip scrolls to a list and tracks the one in view (issue #69)', async ({ page }) => {
+    const chips = page.locator('#hvlists .hjump-chip');
+    await expect(chips).toHaveCount(2);
+    await expect(chips.nth(0)).toContainText('Foods to try');
+    await expect(chips.nth(1)).toContainText('Packing');
+
+    // Long lists, so the second one has somewhere to be scrolled to and the
+    // strip earns its keep.
+    const long = structuredClone(listItinerary);
+    long.lists[0].items = Array.from({ length: 20 }, (_, i) => ({ id: `li-a${i}`, name: `Snack ${i}` }));
+    long.lists[1].items = Array.from({ length: 40 }, (_, i) => ({ id: `li-b${i}`, name: `Sock ${i}` }));
+    await page.setInputFiles('#hfile', {
+      name: 'long_lists.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(long))
+    });
+    await page.click('.htab[data-v="lists"]');
+
+    await chips.nth(1).click();
+    await expect.poll(() => page.locator('#hvlists .hjump-a[data-k="1"]')
+      .evaluate(el => el.getBoundingClientRect().top)).toBeLessThan(120);
+    expect(await page.evaluate(() => globalThis.scrollY)).toBeGreaterThan(200);
+
+    // The scroll-spy marks the list now under the strip.
+    await expect(chips.nth(1)).toHaveClass(/on/);
+    await expect(chips.nth(0)).not.toHaveClass(/on/);
   });
 
   test('a list can be renamed, re-kinded and deleted without losing its items', async ({ page }) => {

@@ -1,4 +1,5 @@
-// Timeline (list) view: day-grouped cards with per-type detail rows.
+// Itinerary (list) view: day-grouped cards with per-type detail rows. The tab
+// is labelled "Itinerary" (issue #71); the internal name stays `list`.
 import { state } from '../state.js';
 import { costInfo, fmtCurrency } from '../lib/cost.js';
 import { sortSegments, segDate } from '../lib/sort.js';
@@ -6,6 +7,7 @@ import { fmtDayLong, fmtDayShort, fmtMinutes, nightsBetween } from '../lib/dates
 import { currentDayChip } from '../lib/now.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
+import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
 
 function renderTransport(s, trip) {
   const seatsLine = s.seats && s.seats.length ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${s.seats.map(x => `${esc(x.traveller.split(' ')[0])}: Coach ${esc(x.coach)}${x.deck ? ' (' + esc(x.deck) + ')' : ''}, Seat ${esc(x.seat)}`).join(' · ')}</div>` : '';
@@ -81,29 +83,10 @@ function renderNotes(s) {
   return `<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${esc(s.notes)}</div>`;
 }
 
-/** Scroll the timeline to a day's section (date strip chips, issue #21).
-    Days are matched on data-d rather than an id so no selector escaping of
-    itinerary-supplied dates is needed. */
+/** Scroll the itinerary to a day's section (date strip chips, issue #21) —
+    the shared jump strip from views/jump-nav.js keyed by date. */
 export function jumpToDay(date, behavior = 'smooth') {
-  const day = [...document.querySelectorAll('#hvlist .hday')].find(el => el.dataset.d === date);
-  if (day) day.scrollIntoView({ behavior, block: 'start' });
-}
-
-// Scroll-spy: mark the chip of the day currently under the sticky strip.
-function updateActiveChip() {
-  const nav = document.querySelector('#hvlist .hday-nav');
-  if (!nav || !document.getElementById('hvlist').classList.contains('on')) return;
-  const days = [...document.querySelectorAll('#hvlist .hday')];
-  let cur = days[0];
-  for (const d of days) if (d.getBoundingClientRect().top <= 64) cur = d;
-  nav.querySelectorAll('.hday-chip').forEach(c => c.classList.toggle('on', !!cur && c.dataset.d === cur.dataset.d));
-}
-
-let spyBound = false;
-function bindSpy() {
-  if (spyBound) return;
-  spyBound = true;
-  addEventListener('scroll', updateActiveChip, { passive: true });
+  jumpTo('hvlist', date, behavior);
 }
 
 export function renderList() {
@@ -115,11 +98,11 @@ export function renderList() {
   // During the trip the strip gets a Today shortcut and today's chip a marker,
   // and the first render lands on the current day (issue #35).
   const today = currentDayChip(days, HD.trip, Date.now());
-  const todayBtn = today ? `<button class="hday-chip hday-today" data-d="${esc(today)}" onclick="hJumpDay(this.dataset.d)"><i class="ti ti-calendar-pin" aria-hidden="true"></i> Today</button>` : '';
-  const nav = days.length > 1 ? `<div class="hday-nav">${todayBtn}${days.map(d =>
-    `<button class="hday-chip${d === today ? ' is-today' : ''}" data-d="${esc(d)}" onclick="hJumpDay(this.dataset.d)">${fmtDayShort(d)}</button>`).join('')}</div>` : '';
+  const todayBtn = today ? `<button class="hjump-chip hday-today" data-k="${esc(today)}" onclick="hJumpDay(this.dataset.k)"><i class="ti ti-calendar-pin" aria-hidden="true"></i> Today</button>` : '';
+  const nav = days.length > 1 ? `<div class="hjump-nav">${todayBtn}${days.map(d =>
+    `<button class="hjump-chip${d === today ? ' is-today' : ''}" data-k="${esc(d)}" onclick="hJumpDay(this.dataset.k)">${fmtDayShort(d)}</button>`).join('')}</div>` : '';
   document.getElementById('hvlist').innerHTML = nav + Object.entries(grp).map(([date, segs]) => `
-    <div class="hday" data-d="${esc(date)}" style="margin-bottom:1.75rem">
+    <div class="hjump-a" data-k="${esc(date)}" style="margin-bottom:1.75rem">
       <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;display:flex;align-items:center;gap:8px">
         ${fmtDayLong(date)}<span style="flex:1;height:.5px;background:var(--color-border-tertiary);display:block"></span>
       </div>
@@ -145,8 +128,8 @@ export function renderList() {
         </div>`;
       }).join('')}
     </div>`).join('');
-  bindSpy();
-  updateActiveChip();
+  bindJumpSpy('hvlist');
+  updateActiveChip('hvlist');
   // Open at the current day once per page load; later re-renders (edits, AI
   // changes) must not yank the scroll position away from the user.
   if (today && !renderList._jumped) {
