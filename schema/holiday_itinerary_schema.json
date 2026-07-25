@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "title": "HolidayItinerary",
   "description": "Structured holiday itinerary with transport, accommodation and events (gigs, walks, festivals, etc.)",
   "type": "object",
@@ -80,6 +80,13 @@
         "$ref": "#/definitions/List"
       },
       "description": "Pools of intentions that aren't (yet) plans — packing lists, foods to try, candidate restaurants. Items are checked off in place (done) or promoted into an ordinary segment (segment_id). Lists never appear on the itinerary, schedule, budget or map views: if something gets a date or a cost, it becomes a segment."
+    },
+    "phrases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PhraseGroup"
+      },
+      "description": "A phrasebook: things to be able to say, grouped by situation. Reference material, not a plan and not a checklist — phrases have no date, no cost and no done flag, and never appear on the itinerary, schedule, budget or map views."
     }
   },
   "additionalProperties": false,
@@ -152,6 +159,77 @@
         "segment_id": {
           "type": "string",
           "description": "id of the segment this item was promoted (scheduled) into"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PhraseGroup": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique phrase group identifier, e.g. phr-greetings"
+        },
+        "name": {
+          "type": "string",
+          "description": "The situation these phrases are for, e.g. Ordering food"
+        },
+        "language": {
+          "type": "string",
+          "description": "Language the local wordings are in, e.g. French — shown beside the group name so one document can carry a phrasebook per country"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "greetings",
+            "food",
+            "transport",
+            "shopping",
+            "directions",
+            "emergency",
+            "other"
+          ],
+          "description": "Used only for icon and labelling — every kind shares the one Phrase shape"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Phrase"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Phrase": {
+      "type": "object",
+      "required": [
+        "id",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique phrase identifier (unique across all phrase groups in the document), e.g. ph-1"
+        },
+        "text": {
+          "type": "string",
+          "description": "What you want to say, in your own language, e.g. \"Two coffees, please\""
+        },
+        "local": {
+          "type": "string",
+          "description": "The same thing in the local language, e.g. \"Deux cafés, s'il vous plaît\". Optional so a phrase can be jotted down before it is translated."
+        },
+        "pronunciation": {
+          "type": "string",
+          "description": "How to say the local wording, spelled out for a reader of the traveller's own language, e.g. \"duh ka-FAY, seel voo PLEH\""
+        },
+        "note": {
+          "type": "string",
+          "description": "When to use it — politeness level, the reply to expect, a gesture that goes with it"
         }
       },
       "additionalProperties": false

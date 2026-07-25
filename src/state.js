@@ -11,6 +11,7 @@ export const state = {
   ops: [],             // tracked operations for the AI diff preview
   reads: new Set(),    // segment ids the AI has fetched this turn (read-before-edit guard, issue #31)
   listReads: new Set(),// list ids the AI has fetched this turn (same guard for lists, issue #40)
+  phraseReads: new Set(), // phrase group ids the AI has fetched this turn (same guard, issue #75)
   busy: false,         // an AI request is in flight
   editTarget: null,    // {type:'segment',idx} or {type:'trip'} for the edit modal
   editValue: null,     // the object the open modal is editing (form ⇄ JSON round-trip through it)

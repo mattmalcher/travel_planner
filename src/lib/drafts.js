@@ -83,5 +83,5 @@ export function newTripDraft(todayIso) {
 
 /** The document a from-scratch trip starts life as: nothing planned yet. */
 export function blankItinerary(trip) {
-  return { trip, segments: [], lists: [] };
+  return { trip, segments: [], lists: [], phrases: [] };
 }

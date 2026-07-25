@@ -6,6 +6,7 @@ import { renderList } from './views/list.js';
 import { renderBudget } from './views/budget.js';
 import { renderGantt } from './views/gantt.js';
 import { renderLists } from './views/lists.js';
+import { renderPhrases } from './views/phrases.js';
 import { renderMap, destroyMap } from './views/map.js';
 
 export function updateHeader() {
@@ -17,7 +18,7 @@ export function updateHeader() {
 }
 
 export function renderAll() {
-  renderList(); renderBudget(); renderGantt(); renderLists();
+  renderList(); renderBudget(); renderGantt(); renderLists(); renderPhrases();
 }
 
 /** Re-render every view after the itinerary changed: the map is rebuilt if

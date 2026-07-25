@@ -131,3 +131,27 @@ test('clean lists produce no warnings', () => {
   assert.deepEqual(lintItinerary(d), []);
 });
 
+
+/* Phrases (issue #75): the same id rules as lists — group ids unique in the
+   document, phrase ids unique across every group. Nothing to dangle, since a
+   phrase points at nothing. */
+
+test('flags duplicate phrase group ids and phrase ids reused across groups', () => {
+  const d = doc([seg()]);
+  d.phrases = [
+    { id: 'phr-1', name: 'A', items: [{ id: 'ph-1', text: 'x' }, { id: 'ph-1', text: 'y' }] },
+    { id: 'phr-1', name: 'B', items: [{ id: 'ph-1', text: 'z' }] },
+  ];
+  const w = lintItinerary(d);
+  assert.equal(w.filter(m => m.includes('duplicate phrase group id "phr-1"')).length, 1);
+  assert.equal(w.filter(m => m.includes('duplicate phrase id "ph-1"')).length, 2);
+});
+
+test('a clean phrasebook produces no warnings, and junk in it never throws', () => {
+  const d = doc([seg()]);
+  d.phrases = [{ id: 'phr-1', name: 'Getting by', language: 'French', kind: 'greetings',
+    items: [{ id: 'ph-1', text: 'Good morning', local: 'Bonjour' }, { id: 'ph-2', text: 'Thank you' }] }];
+  assert.deepEqual(lintItinerary(d), []);
+  for (const junk of [null, [], [null], [{ items: null }], [{ items: [null, {}] }]])
+    assert.deepEqual(lintItinerary({ ...doc([seg()]), phrases: junk }), []);
+});
