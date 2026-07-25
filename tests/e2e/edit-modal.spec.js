@@ -4,6 +4,7 @@
 // __SEG_VALID__ / __DOC_VALID__ / __ERRORS__ globals — the form's field specs
 // are baked in at build time, so they do not depend on the stub.
 import { test, expect } from '@playwright/test';
+import { savedDoc } from './library.js';
 
 const baseItinerary = {
   trip: {
@@ -165,7 +166,7 @@ test.describe('Edit modal form', () => {
 
     await expect(page.locator('#hedit-modal')).toBeHidden();
     await expect(page.locator('#hvlist')).toContainText('TGV Lyria');
-    const seg = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments[0]);
+    const seg = (await savedDoc(page)).segments[0];
     expect(seg.operator).toBe('TGV Lyria');
     expect(seg.service).toBe('9024');
     expect(seg.cost.status).toBe('pending');
@@ -177,7 +178,7 @@ test.describe('Edit modal form', () => {
     await page.evaluate('hOpenEdit(0)');
     await page.fill('#hedit-form [data-p="ref"]', '');
     await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
-    const seg = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments[0]);
+    const seg = (await savedDoc(page)).segments[0];
     expect('ref' in seg).toBe(false);
   });
 
@@ -198,7 +199,7 @@ test.describe('Edit modal form', () => {
     await expect(page.locator('#hedit-form [data-p="operator"]')).toHaveValue('TGV Lyria');
 
     await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
-    const seg = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments[0]);
+    const seg = (await savedDoc(page)).segments[0];
     expect(seg.ref).toBe('ZZ9999');
     expect(seg.seats).toEqual(baseItinerary.segments[0].seats);
   });
@@ -214,7 +215,7 @@ test.describe('Edit modal form', () => {
     await expect(page.locator('#hedit-form [data-p="travellers"]')).toHaveValue('Judy Jetson, George Jetson');
     await page.fill('#hedit-form [data-p="travellers"]', 'Judy Jetson, George Jetson, Elroy Jetson');
     await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
-    const trip = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).trip);
+    const trip = (await savedDoc(page)).trip;
     expect(trip.travellers).toEqual(['Judy Jetson', 'George Jetson', 'Elroy Jetson']);
   });
 
@@ -289,7 +290,7 @@ test.describe('Edit modal form', () => {
     await page.locator('#hedit-form [data-p="name"]').fill('Summer\nRail Tour');
     await page.locator('#hedit-form [data-p="name"]').press('Enter');
     await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
-    const trip = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).trip);
+    const trip = (await savedDoc(page)).trip;
     expect(trip.name).toBe('Summer Rail Tour');
   });
 

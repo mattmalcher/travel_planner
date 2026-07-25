@@ -9,7 +9,8 @@
 // the per-item × (issue #69) — waits for edit mode, where the × is one click
 // backed by one level of undo rather than a confirm. All counting/
 // partitioning maths lives in lib/lists.js.
-import { state, persist } from '../state.js';
+import { state } from '../state.js';
+import { persist } from '../store.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { newId } from '../lib/ids.js';
 import { listProgress, partitionItems, takenItemIds } from '../lib/lists.js';

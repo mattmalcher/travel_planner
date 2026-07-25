@@ -34,6 +34,25 @@ export function fmtMinutes(m) {
   return mn ? `${h}h ${mn}m` : `${h}h`;
 }
 
+/**
+ * "…ago" for an ISO timestamp, as the trip picker reads it ("edited 20 minutes
+ * ago by Sarah" — issue #80). Anything older than a week is a date instead: at
+ * that distance "9 days ago" is less use than the day itself. `nowMs` is a
+ * parameter so this stays deterministic.
+ */
+export function timeAgo(iso, nowMs) {
+  const then = Date.parse(iso || '');
+  if (!Number.isFinite(then)) return '';
+  const s = Math.round((nowMs - then) / 1000);
+  if (s < 0) return 'just now';
+  const plural = (n, unit) => `${n} ${unit}${n === 1 ? '' : 's'} ago`;
+  if (s < 45) return 'just now';
+  if (s < 5400) return plural(Math.max(1, Math.round(s / 60)), 'minute');
+  if (s < 79200) return plural(Math.round(s / 3600), 'hour');
+  if (s < 604800) return plural(Math.round(s / 86400), 'day');
+  return fmtDate(new Date(then).toISOString().slice(0, 10));
+}
+
 /** Local-time ms timestamp for a "YYYY-MM-DD" date and optional "HH:MM" time. */
 export function toMs(dateStr, timeStr) {
   return new Date(dateStr + 'T' + (timeStr || '00:00') + ':00').getTime();

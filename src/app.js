@@ -1,6 +1,11 @@
 // Top-level app behaviour: loading files, tab switching, the edit modal
 // (form + raw JSON), download, and the saved-data schema-version guard.
-import { state, persist, major, H_SCHEMA_VERSION } from './state.js';
+import { state, major, H_SCHEMA_VERSION } from './state.js';
+import {
+  persist, savedTrip, savedTrips, bootTripId, importKind, asFork,
+  migrate, closeCurrent, forgetEverything, dismissStoreWarning,
+} from './store.js';
+import { renderRecent } from './views/library.js';
 import { esc } from './lib/escape.js';
 import { newId } from './lib/ids.js';
 import { takenListIds } from './lib/lists.js';
@@ -19,7 +24,8 @@ import { hidePreview } from './ai/preview.js';
 
 export function load(data) {
   state.HD = typeof data === 'string' ? JSON.parse(data) : data;
-  persist();
+  dismissStoreWarning();
+  persist(); // settles trip_id/rev and makes this the library's current trip
   showApp();
   updateHeader();
   renderAll();
@@ -29,13 +35,14 @@ export function load(data) {
        schema-validated before loading; both checks are advisory with a
        "load anyway" escape hatch, mirroring the localStorage guard --- */
 
-function showUploadWarning(html) {
+function showUploadWarning(html, buttons) {
   const w = document.getElementById('hverwarn');
+  const actions = buttons || [
+    '<button onclick="hUploadAnyway()" style="font-size:12px">Load anyway</button>',
+    '<button onclick="hUploadCancel()" style="font-size:12px">Cancel</button>',
+  ];
   w.innerHTML = html + `
-    <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">
-      <button onclick="hUploadAnyway()" style="font-size:12px">Load anyway</button>
-      <button onclick="hUploadCancel()" style="font-size:12px">Cancel</button>
-    </div>`;
+    <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">${actions.join('')}</div>`;
   w.style.display = 'block';
 }
 
@@ -61,14 +68,14 @@ export function loadUpload(data) {
       <ul style="margin:.4rem 0 0 1.1rem">${items}</ul>${more}`);
     return;
   }
-  load(doc);
+  loadImport(doc);
 }
 
 export function uploadAnyway() {
   const doc = state.pendingUpload;
   state.pendingUpload = null;
   document.getElementById('hverwarn').style.display = 'none';
-  if (doc) load(doc);
+  if (doc) loadImport(doc);
 }
 
 export function uploadCancel() {
@@ -76,15 +83,71 @@ export function uploadCancel() {
   document.getElementById('hverwarn').style.display = 'none';
 }
 
-export function reset() {
+/* --- importing into a library rather than into the one slot (issue #80):
+       a file that names a trip already saved here is a decision, not a silent
+       overwrite. Which decision depends on how the two copies relate — see
+       classifyImport in lib/library.js. --- */
+
+/** Load an uploaded document, asking first when it collides with a saved trip. */
+export function loadImport(doc) {
+  const d = importKind(doc);
+  const name = esc((d.doc.trip && d.doc.trip.name) || 'this trip');
+  if (d.kind === 'new') { load(d.doc); return; }
+  if (d.kind === 'duplicate') {
+    // Re-opening the same file (or the same link) is a no-op: what is already
+    // in the library IS this document, so open it rather than adding a copy.
+    load(savedTrip(d.doc.trip_id) || d.doc);
+    return;
+  }
+  state.pendingImport = d;
+  const both = '<button onclick="hImportBoth()" style="font-size:12px">Keep both</button>';
+  const replace = '<button onclick="hImportReplace()" style="font-size:12px">Replace</button>';
+  const cancel = '<button onclick="hImportCancel()" style="font-size:12px">Cancel</button>';
+  const body = d.kind === 'newer'
+    ? `This file is rev ${d.rev} of <b>${name}</b>; the copy saved here is rev ${d.mine}.`
+    : d.kind === 'older'
+      ? `This file is rev ${d.rev} of <b>${name}</b>, older than the rev ${d.mine} saved here. Replacing keeps rev ${d.mine} in the trip's history.`
+      : `This file and the copy saved here are both rev ${d.rev} of <b>${name}</b>, with different contents — someone edited each of them from the same starting point. Keeping both saves this file as a separate trip.`;
+  showUploadWarning(`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-${d.kind === 'fork' ? 'git-fork' : 'file-import'}" aria-hidden="true"></i> ${d.kind === 'fork' ? 'This trip has diverged' : 'You already have this trip'}</div>
+    ${body}`, d.kind === 'newer' ? [replace, both, cancel] : [both, replace, cancel]);
+}
+
+export function importReplace() {
+  const d = state.pendingImport;
+  state.pendingImport = null;
+  document.getElementById('hverwarn').style.display = 'none';
+  if (d) load(d.doc);
+}
+
+export function importBoth() {
+  const d = state.pendingImport;
+  state.pendingImport = null;
+  document.getElementById('hverwarn').style.display = 'none';
+  if (d) load(asFork(d.doc));
+}
+
+export function importCancel() {
+  state.pendingImport = null;
+  document.getElementById('hverwarn').style.display = 'none';
+}
+
+/**
+ * Close the open trip and go back to the opening screen. This used to mean
+ * "forget everything" — with a library of trips it means only "put this one
+ * down": the document stays saved, and the opening screen lists it (issue #80).
+ * Forgetting is now the explicit action in the trip switcher.
+ */
+export function closeTrip() {
   state.HD = null;
-  localStorage.removeItem('hItinerary');
-  localStorage.removeItem('hSchemaVersion');
+  closeCurrent();
   destroyMap();
+  dismissStoreWarning();
   state.chat = []; state.draft = null; state.ops = [];
   hidePreview(); renderChat();
   document.getElementById('hupl').style.display = 'block';
   document.getElementById('happ').style.display = 'none';
+  document.getElementById('hverwarn').style.display = 'none';
+  renderRecent();
   switchView('list');
 }
 
@@ -113,18 +176,28 @@ export function revealSegment(idx) {
   el.addEventListener('animationend', () => el.classList.remove('hl'), { once: true });
 }
 
-export function download() {
-  // Stamp the document with the schema version this build writes, replacing
-  // any version an uploaded file carried in (issue #15).
-  const doc = { schema_version: H_SCHEMA_VERSION, ...state.HD };
-  doc.schema_version = H_SCHEMA_VERSION; // win over any version the uploaded file carried
+/**
+ * Download any document as JSON, stamped with the schema version this build
+ * writes (issue #15) — the loaded trip, or one revision out of a trip's
+ * history, in which case `suffix` distinguishes the file (issue #80).
+ * The downloaded file keeps trip_id/rev, so re-uploading it lands back on the
+ * trip it came from rather than starting a second copy.
+ */
+export function downloadDoc(doc, suffix) {
+  const out = { schema_version: H_SCHEMA_VERSION, ...doc };
+  out.schema_version = H_SCHEMA_VERSION; // win over any version the uploaded file carried
 
-  const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = (state.HD.trip.name || 'itinerary').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_').toLowerCase() + '.json';
+  const stem = ((doc.trip && doc.trip.name) || 'itinerary').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
+  a.download = stem + (suffix ? '_' + suffix : '') + '.json';
   a.click(); URL.revokeObjectURL(url);
+}
+
+export function download() {
+  downloadDoc(state.HD);
 }
 
 /* --- edit modal: a generated form over the common fields, with the raw JSON
@@ -438,30 +511,49 @@ export function deleteEdit() {
 /* --- saved-data guard: don't auto-load data written by an incompatible
        (different MAJOR schema version) deployment on this origin --- */
 
+/** Every saved document, whichever side of the library migration it is on —
+    what the version guard offers to back up before discarding. */
+function savedDocs() {
+  const docs = savedTrips().map(e => savedTrip(e.trip_id)).filter(Boolean);
+  if (docs.length) return docs;
+  const raw = localStorage.getItem('hItinerary');
+  if (!raw) return [];
+  try { return [JSON.parse(raw)]; } catch (e) { return []; }
+}
+
+/** One reloadable file per saved trip, staggered because a browser will drop
+    downloads fired in the same tick. */
 export function downloadSaved() {
-  const raw = localStorage.getItem('hItinerary'); if (!raw) return;
-  const blob = new Blob([raw], { type: 'application/json' }); const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'itinerary_backup.json'; a.click(); URL.revokeObjectURL(url);
+  savedDocs().forEach((doc, i) => setTimeout(() => downloadDoc(doc, 'backup'), i * 300));
 }
 
 export function forceLoadSaved() {
-  const raw = localStorage.getItem('hItinerary'); if (!raw) return;
+  const doc = savedDocs()[0];
+  if (!doc) return;
   document.getElementById('hverwarn').style.display = 'none';
-  try { load(JSON.parse(raw)); } catch (e) { alert('Could not load saved itinerary: ' + e.message); }
+  try { load(doc); } catch (e) { alert('Could not load saved itinerary: ' + e.message); }
 }
 
 export function discardSaved() {
-  localStorage.removeItem('hItinerary'); localStorage.removeItem('hSchemaVersion');
+  forgetEverything();
+  localStorage.removeItem('hSchemaVersion');
   document.getElementById('hverwarn').style.display = 'none';
+  renderRecent();
 }
 
+/**
+ * Boot: restore the trip that was open, having first brought any pre-library
+ * `hItinerary` value into the library. The version guard runs before either,
+ * so data written by an incompatible deployment on this origin is neither
+ * loaded nor migrated.
+ */
 export function loadSaved() {
-  const raw = localStorage.getItem('hItinerary'); if (!raw) return;
   const ver = localStorage.getItem('hSchemaVersion');
-  if (ver && major(ver) !== major(H_SCHEMA_VERSION)) {
+  if (ver && major(ver) !== major(H_SCHEMA_VERSION) && savedDocs().length) {
+    const n = savedDocs().length;
     const w = document.getElementById('hverwarn');
-    w.innerHTML = `<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Saved itinerary is from a different version</div>
-      It was saved for schema <code>${ver}</code> but this version expects <code>${H_SCHEMA_VERSION}</code>, so it was not loaded automatically.
+    w.innerHTML = `<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Saved ${n === 1 ? 'itinerary is' : 'itineraries are'} from a different version</div>
+      ${n === 1 ? 'It was' : `${n} saved trips were`} saved for schema <code>${esc(ver)}</code> but this version expects <code>${H_SCHEMA_VERSION}</code>, so ${n === 1 ? 'it was' : 'they were'} not loaded automatically.
       <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">
         <button onclick="hDownloadSaved()" style="font-size:12px">Download backup</button>
         <button onclick="hForceLoadSaved()" style="font-size:12px">Load anyway</button>
@@ -470,5 +562,8 @@ export function loadSaved() {
     w.style.display = 'block';
     return;
   }
-  try { load(JSON.parse(raw)); } catch (e) { localStorage.removeItem('hItinerary'); localStorage.removeItem('hSchemaVersion'); }
+  migrate();
+  const doc = savedTrip(bootTripId());
+  renderRecent();
+  if (doc) load(doc);
 }

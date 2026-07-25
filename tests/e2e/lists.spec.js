@@ -1,6 +1,7 @@
 // Lists tab (issue #40): tick-off persistence, the promoted-segment link
 // chip (and its dangling state), and promoting an item via "Schedule".
 import { test, expect } from '@playwright/test';
+import { savedDoc } from './library.js';
 
 const listItinerary = {
   trip: {
@@ -95,7 +96,7 @@ test.describe('Lists view', () => {
     await expect(food.locator('.hli').last()).toContainText('Custard tart');
     await expect(food.locator('.hli.done')).toHaveCount(1);
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.lists[0].items.find(i => i.id === 'li-1').done).toBe(true);
   });
 
@@ -142,12 +143,12 @@ test.describe('Lists view', () => {
     expect(draft.cost).toEqual({ status: 'not_booked' });
     await expect(page.locator('#hedit-del')).toBeHidden(); // nothing to delete yet
 
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
     await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
 
     // The segment exists on the itinerary and the item now links to it.
     await expect(page.locator('#hvlist .hseg')).toHaveCount(2);
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.segments).toHaveLength(2);
     const item = saved.lists[0].items.find(i => i.id === 'li-1');
     expect(item.segment_id).toBe(draft.id);
@@ -215,7 +216,7 @@ test.describe('Editing lists by hand', () => {
     await box.press('Enter');
     await expect(food.locator('.hli-progress')).toHaveText('0/5');
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     const added = saved.lists[0].items.slice(-2);
     expect(added.map(i => i.name)).toEqual(['Croissant', 'Espresso']);
     // Ids are assigned, unique across the document, and nothing else is invented.
@@ -237,7 +238,7 @@ test.describe('Editing lists by hand', () => {
     await page.fill('#hedit-form [data-p="local_name"]', 'Pastel de nata');
     await page.fill('#hedit-form [data-p="url"]', 'https://example.com/tart');
     await page.locator('#hedit-form [data-p="done"]').check();
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
 
     await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
     await expect(food.locator('.hli-progress')).toHaveText('1/3');
@@ -245,7 +246,7 @@ test.describe('Editing lists by hand', () => {
     await expect(row).toHaveClass(/done/);
     await expect(row).toContainText('Pastel de nata');
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     const item = saved.lists[0].items.find(i => i.id === 'li-1');
     expect(item).toMatchObject({ id: 'li-1', local_name: 'Pastel de nata', url: 'https://example.com/tart', done: true });
   });
@@ -269,7 +270,7 @@ test.describe('Editing lists by hand', () => {
     await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
     await expect(food.locator('.hli-progress')).toHaveText('0/2');
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.lists[0].items.map(i => i.id)).toEqual(['li-1', 'li-3']);
     expect(saved.segments).toHaveLength(1); // the promoted segment is untouched
   });
@@ -284,7 +285,7 @@ test.describe('Editing lists by hand', () => {
     await row.getByRole('button', { name: 'Delete item' }).click();
     await expect(food.locator('.hli-progress')).toHaveText('0/2');
     await expect(food.locator('.hli', { hasText: 'Custard tart' })).toHaveCount(0);
-    let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    let saved = await savedDoc(page);
     expect(saved.lists[0].items.map(i => i.id)).toEqual(['li-2', 'li-3']);
 
     // The undo offer sits in the list the item came from, and restores it in
@@ -297,7 +298,7 @@ test.describe('Editing lists by hand', () => {
     await expect(food.locator('.hli-progress')).toHaveText('0/3');
     await expect(food.locator('.hli').first()).toContainText('Custard tart');
     await expect(food.locator('.hli-undo')).toHaveCount(0);
-    saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    saved = await savedDoc(page);
     expect(saved.lists[0].items[0]).toMatchObject({
       id: 'li-1', name: 'Custard tart', local_name: 'Flan pâtissier', note: 'From a proper bakery.'
     });
@@ -318,7 +319,7 @@ test.describe('Editing lists by hand', () => {
     await food.locator('.hli-add-in').press('Enter');
     await expect(food.locator('.hli-undo')).toHaveCount(0);
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.lists[0].items.map(i => i.name)).toEqual(['Custard tart', 'Lost dinner', 'Croissant']);
     expect(saved.segments).toHaveLength(1);
   });
@@ -332,6 +333,9 @@ test.describe('Editing lists by hand', () => {
     // Long lists, so the second one has somewhere to be scrolled to and the
     // strip earns its keep.
     const long = structuredClone(listItinerary);
+    // Its own trip_id, so uploading it is a second trip in the library rather
+    // than a divergent copy of the seeded one (issue #80).
+    long.trip_id = 'trip-long-lists';
     long.lists[0].items = Array.from({ length: 20 }, (_, i) => ({ id: `li-a${i}`, name: `Snack ${i}` }));
     long.lists[1].items = Array.from({ length: 40 }, (_, i) => ({ id: `li-b${i}`, name: `Sock ${i}` }));
     await page.setInputFiles('#hfile', {
@@ -357,11 +361,11 @@ test.describe('Editing lists by hand', () => {
     await expect(page.locator('#hedit-title')).toHaveText('Edit list: Foods to try');
     await page.fill('#hedit-form [data-p="name"]', 'Snacks to find');
     await page.selectOption('#hedit-form [data-p="kind"]', 'restaurant');
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
 
     await expect(food).toContainText('Snacks to find');
     await expect(food.locator('.hli-progress')).toHaveText('0/3'); // items intact
-    let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    let saved = await savedDoc(page);
     expect(saved.lists[0]).toMatchObject({ id: 'list-food', name: 'Snacks to find', kind: 'restaurant' });
     expect(saved.lists[0].items).toHaveLength(3);
 
@@ -373,12 +377,13 @@ test.describe('Editing lists by hand', () => {
     });
     await page.click('#hedit-del');
     await expect(page.locator('#hvlists .hseg')).toHaveCount(1);
-    saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    saved = await savedDoc(page);
     expect(saved.lists.map(l => l.id)).toEqual(['list-packing']);
   });
 
   test('an itinerary with no lists can grow its first one', async ({ page }) => {
     const bare = structuredClone(listItinerary);
+    bare.trip_id = 'trip-no-lists'; // a separate trip, not a fork of the seeded one
     delete bare.lists;
     await page.setInputFiles('#hfile', {
       name: 'no-lists.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bare))
@@ -388,14 +393,14 @@ test.describe('Editing lists by hand', () => {
 
     await page.getByRole('button', { name: 'New list' }).click();
     await page.fill('#hedit-form [data-p="name"]', 'Packing');
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
 
     const list = page.locator('#hvlists .hseg').first();
     await expect(list).toContainText('Packing');
     await list.locator('.hli-add-in').fill('Passports');
     await list.locator('.hli-add-in').press('Enter');
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.lists).toHaveLength(1);
     expect(saved.lists[0].items[0].name).toBe('Passports');
   });
@@ -407,7 +412,7 @@ test.describe('Editing lists by hand', () => {
 
     await page.fill('#hedit-form [data-p="name"]', 'Sights');
     await page.selectOption('#hedit-form [data-p="kind"]', 'sight');
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
 
     const added = page.locator('#hvlists .hseg').nth(2);
     await expect(added).toContainText('Sights');
@@ -417,7 +422,7 @@ test.describe('Editing lists by hand', () => {
     await added.locator('.hli-add-in').press('Enter');
     await expect(added.locator('.hli-progress')).toHaveText('0/1');
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     const list = saved.lists[2];
     expect(list).toMatchObject({ name: 'Sights', kind: 'sight' });
     expect(list.id).toMatch(/^list-.{5}$/); // assigned, not typed

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { savedDoc } from './library.js';
 
 const genericItinerary = {
   trip: {
@@ -681,7 +682,7 @@ test.describe('Holiday Itinerary Viewer', () => {
     await page.click('#hedit-del');
     await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
     await expect(page.locator('#hvlist .hseg')).toHaveCount(1);
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')).segments.length);
+    const saved = (await savedDoc(page)).segments.length;
     expect(saved).toBe(1);
 
     // The trip editor has no segment to delete, so the button is hidden there.

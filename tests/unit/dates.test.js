@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fmtDate, fmtDayLong, fmtDayShort, fmtMinutes, toMs, msToIso, eventInterval, nightsBetween, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../../src/lib/dates.js';
+import { fmtDate, fmtDayLong, fmtDayShort, fmtMinutes, timeAgo, toMs, msToIso, eventInterval, nightsBetween, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../../src/lib/dates.js';
 
 test('fmtDate renders day, short month and year', () => {
   assert.equal(fmtDate('2026-09-18'), '18 Sept 2026');
@@ -77,4 +77,20 @@ test('nightsBetween derives nights from checkin/checkout dates (schema 3.0.0 dro
   // A backwards or same-day range never goes negative.
   assert.equal(nightsBetween('2026-09-18', '2026-09-18'), 0);
   assert.equal(nightsBetween('2026-09-20', '2026-09-18'), 0);
+});
+
+test('timeAgo reads the way the trip picker says it (issue #80)', () => {
+  const now = Date.parse('2026-07-25T12:00:00Z');
+  const ago = (ms) => timeAgo(new Date(now - ms).toISOString(), now);
+  assert.equal(ago(5 * 1000), 'just now');
+  assert.equal(ago(60 * 1000), '1 minute ago');
+  assert.equal(ago(20 * 60 * 1000), '20 minutes ago');
+  assert.equal(ago(3 * 3600 * 1000), '3 hours ago');
+  assert.equal(ago(2 * 86400 * 1000), '2 days ago');
+  // Past a week "9 days ago" is less use than the date itself.
+  assert.equal(ago(30 * 86400 * 1000), fmtDate('2026-06-25'));
+  // A clock that runs fast must not produce "-3 minutes ago".
+  assert.equal(timeAgo(new Date(now + 60000).toISOString(), now), 'just now');
+  assert.equal(timeAgo(undefined, now), '');
+  assert.equal(timeAgo('not a date', now), '');
 });

@@ -28,6 +28,9 @@
     <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:6px"><a href="holiday_itinerary_schema.json" style="color:var(--color-text-info)" target="_blank"><i class="ti ti-file-code" aria-hidden="true"></i> JSON Schema</a> — use this to create and validate your own itinerary files</div>
   </div>
   <div id="hverwarn" style="display:none;max-width:460px;margin:0 auto 1rem;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-lg);padding:.85rem 1rem;font-size:12px;line-height:1.45"></div>
+  <!-- Trips already saved in this browser (issue #80), so a returning visit is
+       one tap instead of a file picker. Filled by views/library.js. -->
+  <div id="hupl-recent" style="display:none"></div>
   <div class="hdrop" id="hdz" onclick="document.getElementById('hfile').click()">
     <i class="ti ti-file-import" style="font-size:28px;color:var(--color-text-secondary);display:block;margin-bottom:10px" aria-hidden="true"></i>
     <p style="font-size:14px;font-weight:500;margin-bottom:4px">Drop your itinerary JSON here</p>
@@ -47,11 +50,21 @@
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:.75rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)">
     <div id="htname" style="font-size:15px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
     <div style="display:flex;gap:8px;flex-shrink:0">
+      <!-- The trip switcher (issue #80): several trips live here, and this is
+           where you flip between them, wind one back, or forget one. -->
+      <button onclick="hLibOpen()" style="font-size:12px" title="Switch trip"><i class="ti ti-luggage" aria-hidden="true"></i></button>
       <button onclick="hChatOpen()" style="font-size:12px" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
       <button id="hedit-toggle" onclick="hToggleEdit()" style="font-size:12px" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       <button onclick="hDownload()" style="font-size:12px" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
-      <button onclick="hreset()" style="font-size:12px"><i class="ti ti-refresh" aria-hidden="true"></i> New file</button>
+      <button onclick="hCloseTrip()" style="font-size:12px" title="Close this trip — it stays in your saved trips"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
     </div>
+  </div>
+  <!-- Shown only when a save failed: iOS private browsing rejects every write,
+       and the download is the durable copy either way (issue #80). -->
+  <div id="hstorewarn" style="display:none">
+    <span><i class="ti ti-alert-triangle" aria-hidden="true"></i> This browser wouldn't save your changes — download the JSON to keep them.</span>
+    <button onclick="hDownload()" style="font-size:11px"><i class="ti ti-download" aria-hidden="true"></i> Download</button>
+    <button onclick="hStoreWarnClose()" style="font-size:11px" title="Dismiss"><i class="ti ti-x" aria-hidden="true"></i></button>
   </div>
   <div class="htabs">
     <!-- Labels are the user's words (issue #71); the data-v keys stay the
@@ -118,6 +131,30 @@
   <div id="hchat-ft">
     <textarea id="hchat-input" placeholder="e.g. Add a Eurostar from London to Paris on 18 September at 16:31" rows="1"></textarea>
     <button onclick="hChatSubmit()" id="hchat-send" style="font-size:12px;font-weight:500" title="Send"><i class="ti ti-send" aria-hidden="true"></i></button>
+  </div>
+</div>
+
+<!-- The trip library (issue #80): every trip saved in this browser, each row
+     expandable into its revision history. -->
+<div id="hlib-modal" onclick="if(event.target===this)hLibClose()">
+  <div id="hlib-inner">
+    <div id="hlib-hd">
+      <span style="font-size:13px;font-weight:500"><i class="ti ti-luggage" aria-hidden="true"></i> Your trips</span>
+      <button onclick="hLibClose()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </div>
+    <div id="hlib-list"></div>
+    <div id="hlib-ft">
+      <div>
+        <label class="hset-lbl" for="hlib-by">Label saved changes as</label>
+        <input class="hset-in" id="hlib-by" type="text" placeholder="e.g. Matt" autocomplete="off" onchange="hLibSaveName()" onblur="hLibSaveName()">
+      </div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);line-height:1.4">
+        Saved trips live in this browser only — treat them as a cache, not an archive, and download a trip to keep it. iOS clears a site's storage after about a week of not visiting; adding this page to your Home Screen exempts it.
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button onclick="hLibForget()" style="font-size:12px;color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Forget all saved trips</button>
+      </div>
+    </div>
   </div>
 </div>
 
