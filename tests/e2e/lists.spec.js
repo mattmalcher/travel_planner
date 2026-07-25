@@ -155,10 +155,10 @@ test.describe('Lists view', () => {
   });
 });
 
-// Manual authoring (issue #72): adding — and, since issue #69, deleting an
-// item — is always available; the pencils (item detail fields, the list
-// itself) need edit mode on, using the same .hedit-btn set the itinerary and
-// trip header use.
+// Manual authoring (issue #72): adding is always available; everything that
+// edits an existing list — the pencils (item detail fields, the list itself)
+// and the per-item × (issue #69) — needs edit mode on, using the same
+// .hedit-btn set the itinerary and trip header use.
 test.describe('Editing lists by hand', () => {
 
   test.beforeEach(async ({ page }) => {
@@ -179,13 +179,15 @@ test.describe('Editing lists by hand', () => {
     await expect(food.locator('.hli-add')).toBeVisible();
     await expect(food.locator('.hli-add-in')).toBeVisible();
     await expect(page.getByRole('button', { name: 'New list' })).toBeVisible();
-    // Editing an existing list or item still is not.
+    // Editing or deleting an existing list or item still is not.
     await expect(food.getByRole('button', { name: 'Edit list' })).toBeHidden();
     await expect(food.locator('.hli').first().getByRole('button', { name: 'Edit item' })).toBeHidden();
+    await expect(food.locator('.hli').first().getByRole('button', { name: 'Delete item' })).toBeHidden();
 
     await page.click('#hedit-toggle');
     await expect(food.getByRole('button', { name: 'Edit list' })).toBeVisible();
     await expect(food.locator('.hli').first().getByRole('button', { name: 'Edit item' })).toBeVisible();
+    await expect(food.locator('.hli').first().getByRole('button', { name: 'Delete item' })).toBeVisible();
     // …and the add affordances are unaffected by the toggle.
     await expect(food.locator('.hli-add')).toBeVisible();
     await expect(page.getByRole('button', { name: 'New list' })).toBeVisible();
@@ -273,11 +275,12 @@ test.describe('Editing lists by hand', () => {
   });
 
   test('the × deletes an item straight away, and Undo puts it back (issue #69)', async ({ page }) => {
+    await page.click('#hedit-toggle');
     const food = page.locator('#hvlists .hseg').first();
     const row = food.locator('.hli', { hasText: 'Custard tart' });
 
-    // No edit mode and no confirm — deleting is as cheap as adding.
-    await expect(row.getByRole('button', { name: 'Delete item' })).toBeVisible();
+    // One click, no confirm and no modal — the Undo below the list is the
+    // safety net.
     await row.getByRole('button', { name: 'Delete item' }).click();
     await expect(food.locator('.hli-progress')).toHaveText('0/2');
     await expect(food.locator('.hli', { hasText: 'Custard tart' })).toHaveCount(0);
@@ -301,6 +304,7 @@ test.describe('Editing lists by hand', () => {
   });
 
   test('deleting a promoted item leaves its segment alone; the next change retires the undo', async ({ page }) => {
+    await page.click('#hedit-toggle');
     const food = page.locator('#hvlists .hseg').first();
     await food.locator('.hli', { hasText: 'Jazz-club cocktail' })
       .getByRole('button', { name: 'Delete item' }).click();
