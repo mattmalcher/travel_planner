@@ -49,6 +49,8 @@ src/
     lists.js        list progress/partition, dangling segment_id detection
                     (issue #40), document-wide id sets for manual adds (#72)
     ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
+    drafts.js       starting points for hand-added things: segment drafts per
+                    type, the from-scratch trip, the blank document (issue #76)
     edit-form.js    edit-modal form model: LAYOUT (paths + labels) resolved
                     against the schema into field descriptors (issue #65)
     sw-cache.js     request classification for the service worker (issue #45)
@@ -88,9 +90,16 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   the schema doesn't have fails the build. Never hand-write descriptors into
   `form-spec.js`. The JSON tab stays the escape hatch for everything the form
   doesn't cover, so both directions must round-trip without dropping fields.
-  The same modal edits the trip, segments, lists and list items (issue #72) —
-  a new editable thing is a `LAYOUT` entry plus a target branch in
+  The same modal edits the trip, segments, lists and list items (issue #72),
+  and *adds* them too (issue #76: `new-trip`, `new-segment`, `new-list`) — a
+  new editable thing is a `LAYOUT` entry plus a target branch in
   `openModal`/`saveEdit`/`deleteEdit`/`validateEdit`, not a second modal.
+- **Adding is never behind edit mode**: the pencils and inline deletes are
+  (`.hedit-btn`), but the itinerary's add row, the Lists quick-add and
+  "New list" are always on — an empty itinerary would otherwise hide the only
+  way to start it. Drafts come from `lib/drafts.js` and deliberately leave
+  every *required* field blank so validation, not an invented placeholder,
+  tells the user what is missing.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add

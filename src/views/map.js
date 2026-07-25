@@ -28,17 +28,23 @@ export function renderMap() {
       const ac = s.arrives.lat != null ? [s.arrives.lat, s.arrives.lng] : null;
       if (dc) { route.push(dc); if (!seen.has(dk)) { seen.add(dk); allc.push(dc); L.marker(dc, { icon: mpin('#4b5563', 'T') }).addTo(HM).bindPopup(`<strong>${esc(s.departs.place)}</strong><br>${esc(s.operator)}${s.service ? ' · ' + esc(s.service) : ''}<br>Departs ${esc(s.departs.time)}`); } }
       if (ac) { route.push(ac); if (!seen.has(ak)) { seen.add(ak); allc.push(ac); L.marker(ac, { icon: mpin('#4b5563', 'T') }).addTo(HM).bindPopup(`<strong>${esc(s.arrives.place)}</strong>`); } }
-    } else if (s.type === 'accommodation') {
+    } else if (s.type === 'accommodation' && s.lat != null) {
+      // Coordinates are optional on a stay since schema 3.2.0 (issue #76) —
+      // one added by hand has none until someone looks them up, and it stays
+      // off the map until then, as an event without them already does.
       const c = [s.lat, s.lng]; route.push(c); allc.push(c);
-      L.marker(c, { icon: mpin('#b45309', 'H') }).addTo(HM).bindPopup(`<strong>${esc(s.name)}</strong><br>${esc(s.host)}<br>${esc(s.address)}<br>Check-in: ${fmtDate(s.checkin.date)}`);
-    } else if (s.type === 'event' && s.lat) {
+      L.marker(c, { icon: mpin('#b45309', 'H') }).addTo(HM).bindPopup(`<strong>${esc(s.name)}</strong>${s.host ? '<br>' + esc(s.host) : ''}<br>${esc(s.address)}<br>Check-in: ${fmtDate(s.checkin.date)}`);
+    } else if (s.type === 'event' && s.lat != null) {
       const c = [s.lat, s.lng]; allc.push(c);
       L.marker(c, { icon: mpin('#15803d', 'E') }).addTo(HM).bindPopup(`<strong>${esc(s.name)}</strong><br>${esc(s.venue || '')}<br>${fmtDate(s.date)}`);
     }
   }
   if (route.length > 1) L.polyline(route, { color: '#6366f1', weight: 2, opacity: 0.55, dashArray: '6 8' }).addTo(HM);
+  // Leaflet throws on any interaction with a map that has no view, so an
+  // itinerary with nothing placed yet gets a whole-world one.
   if (allc.length > 0) HM.fitBounds(L.latLngBounds(allc).pad(0.18));
-  document.getElementById('hmaplist').innerHTML = HD.segments.filter(s => s.lat).map(s => `
+  else HM.setView([20, 0], 2);
+  document.getElementById('hmaplist').innerHTML = HD.segments.filter(s => s.lat != null).map(s => `
     <div onclick="if(window.HM)HM.setView([${Number(s.lat)},${Number(s.lng)}],13)" style="background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.55rem .75rem;cursor:pointer;font-size:12px" onmouseover="this.style.background='var(--color-background-secondary)'" onmouseout="this.style.background='var(--color-background-primary)'">
       <div style="font-weight:500;margin-bottom:2px">${esc(s.name || s.venue)}</div>
       <div style="color:var(--color-text-secondary)">${fmtDate(segDate(s))}</div>

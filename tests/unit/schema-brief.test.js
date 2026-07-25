@@ -19,10 +19,10 @@ test('condenseSchema keeps required markers, consts, enums and formats', () => {
   assert.match(brief, /mode\*:\(train\|bus\|ferry\|flight\|taxi\)/);
   assert.match(brief, /start\*:date/);
   assert.match(brief, /currency_primary\*:str \^\[A-Z\]\{3\}\$/);
-  assert.match(brief, /self_checkin\*:bool/);
   assert.match(brief, /duration_min\*:int/);
   // Optional fields carry no star.
   assert.match(brief, /\bnotes:str/);
+  assert.match(brief, /self_checkin:bool/);
   // Nested inline objects (payments) survive with their own required markers.
   assert.match(brief, /payments:\[\{amount\*:num, status\*:\(paid\|pending\)/);
   // additionalProperties maps (pricing tiers) are represented.

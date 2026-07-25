@@ -168,5 +168,9 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hli-add{display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:.5px solid var(--color-border-tertiary)}
 .hli-add-in{flex:1;min-width:0;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.3rem .5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
 .hli-add-in:focus{border-color:var(--color-text-info)}
+/* Add-a-segment row at the foot of the itinerary (issue #76). Same chips as
+   the Lists view's actions, and like its quick-add not gated on edit mode. */
+.hadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:.5rem;padding-top:.75rem;border-top:.5px solid var(--color-border-tertiary)}
+.hadd-lbl{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em}
 .hli-progress{font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:999px;padding:2px 8px}
 #hswbadge{display:none;position:fixed;bottom:10px;right:10px;z-index:900;align-items:center;gap:5px;font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:999px;padding:3px 10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
