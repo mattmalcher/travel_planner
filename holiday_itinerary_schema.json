@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "title": "HolidayItinerary",
   "description": "Structured holiday itinerary with transport, accommodation and events (gigs, walks, festivals, etc.)",
   "type": "object",
@@ -13,6 +13,44 @@
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
       "description": "Version of this schema the document was written for (copies the schema's top-level \"version\"). The viewer writes it on download and checks its MAJOR part on load. Optional for now; will become required in a future MAJOR version."
+    },
+    "trip_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identity of the trip for the life of the trip, so copies of the same trip can be recognised as such after a download → send → upload round trip (issue #80). A uuid when the viewer mints it; documents written before this field existed are given one derived deterministically from trip.name/start/end, so the same old file imported on two devices lands in the same trip rather than splitting into two."
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Revision counter, incremented by one per saved change. Answers \"which copy is newer\" without trusting clocks; equal rev with different content is a fork, not a newer version. Append-only: restoring an older revision writes its content as a NEW rev rather than rewinding the counter."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this revision was saved. For display, and to tie-break equal rev values."
+    },
+    "updated_by": {
+      "type": "string",
+      "description": "Free-text label for whoever saved this revision (\"Matt\", \"Sarah\"), set in the viewer. Not an account and not a login — just enough for the trip picker to say who last touched a trip."
+    },
+    "forked_from": {
+      "type": "object",
+      "required": [
+        "trip_id",
+        "rev"
+      ],
+      "properties": {
+        "trip_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rev": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "description": "Set when this document was branched off another trip — two people editing the same rev both produce the next rev, and the divergence is named rather than silently resolved in favour of whoever saved last. The fork gets its own trip_id so one trip is always one id and one revision chain."
     },
     "trip": {
       "type": "object",
