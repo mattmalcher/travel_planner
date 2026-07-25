@@ -154,11 +154,14 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hli-edit.hedit-btn{display:none}
 #happ.hedit-on .hli-edit.hedit-btn{display:inline-flex}
 .hli-chip.broken{background:var(--color-background-warning);border-color:transparent;color:var(--color-text-warning);cursor:default}
-/* Delete is always available like the quick-add, undone from the row below
-   rather than guarded by a confirm (issue #69). Not an .hli-chip: that class
-   means the row's link/schedule action, which the tests select on. */
+/* Delete rides with the pencils in edit mode (so it needs the same restated
+   hidden default as .hli-edit above), and is undone from the row below rather
+   than guarded by a confirm (issue #69). Not an .hli-chip: that class means
+   the row's link/schedule action, which the tests select on. */
 .hli-del{border-color:transparent;color:var(--color-text-tertiary);padding:1px 6px}
 .hli-del:hover{color:var(--color-text-danger);border-color:var(--color-border-secondary)}
+.hli-del.hedit-btn{display:none}
+#happ.hedit-on .hli-del.hedit-btn{display:inline-flex}
 .hli-undo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary)}
 /* Quick-add is not gated on edit mode (issue #72): adding an intention is the
    point of the Lists view, so the box is always there. */

@@ -3,12 +3,12 @@
 // ordinary segment via "Schedule" (see openScheduleItem in app.js).
 // Manual authoring needs no LLM round trip (issue #72), and *adding* needs no
 // edit mode either: the quick-add row per list and the "New list" button are
-// always on, since jotting something down is what this view is for. Removing
-// an item is the same everyday action as adding one, so its × is always on
-// too, backed by one level of undo instead of a confirm (issue #69). The
-// pencils — item detail fields, the list itself — stay behind edit mode with
-// the rest of the app's editing. All counting/partitioning maths lives in
-// lib/lists.js.
+// always on, since jotting something down is what this view is for. The
+// everyday action on an existing item is the checkbox; everything that
+// changes the list itself — the pencils (item detail fields, the list) and
+// the per-item × (issue #69) — waits for edit mode, where the × is one click
+// backed by one level of undo rather than a confirm. All counting/
+// partitioning maths lives in lib/lists.js.
 import { state, persist } from '../state.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { newId } from '../lib/ids.js';
@@ -42,8 +42,8 @@ export function toggleListItem(li, ii) {
   renderLists();
 }
 
-/** Delete an item outright — no confirm, because the Undo chip that replaces
-    it costs one click and keeps everything the item held (issue #69). Any
+/** Delete an item outright — no confirm, because the Undo chip below the
+    list costs one click and keeps everything the item held (issue #69). Any
     segment it was promoted into is a segment now and stays on the itinerary,
     exactly as it does when the item is deleted from the modal. */
 export function deleteListItem(li, ii) {
@@ -128,7 +128,7 @@ function itemRow(item, li, ii, segIds) {
     ${url ? `<a class="hli-chip" href="${esc(url)}" target="_blank" rel="noopener">Link <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a>` : ''}
     ${chip}
     <button class="hli-edit hedit-btn" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
-    <button class="hli-del" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
+    <button class="hli-del hedit-btn" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
     ${item.note ? `<div class="hli-note">${esc(item.note)}</div>` : ''}
   </div>`;
 }
