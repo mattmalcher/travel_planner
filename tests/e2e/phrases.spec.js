@@ -3,6 +3,7 @@
 // and "New group" always on, the pencils and the inline × behind edit mode
 // with one level of undo.
 import { test, expect } from '@playwright/test';
+import { savedDoc } from './library.js';
 
 const phraseItinerary = {
   trip: {
@@ -143,7 +144,7 @@ test.describe('Phrases view', () => {
     await box.press('Enter'); // blank adds nothing
     await expect(basics.locator('.hli-progress').last()).toHaveText('5');
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     const added = saved.phrases[0].items.slice(-2);
     expect(added.map(p => p.text)).toEqual(['Two coffees, please', 'Thank you']);
     // Nothing is invented: no guessed translation, just an id and the text.
@@ -165,7 +166,7 @@ test.describe('Phrases view', () => {
     await page.fill('#hedit-form [data-p="local"]', 'Où est la gare ?');
     await page.fill('#hedit-form [data-p="pronunciation"]', 'oo ay la GAR');
     await page.fill('#hedit-form [data-p="note"]', 'Point at the map as you ask.');
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
 
     await expect(page.locator('#hedit-modal')).not.toHaveClass(/on/);
     const row = basics.locator('.hph', { hasText: 'Where is the station?' });
@@ -173,7 +174,7 @@ test.describe('Phrases view', () => {
     await expect(row.locator('.hph-say')).toHaveText('oo ay la GAR');
     await expect(basics.locator('.hph-todo-count')).toHaveCount(0); // nothing left to translate
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.phrases[0].items.find(p => p.id === 'ph-3')).toMatchObject({
       local: 'Où est la gare ?', pronunciation: 'oo ay la GAR', note: 'Point at the map as you ask.'
     });
@@ -186,7 +187,7 @@ test.describe('Phrases view', () => {
     await basics.locator('.hph', { hasText: 'Good morning' })
       .getByRole('button', { name: 'Delete phrase' }).click();
     await expect(basics.locator('.hli-progress').last()).toHaveText('2');
-    let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    let saved = await savedDoc(page);
     expect(saved.phrases[0].items.map(p => p.id)).toEqual(['ph-2', 'ph-3']);
 
     const undo = basics.locator('.hli-undo');
@@ -195,7 +196,7 @@ test.describe('Phrases view', () => {
 
     await expect(basics.locator('.hli-progress').last()).toHaveText('3');
     await expect(basics.locator('.hli-undo')).toHaveCount(0);
-    saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    saved = await savedDoc(page);
     // Restored in place, with the pronunciation and note it held.
     expect(saved.phrases[0].items[0]).toMatchObject({
       id: 'ph-1', text: 'Good morning', local: 'Bonjour', pronunciation: 'bon-ZHOOR'
@@ -215,7 +216,7 @@ test.describe('Phrases view', () => {
     await expect(page.locator('#hedit-title')).toHaveText('Edit group: Getting by');
     await page.fill('#hedit-form [data-p="name"]', 'Small talk');
     await page.fill('#hedit-form [data-p="language"]', 'Québécois French');
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
 
     await expect(basics).toContainText('Small talk');
     await expect(basics).toContainText('Québécois French');
@@ -228,12 +229,13 @@ test.describe('Phrases view', () => {
     });
     await page.click('#hedit-del');
     await expect(page.locator('#hvphrases .hseg')).toHaveCount(1);
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.phrases.map(g => g.id)).toEqual(['phr-food']);
   });
 
   test('an itinerary with no phrasebook can grow its first group', async ({ page }) => {
     const bare = structuredClone(phraseItinerary);
+    bare.trip_id = 'trip-no-phrases'; // a separate trip, not a fork of the seeded one
     delete bare.phrases;
     await page.setInputFiles('#hfile', {
       name: 'no-phrases.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bare))
@@ -248,14 +250,14 @@ test.describe('Phrases view', () => {
     await page.fill('#hedit-form [data-p="name"]', 'Emergencies');
     await page.fill('#hedit-form [data-p="language"]', 'French');
     await page.selectOption('#hedit-form [data-p="kind"]', 'emergency');
-    await page.click('text=Save');
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
 
     const group = page.locator('#hvphrases .hseg').first();
     await expect(group).toContainText('Emergencies');
     await group.locator('.hph-add-in').fill('I need a doctor');
     await group.locator('.hph-add-in').press('Enter');
 
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    const saved = await savedDoc(page);
     expect(saved.phrases).toHaveLength(1);
     expect(saved.phrases[0]).toMatchObject({ name: 'Emergencies', language: 'French', kind: 'emergency' });
     expect(saved.phrases[0].id).toMatch(/^phr-.{5}$/); // assigned, not typed
@@ -273,8 +275,8 @@ test.describe('Phrases view', () => {
 
     // Round-tripping through the form must not drop what it doesn't show.
     await page.click('#hedit-tab-form');
-    await page.click('text=Save');
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hItinerary')));
+    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
+    const saved = await savedDoc(page);
     expect(saved.phrases[0].items[0]).toEqual(phraseItinerary.phrases[0].items[0]);
   });
 });

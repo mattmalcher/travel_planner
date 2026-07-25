@@ -8,6 +8,9 @@ const brief = condenseSchema(schema);
 
 test('condenseSchema lists the document shape and every definition', () => {
   assert.match(brief, /^Document: \{schema_version:str [^,]+, trip\*:/);
+  // The trip library's bookkeeping is the viewer's, not the model's (issue #80).
+  for (const field of ['trip_id', 'rev:', 'updated_at', 'updated_by', 'forked_from'])
+    assert.ok(!brief.includes(field), `${field} should not be in the AI's schema brief`);
   assert.match(brief, /segments\*:\[TransportSegment\|AccommodationSegment\|EventSegment\]/);
   for (const name of Object.keys(schema.definitions))
     assert.match(brief, new RegExp('^' + name + ': \\{', 'm'), name + ' missing');
