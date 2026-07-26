@@ -232,6 +232,21 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   (npm scripts for e2e do this automatically) before `playwright test`.
 - `@playwright/test` is pinned to match preinstalled browsers in the
   remote/CI environments; CI runs `npx playwright install --with-deps chromium`.
+- **If `npx playwright install` seems to hang, it is hanging in *extract*, not
+  download** — so don't go looking at the network or a proxy. Run it under
+  `DEBUG=pw:install` to see which: the zip fetches in seconds and passes
+  `unzip -t`, then the bundled extractor writes a single entry into
+  `~/.cache/ms-playwright/<browser>-<rev>/chrome-linux/` and sits idle
+  indefinitely. That one-file directory is the tell, and it is easy to misread
+  as a half-finished download. Recover by extracting the archive yourself —
+  system `unzip` does the same 104 MiB in under two seconds — then `chmod +x`
+  the binary (`chrome` / `headless_shell`) and
+  `touch <browser>-<rev>/INSTALLATION_COMPLETE`, which is the marker Playwright
+  actually checks. Kill any wedged install first and remove
+  `~/.cache/ms-playwright/__dirlock`: a second attempt blocks on that lock and
+  prints nothing, which looks like a second hang. Fix the install rather than
+  pointing the suite at a system Chrome via `channel` — the specs should keep
+  running on the same browser build CI uses.
 
 ## Follow-ups deliberately not done here
 
