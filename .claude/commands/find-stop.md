@@ -56,10 +56,17 @@ The Overpass API enforces per-IP concurrency limits and will return HTTP 429 if 
 6. Output the JSON snippet ready to paste into the itinerary — for example:
    ```json
    "departs": {
-     "station": "Stop Name As It Appears In Itinerary",
+     "place": "Stop Name As It Appears In Itinerary",
      "time": "HH:MM",
      "lat": 12.3456,
      "lng": 1.2345
    }
    ```
-   Note: OSM uses `lon`; the itinerary schema uses `lng` — translate accordingly.
+   Two translations to get right:
+   - OSM uses `lon`; the itinerary schema uses `lng`.
+   - The stop's name field is `place`. It was `station` before schema 3.0, and
+     stale `station` keys are a recurring source of validation failures.
+
+   For everything else about writing into an itinerary — ids, which fields are
+   required, where a researched thing belongs — see the `itinerary-authoring`
+   skill rather than guessing; `make validate FILE=<path>` confirms the result.
