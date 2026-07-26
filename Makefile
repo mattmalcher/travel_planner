@@ -1,4 +1,4 @@
-.PHONY: help install build host lint validate itin test test-unit test-e2e test-ui
+.PHONY: help install build host demo lint validate itin test test-unit test-e2e test-ui
 
 # Which itinerary file(s) `make validate` checks. Unquoted on purpose: the
 # recipe's shell expands the glob.
@@ -9,6 +9,7 @@ help: ## Show this help message
 	@echo "  make install    - Install node dependencies"
 	@echo "  make build      - Build dist/holiday_itinerary_viewer.html from src/"
 	@echo "  make host       - Build and host the viewer locally"
+	@echo "  make demo       - Build, then record demo/demo.gif (needs ffmpeg)"
 	@echo "  make lint       - Run ESLint over src/, scripts/ and tests/"
 	@echo "  make validate   - Schema-check and lint itinerary JSON (FILE=data/*.json)"
 	@echo "  make itin       - Run an itinerary CLI subcommand (ARGS=\"digest data/x.json\")"
@@ -25,6 +26,9 @@ build: ## Build the standalone viewer into dist/
 
 host: ## Build and host the application locally on http://localhost:8345
 	npm run host
+
+demo: ## Build, then record the README demo animation into demo/demo.gif
+	npm run demo
 
 lint: ## Run ESLint
 	npm run lint

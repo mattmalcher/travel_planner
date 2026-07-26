@@ -2,6 +2,13 @@
 
 **[Open the viewer](https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html)**
 
+![A short recording of the viewer: an example Paris weekend opening from a
+share link, then the Itinerary, Map, Schedule, Lists, Phrases and Budget
+tabs](https://mattmalcher.github.io/travel_planner/demo.gif)
+
+*The tour above is recorded from the built page by CI (`make demo`) every time
+the app changes, so it can never drift from what the viewer actually does.*
+
 # What is this thing?
 
 A tool for planning holidays, and viewing that plan when you are there.
@@ -64,6 +71,11 @@ npx playwright install chromium   # browser for the E2E suite
 | `make test-e2e` | Build, then run the Playwright E2E suite (headless) |
 | `make test` | Unit tests followed by E2E tests |
 | `make test-ui` | Playwright interactive UI runner |
+| `make demo` | Build, then record `demo/demo.gif` — the README animation (needs `ffmpeg`) |
+
+The demo recording is build output, like `dist/`: CI records it and publishes
+it next to the deployed viewer, and neither is committed. Change what it shows
+by editing the tour in [`scripts/demo.mjs`](scripts/demo.mjs).
 
 
 ## Guidance for AI Models & Developers

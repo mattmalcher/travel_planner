@@ -1,0 +1,84 @@
+name: Demo recording
+
+# Records the README's demo animation (scripts/demo.mjs drives the built page
+# through a short tour, ffmpeg turns the frames into a GIF) and publishes it to
+# the gh-pages root as demo.gif, which is where the README's image points.
+#
+# Like dist/, the recording is build output rather than a committed file: it
+# re-encodes differently every run, so committing it would churn a binary in
+# git on every change to src/. Pull requests record it too, but only upload it
+# as an artifact so a change to the app or the tour can be eyeballed before it
+# goes live.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'examples/paris_weekend.json'
+      - 'scripts/demo.mjs'
+      - 'scripts/build.mjs'
+      - '.github/workflows/demo.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'examples/paris_weekend.json'
+      - 'scripts/demo.mjs'
+      - 'scripts/build.mjs'
+      - '.github/workflows/demo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: demo-recording-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Install ffmpeg
+        # The ffmpeg Playwright bundles only encodes PNG and VP8 — no GIF, no
+        # palettegen — so the recording needs the distro one.
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Build
+        run: npm run build
+
+      - name: Record the demo
+        # Fails rather than publishes if Leaflet, the icon webfont or the map
+        # tiles did not load: a blank map or a page of missing icons is worse
+        # than no fresh recording.
+        run: npm run demo
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-gif
+          path: demo/demo.gif
+          if-no-files-found: error
+
+      - name: Publish to gh-pages root
+        # Only from main: a PR's recording stays an artifact. keep_files, like
+        # the other publishing workflows, so this drops demo.gif beside the
+        # deployed viewer instead of replacing it.
+        if: github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./demo
+          keep_files: true

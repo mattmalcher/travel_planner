@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "host": "npm run build && http-server dist -p 8345",
+    "demo": "npm run build && node scripts/demo.mjs",
     "lint": "eslint .",
     "itin": "node scripts/itin.mjs",
     "validate": "node scripts/itin.mjs validate",
