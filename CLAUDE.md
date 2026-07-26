@@ -149,7 +149,12 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   in `lists` or `phrases` is ever counted into the budget.
 - **Validation is not optional, and not on the network**: ajv and the schema
   are bundled (see `src/validate.js`), so an uploaded file and an incoming
-  share link meet the same guard whatever the network is doing. Callers keep
+  share link meet the same guard whatever the network is doing. The validators
+  compile on *first use*, not at boot — ajv's codegen cost ~1.5s of
+  main-thread time on a low-end phone, on every load, for work most loads
+  never need. Keep it that way: compiling eagerly is a real regression for
+  slow devices, and buys nothing (compilation is synchronous and local, so
+  the first caller still gets a validator with no network and no await). Callers keep
   their `{ok: true}` fallback, but it now only covers a schema ajv cannot
   compile — a build error. The one deliberate way past the guard is the
   user-facing **"Load anyway"** button, which is why escaping (below) has to
