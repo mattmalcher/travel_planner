@@ -4,3 +4,5 @@ blob-report/
 test-results/
 data/*.json
 dist/
+demo/
+.demo-frames/
