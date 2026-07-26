@@ -101,6 +101,9 @@ scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     rather than in lib/ so the bundle can never gain a second copy
 .claude/skills/itinerary-authoring/   the desktop editing skill (doctrine block
                     generated — never hand-edit it, run `itin doctrine --write`)
+.claude/skills/browser-research/      driving the user's real Chrome (via the
+                    claude-in-chrome extension) for pages that refuse a fetch —
+                    last rung of the ladder, hands off to find-stop/authoring
 examples/           anonymised fixture itineraries (fictional people/refs only)
 data/               gitignored real trips; hand-versioned _0.N snapshots of one
                     trip_id, round-tripped through the app's download/upload
