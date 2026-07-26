@@ -2,32 +2,13 @@
 // scratch on the upload screen, and adding segments to it from the Itinerary
 // tab — both without a file and without the AI assistant.
 //
-// Hermetic like edit-modal.spec.js: ajv is stubbed and validity is driven from
-// __SEG_VALID__ / __DOC_VALID__, so these tests exercise the flows rather than
-// racing the esm.sh import. What the drafts actually leave for the schema to
-// reject is covered by tests/unit/drafts.test.js.
+// ajv and the schema are compiled into the page (src/validate.js), so these
+// run against the real validator. That suits the drafts: they deliberately
+// leave every required field blank (lib/drafts.js), so an untouched one is
+// refused by the schema itself rather than by a stub told to refuse it.
 import { test, expect } from '@playwright/test';
 import { savedDoc, savedIndex } from './library.js';
 
-const AJV_STUB = `
-// The app validates a segment against the ONE subschema its type names, and
-// falls back to the oneOf only for an unknown type (issue #76) — so a segment
-// validator is either shape.
-const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
-export default class Ajv {
-  constructor() {}
-  compile(schema) {
-    const flag = isSegmentSchema(schema) ? '__SEG_VALID__' : '__DOC_VALID__';
-    function validate(data) {
-      const ok = (globalThis[flag] !== false);
-      validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/', message: 'stub: invalid', params: {} }]);
-      return ok;
-    }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 const field = (page, path) => page.locator(`#hedit-form [data-p="${path}"]`);
 const save = page => page.locator('#hedit-ft').getByRole('button', { name: 'Save' });
@@ -50,8 +31,6 @@ test.describe('Adding by hand', () => {
   test.beforeEach(async ({ page }) => {
     errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     await page.goto('/holiday_itinerary_viewer.html');
     await page.waitForFunction("typeof window.hValidateTrip === 'function'");
   });
@@ -81,10 +60,12 @@ test.describe('Adding by hand', () => {
   });
 
   test('a schema-invalid trip is refused, and the app is not created', async ({ page }) => {
-    await page.evaluate("globalThis.__DOC_VALID__ = false; globalThis.__ERRORS__ = [{ instancePath: '/travellers', message: 'must NOT have fewer than 1 items', params: {} }]");
+    // The draft trip has no name and no travellers — the two things only the
+    // user can supply — so saving it untouched is refused by the schema.
     await page.getByRole('button', { name: 'Start from scratch' }).click();
     await save(page).click();
-    await expect(page.locator('#hedit-err')).toContainText('/travellers');
+    await expect(page.locator('#hedit-err')).toContainText('Schema:');
+    await expect(page.locator('#hedit-err')).toContainText("must have required property 'name'");
     await expect(page.locator('#hedit-modal')).toBeVisible();
     await expect(page.locator('#hupl')).toBeVisible();
     await expect(page.locator('#happ')).toBeHidden();
@@ -165,14 +146,14 @@ test.describe('Adding by hand', () => {
 
   test('a schema-invalid new segment is refused and nothing is added', async ({ page }) => {
     await startFromScratch(page);
-    await page.evaluate("globalThis.__SEG_VALID__ = false; globalThis.__ERRORS__ = [{ instancePath: '/', message: \"must have required property 'name'\", params: {} }]");
+    // An event draft prefills everything defensible and leaves `name` out, so
+    // the schema is what tells the user the one thing still missing.
     await page.locator('#hvlist .hadd').getByRole('button', { name: 'Event' }).click();
     await save(page).click();
     await expect(page.locator('#hedit-err')).toContainText("required property 'name'");
     await expect(page.locator('#hedit-modal')).toBeVisible();
     expect((await savedDoc(page)).segments).toEqual([]);
 
-    await page.evaluate('globalThis.__SEG_VALID__ = true');
     await field(page, 'name').fill('Jazz at Le Petit Exemple');
     await save(page).click();
     await expect(page.locator('#hedit-modal')).toBeHidden();

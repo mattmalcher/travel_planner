@@ -13,7 +13,8 @@ export function emptyItinerary() {
   return { trip: { name: '', travellers: [], start: '', end: '', currency_primary: 'GBP' }, segments: [] };
 }
 
-/** Validate a full document if validate.js managed to load ajv. */
+/** Validate a full document. ajv is compiled into the bundle, so the fallback
+    only covers a schema it could not compile (see src/validate.js). */
 export function validateSafe(doc) {
   return window.hValidate ? window.hValidate(doc) : { ok: true, errors: [], note: 'validator not loaded' };
 }

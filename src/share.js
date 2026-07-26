@@ -115,12 +115,16 @@ export function boot() {
   // list of saved trips wants to be there — the saved trip is deliberately not
   // auto-loaded over the top, since that would hide the warning with it.
   renderRecent();
-  return decodeShare(fragment).then(async doc => {
+  return decodeShare(fragment).then(doc => {
     // Clear the fragment before loading: a refresh must not re-import a stale
     // snapshot over edits made since. The document is in hand by now, so
     // nothing is lost by dropping it from the URL.
     clearFragment();
-    await whenValidatorReady();
+    // No waiting on a validator any more: ajv and the schema are compiled into
+    // the bundle and main.js sets the validators up before calling boot(), so
+    // loadUpload's schema guard is always in place by the time a link gets
+    // here — which is the point, since a link is the least trusted way a
+    // document arrives.
     loadUpload(doc);
     return true;
   }).catch(e => {
@@ -155,22 +159,4 @@ function watchFragment() {
 function clearFragment() {
   try { history.replaceState(null, '', location.pathname + location.search); }
   catch (e) { location.hash = ''; } // file:// in some browsers refuses replaceState
-}
-
-/**
- * ajv arrives asynchronously (validate.js imports it from esm.sh at runtime),
- * so a link opened on boot would otherwise always race ahead of it and skip
- * the very guard it most needs. Wait briefly — then open it regardless: a slow
- * or unreachable CDN must not leave a shared trip unopenable, which is the
- * same "advisory, degrades gracefully" policy the upload path has.
- */
-function whenValidatorReady(timeoutMs = 3000, stepMs = 50) {
-  return new Promise(resolve => {
-    const deadline = Date.now() + timeoutMs;
-    const tick = () => {
-      if (window.hValidate || Date.now() >= deadline) resolve();
-      else setTimeout(tick, stepMs);
-    };
-    tick();
-  });
 }

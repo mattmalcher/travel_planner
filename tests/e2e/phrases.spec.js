@@ -49,20 +49,8 @@ const phraseItinerary = {
 
 // Same ajv stub as the other view specs: these test the view, not validation,
 // and must not race the esm.sh import.
-const AJV_STUB = `
-export default class Ajv {
-  constructor() {}
-  compile() {
-    function validate() { validate.errors = null; return true; }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 async function open(page, doc = phraseItinerary) {
-  await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-  await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
   await page.goto('/holiday_itinerary_viewer.html');
   await page.setInputFiles('#hfile', {
     name: 'phrases.json',
