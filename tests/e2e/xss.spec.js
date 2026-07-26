@@ -54,6 +54,21 @@ const xssItinerary = {
       url: 'javascript:window.__xss=(window.__xss||0)+1',
       tickets_url: 'https://tickets.example/ok',
       cost: { amount: 40, currency: 'GBP', status: 'pending', due: '2026-09-05' }
+    },
+    {
+      // Status values reach a badge's CSS class *and* its label, so they are
+      // itinerary-supplied strings like any other. The schema pins them to an
+      // enum, but ajv is advisory (it degrades to "ok" when esm.sh is
+      // unreachable, and the upload warning offers "Load anyway"), so an
+      // off-enum status does reach the badge.
+      id: 'seg-4',
+      type: 'event',
+      name: 'Badge breakout',
+      subtype: 'activity',
+      date: '2026-09-19',
+      time: '09:00',
+      cost: { amount: 5, currency: 'GBP', status: `paid ${IMG}` },
+      proposal: { status: `suggested ${IMG}` }
     }
   ],
   lists: [
@@ -145,9 +160,15 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
     await expect(page.locator('#hvlist a[href^="javascript:"]')).toHaveCount(0);
     await expect(page.locator('#hvlist a[href="https://tickets.example/ok"]')).toHaveCount(1);
 
+    // An off-enum status stays text inside the badge rather than closing its
+    // class attribute and opening an element.
+    await expect(page.locator('#hvlist .hbadge', { hasText: 'paid <img' })).toHaveCount(1);
+    await expect(page.locator('#hvlist img[src="x"]')).toHaveCount(0);
+
     // Budget and map views render without executing anything either.
     await page.click('.htab[data-v="budget"]');
     await expect(page.locator('#hvbudget')).toContainText(`Studio ${IMG}`);
+    await expect(page.locator('#hvbudget img[src="x"]')).toHaveCount(0);
     await page.click('.htab[data-v="map"]');
     await expect(page.locator('#hvmap img[src="x"]')).toHaveCount(0);
 
