@@ -58,22 +58,10 @@ const genericItinerary = {
 // validation, so ajv is stubbed (always valid) to keep them hermetic —
 // otherwise whether an upload loads straight in depends on the race between
 // the file input and the esm.sh ajv import.
-const AJV_STUB = `
-export default class Ajv {
-  constructor() {}
-  compile() {
-    function validate() { validate.errors = null; return true; }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 test.describe('Holiday Itinerary Viewer', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     // Navigate to the local server hosting the itinerary viewer page
     await page.goto('/holiday_itinerary_viewer.html');
   });

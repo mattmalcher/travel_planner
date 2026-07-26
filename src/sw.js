@@ -16,7 +16,11 @@ import { classify, PRECACHE_CRITICAL, PRECACHE_OPTIONAL } from './lib/sw-cache.j
 
 const VERSION = '__H_SW_VERSION__';
 const SHELL_CACHE = `h-shell-${VERSION}`;
-const CDN_CACHE = 'h-cdn-v1';
+/* v2: v1 holds cache-first responses fetched before the CDN assets carried SRI
+   hashes, including ones from hosts the page no longer loads from at all
+   (esm.sh, cdnjs). Those were never integrity-checked, so they are not
+   entries to keep serving — the bump drops them on activate. */
+const CDN_CACHE = 'h-cdn-v2';
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -28,12 +32,14 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  // Drop shell caches left behind by previous builds; the CDN cache is
-  // shared across builds (its URLs are version-pinned).
+  // Drop shell caches left behind by previous builds. The CDN cache is shared
+  // across builds (its URLs are version-pinned), so only a superseded
+  // generation of it goes — see the CDN_CACHE note above.
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys
-      .filter(k => k.startsWith('h-shell-') && k !== SHELL_CACHE)
+      .filter(k => (k.startsWith('h-shell-') && k !== SHELL_CACHE)
+        || (k.startsWith('h-cdn-') && k !== CDN_CACHE))
       .map(k => caches.delete(k)));
   })());
 });
@@ -58,8 +64,11 @@ async function cacheFirst(req) {
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
-  // Classic <script>/<link> tags fetch no-cors, which yields opaque
-  // responses (status 0) — cacheable and replayable for the same consumers.
+  // The CDN tags carry crossorigin="anonymous" for SRI, so these are CORS
+  // requests and the responses are ordinary (not opaque). A replay out of this
+  // cache is still hash-checked by the browser, which is what makes holding
+  // them indefinitely safe. The opaque case is kept for any no-cors request
+  // that reaches here: status 0, cacheable, replayable for the same consumer.
   if (res.ok || res.type === 'opaque') await cache.put(req, res.clone());
   return res;
 }

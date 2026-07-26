@@ -58,9 +58,8 @@ const xssItinerary = {
     {
       // Status values reach a badge's CSS class *and* its label, so they are
       // itinerary-supplied strings like any other. The schema pins them to an
-      // enum, but ajv is advisory (it degrades to "ok" when esm.sh is
-      // unreachable, and the upload warning offers "Load anyway"), so an
-      // off-enum status does reach the badge.
+      // enum — but "Load anyway" waives the schema, which is how this whole
+      // fixture gets in, so an off-enum status does reach the badge.
       id: 'seg-4',
       type: 'event',
       name: 'Badge breakout',
@@ -112,37 +111,34 @@ const xssItinerary = {
   ]
 };
 
-// Same stub pattern as upload.spec.js: this spec is about escaping, not
-// validation, so ajv is stubbed (always valid) to keep the test hermetic —
-// otherwise the outcome depends on whether esm.sh loads before the upload,
-// and the hostile fixture (javascript: url) can never be schema-valid.
-const AJV_STUB = `
-export default class Ajv {
-  constructor() {}
-  compile() {
-    function validate() { validate.errors = null; return true; }
-    return validate;
-  }
+/* This fixture can never be schema-valid — a javascript: url, ids with spaces
+   in them, an off-enum status — and that is deliberate: escaping is the layer
+   that has to hold when validation does not. Since ajv is compiled into the
+   page (src/validate.js), the only way in is the one a real user has, so the
+   upload goes through the warning's "Load anyway" button.
+
+   That button is exactly the residual risk the escaping backstops, which makes
+   this the right way to reach these views rather than a workaround. */
+async function loadAnyway(page, doc) {
+  await page.setInputFiles('#hfile', {
+    name: 'xss.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(doc))
+  });
+  const warn = page.locator('#hverwarn');
+  await expect(warn).toBeVisible();
+  await expect(warn).toContainText('does not match the itinerary schema');
+  await warn.getByRole('button', { name: 'Load anyway' }).click();
 }
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 test.describe('Itinerary XSS escaping (issue #9)', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
-  });
 
   test('renders hostile strings literally without executing script', async ({ page }) => {
     const errors = [];
     page.on('pageerror', e => errors.push(e));
 
     await page.goto('/holiday_itinerary_viewer.html');
-    await page.setInputFiles('#hfile', {
-      name: 'xss.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(xssItinerary))
-    });
+    await loadAnyway(page, xssItinerary);
     await expect(page.locator('#happ')).toBeVisible();
 
     // No injected <img>/<script> node should exist anywhere in the app.

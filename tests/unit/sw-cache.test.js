@@ -21,9 +21,15 @@ test('every precache path classifies as shell', () => {
 });
 
 test('pinned third-party assets are cache-first', () => {
-  assert.equal(classify('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', SCOPE), 'cdn');
+  assert.equal(classify('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', SCOPE), 'cdn');
   assert.equal(classify('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css', SCOPE), 'cdn');
-  assert.equal(classify('https://esm.sh/ajv@8?bundle', SCOPE), 'cdn');
+});
+
+test('hosts the page no longer loads from are not cached', () => {
+  // ajv is compiled into the bundle now (src/validate.js), and Leaflet moved
+  // to jsdelivr so its SRI hash could be pinned to the npm file.
+  assert.equal(classify('https://esm.sh/ajv@8?bundle', SCOPE), 'bypass');
+  assert.equal(classify('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', SCOPE), 'bypass');
 });
 
 test('PR previews on the production origin are never served the shell', () => {

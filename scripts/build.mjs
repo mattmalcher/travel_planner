@@ -1,5 +1,7 @@
 // Build the standalone viewer: bundle src/ into a single self-contained HTML
-// file plus the schema it links to.
+// file plus the schema it links to (the copy in dist/ is what the upload
+// screen's "JSON Schema" link points at — the app no longer fetches it, since
+// validate.js has the schema compiled in).
 //
 //   dist/holiday_itinerary_viewer.html  — the deliverable (JS + CSS inlined)
 //   dist/index.html                     — copy, so the folder has a default page
@@ -28,23 +30,31 @@ if (!schema.version) throw new Error('schema/holiday_itinerary_schema.json has n
 // The edit modal's form fields are resolved from the schema here rather than
 // from the runtime schema fetch, so the form works on a saved file:// page
 // (issue #65). A LAYOUT path the schema no longer has fails the build.
+//
+// The schema itself is injected the same way, as a JSON string literal that
+// src/validate.js parses. ajv is bundled alongside it, so the upload/share-link
+// guard no longer depends on reaching esm.sh or on the schema sidecar being
+// served next to the page — it works on a saved single file too.
 const bundle = await build({
   entryPoints: [src('main.js')],
   bundle: true,
   format: 'iife',
   minify: true,
   legalComments: 'none',
-  define: { __H_FORM_SPEC__: JSON.stringify(specFromSchema(schema)) },
+  define: {
+    __H_FORM_SPEC__: JSON.stringify(specFromSchema(schema)),
+    __H_SCHEMA_TEXT__: JSON.stringify(JSON.stringify(schema)),
+  },
   write: false,
 });
 const js = bundle.outputFiles[0].text.replaceAll('__H_SCHEMA_VERSION__', schema.version);
 if (js.includes('__H_SCHEMA_VERSION__')) throw new Error('schema version placeholder not replaced');
 
 const css = (await transform(readFileSync(src('styles.css'), 'utf8'), { loader: 'css', minify: true })).code;
-const validate = readFileSync(src('validate.js'), 'utf8');
 
 // A literal "</script>" inside inlined code would truncate the page early.
-if (js.includes('</script') || validate.includes('</script')) {
+// The bundle now carries the schema text, so this guards that too.
+if (js.includes('</script')) {
   throw new Error('inlined script contains "</script>" — escape it before inlining');
 }
 
@@ -57,7 +67,6 @@ const inject = (placeholder, text) => {
 };
 inject('<!-- build:styles -->', `<style>\n${css}</style>`);
 inject('<!-- build:app -->', `<script>\n${js}</script>`);
-inject('<!-- build:validate -->', `<script type="module">\n${validate}</script>`);
 
 mkdirSync(out(''), { recursive: true });
 writeFileSync(out('holiday_itinerary_viewer.html'), html);
