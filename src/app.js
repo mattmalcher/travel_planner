@@ -58,8 +58,11 @@ export function loadUpload(data) {
       This file declares schema <code>${esc(doc.schema_version)}</code> but this viewer expects <code>${H_SCHEMA_VERSION}</code>, so it may not display correctly.`);
     return;
   }
-  // Degrades gracefully when ajv/schema failed to load (validate.js is async
-  // and network-dependent) — same policy as validateSafe in ai/chat.js.
+  // ajv and the schema are compiled into the bundle (src/validate.js), so this
+  // guard is always present — including offline and on a saved file:// copy,
+  // which is where an unvalidated share link used to slip through. The
+  // fallback now only covers a schema ajv could not compile, which is a build
+  // error; "Load anyway" below stays the deliberate, visible way past it.
   const v = window.hValidate ? window.hValidate(doc) : { ok: true, errors: [] };
   if (!v.ok) {
     state.pendingUpload = doc;

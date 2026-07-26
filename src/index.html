@@ -1,7 +1,7 @@
 <!-- Source skeleton for the itinerary viewer. scripts/build.mjs replaces the
-     three "build:" placeholder comments below with the inlined stylesheet,
-     the bundled app script and the validation module script, emitting the
-     standalone dist/holiday_itinerary_viewer.html. -->
+     two "build:" placeholder comments below with the inlined stylesheet and
+     the bundled app script (which now carries ajv and the schema too),
+     emitting the standalone dist/holiday_itinerary_viewer.html. -->
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Itinerary Viewer</title>
@@ -16,9 +16,24 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="Itinerary"/>
 <h2 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views</h2>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- The only subresources the page does not carry itself. Each is pinned to an
+     exact version AND to an SRI hash, so a tampered or swapped CDN response is
+     rejected by the browser before it runs — which matters here because a
+     script on this origin can read the OpenRouter key and every saved trip out
+     of localStorage.
+     All three are served from jsdelivr's /npm/ paths, which return the
+     published tarball file byte-for-byte. That is what makes the hashes
+     derivable from (and checkable against) the pinned devDependencies —
+     tests/unit/sri.test.js recomputes them, so bumping a version without
+     updating its hash fails the build rather than the page. Leaflet moved here
+     from cdnjs for that reason: cdnjs's leaflet.min.js is a filename cdnjs
+     mints itself, with nothing local to check it against. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css"
+      integrity="sha384-8zE3cHqgn3iJlsilASXr1IcXFP7TnplbXZSbvKuaUYjPUpcK7QhlyLE/cY7lIBTp" crossorigin="anonymous"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"/>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <!-- build:styles -->
 
 <div id="hupl" style="padding:2.5rem 1.5rem">
@@ -200,4 +215,3 @@
 <div id="hshare-toast" onclick="hShareToastClose()" title="Dismiss"></div>
 
 <!-- build:app -->
-<!-- build:validate -->

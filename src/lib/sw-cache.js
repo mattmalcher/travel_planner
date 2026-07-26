@@ -19,10 +19,15 @@ export const PRECACHE_OPTIONAL = [
   'apple-touch-icon.png',
 ];
 
-/* Third-party hosts the page loads from (Leaflet on cdnjs, Tabler icons on
-   jsdelivr, ajv on esm.sh). Version-pinned URLs, so a cached copy never
-   goes stale — cache-first. */
-export const CDN_HOSTS = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'esm.sh'];
+/* Third-party hosts the page loads from — just jsdelivr now (Leaflet and the
+   Tabler icon webfont). Version-pinned URLs carrying an SRI hash, so a cached
+   copy never goes stale and a tampered one is rejected by the browser before
+   it runs, which is what makes holding them indefinitely safe.
+   Two hosts have left this list: esm.sh (ajv is compiled into the page now)
+   and cdnjs (Leaflet moved to jsdelivr so its hash could be pinned to the
+   published npm file). Nothing is fetched from either any more, and this
+   cache should only ever hold what the page actually loads. */
+export const CDN_HOSTS = ['cdn.jsdelivr.net'];
 
 /**
  * Decide how the service worker should handle a GET request.

@@ -7,22 +7,6 @@
 import { test, expect } from '@playwright/test';
 import { savedDoc, savedIndex, savedRevisions } from './library.js';
 
-const AJV_STUB = `
-const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
-export default class Ajv {
-  constructor() {}
-  compile(schema) {
-    const flag = isSegmentSchema(schema) ? '__SEG_VALID__' : '__DOC_VALID__';
-    function validate(data) {
-      const ok = (globalThis[flag] !== false);
-      validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/', message: 'stub: invalid', params: {} }]);
-      return ok;
-    }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 const itinerary = (name, over = {}) => ({
   trip: {
@@ -65,8 +49,6 @@ test.describe('Trip library', () => {
   test.beforeEach(async ({ page }) => {
     errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     await page.goto('/holiday_itinerary_viewer.html');
     await page.waitForFunction("typeof window.hValidateTrip === 'function'");
   });

@@ -1,7 +1,14 @@
 // Small shared HTML fragments: status/proposal badges and segment icons.
+import { esc } from '../lib/escape.js';
 
+/* `st` is a status straight out of the itinerary document. The schema pins it
+   to an enum, but ajv is advisory here — it degrades to "ok" when esm.sh is
+   unreachable, and "Load anyway" waives it outright — so a status that never
+   met the schema does reach this function, in both the class attribute and the
+   label. Escape it (issue #9): everything from a file, a share link or an AI
+   reply goes through esc() before it is interpolated into HTML. */
 export function badge(st, txt) {
-  return `<span class="hbadge ${st}">${txt || st}</span>`;
+  return `<span class="hbadge ${esc(st)}">${esc(txt || st)}</span>`;
 }
 
 /** Badge for a costInfo() result (see lib/cost.js). */

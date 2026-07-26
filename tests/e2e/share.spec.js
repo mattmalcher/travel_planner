@@ -5,28 +5,12 @@
 // mangled link says so, and a link that comes back lands on the trip it
 // came from rather than a second copy of it.
 //
-// Hermetic like the other specs: ajv is stubbed, and the clipboard and share
+// Hermetic like the other specs: the clipboard and share
 // sheet are stubbed in the page rather than relying on browser permissions.
 import { test, expect } from '@playwright/test';
 import { savedDoc, savedIndex } from './library.js';
 import { encodeShare, shareDocument } from '../../src/lib/sharelink.js';
 
-const AJV_STUB = `
-const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
-export default class Ajv {
-  constructor() {}
-  compile(schema) {
-    const flag = isSegmentSchema(schema) ? '__SEG_VALID__' : '__DOC_VALID__';
-    function validate(data) {
-      const ok = (globalThis[flag] !== false);
-      validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/', message: 'stub: invalid', params: {} }]);
-      return ok;
-    }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 const itinerary = (name, over = {}) => ({
   trip: {
@@ -62,8 +46,6 @@ test.describe('Share links', () => {
   test.beforeEach(async ({ page }) => {
     errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     // Stub the two ways a link leaves the page. navigator.share is absent on
     // desktop Chromium, which is the clipboard path; the sheet is opted into
     // per-test by setting window.__share.
@@ -105,8 +87,13 @@ test.describe('Share links', () => {
   });
 
   test('a link is validated on the way in, like an uploaded file', async ({ page }) => {
-    await page.addInitScript(() => { globalThis.__DOC_VALID__ = false; });
-    await page.goto(await linkTo(itinerary('Dubious trip')));
+    // A link is the least trusted way a document arrives, and since ajv is
+    // compiled into the page the guard is there even with no network at all —
+    // so this is the real validator rejecting a genuinely invalid document
+    // (an event segment with no `subtype`, which its subschema requires).
+    const dubious = itinerary('Dubious trip');
+    delete dubious.segments[0].subtype;
+    await page.goto(await linkTo(dubious));
     await expect(page.locator('#hverwarn')).toContainText('does not match the itinerary schema');
     await expect(page.locator('#happ')).toBeHidden();
 

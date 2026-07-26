@@ -1,8 +1,9 @@
 // Manual edit modal: schema validation of the edited value (issue #47) and
-// the generated form that fronts the raw JSON textarea (issue #65). Hermetic:
-// ajv is stubbed (same pattern as llm.spec.js) so validity is driven via
-// __SEG_VALID__ / __DOC_VALID__ / __ERRORS__ globals — the form's field specs
-// are baked in at build time, so they do not depend on the stub.
+// the generated form that fronts the raw JSON textarea (issue #65).
+//
+// ajv and the schema are compiled into the page (src/validate.js), so validity
+// is driven the way a user drives it — by typing a value the schema rejects
+// into the JSON tab — rather than by a stub told to say no.
 import { test, expect } from '@playwright/test';
 import { savedDoc } from './library.js';
 
@@ -31,30 +32,9 @@ const baseItinerary = {
   ]
 };
 
-const AJV_STUB = `
-// The app validates a segment against the ONE subschema its type names, and
-// falls back to the oneOf only for an unknown type (issue #76) — so a segment
-// validator is either shape.
-const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
-export default class Ajv {
-  constructor() {}
-  compile(schema) {
-    const flag = isSegmentSchema(schema) ? '__SEG_VALID__' : '__DOC_VALID__';
-    function validate(data) {
-      const ok = (globalThis[flag] !== false);
-      validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/segments/0', message: 'stub: invalid', params: {} }]);
-      return ok;
-    }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 test.describe('JSON edit modal validation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     await page.addInitScript(itin => {
       localStorage.setItem('hItinerary', JSON.stringify(itin));
     }, baseItinerary);
@@ -62,34 +42,58 @@ test.describe('JSON edit modal validation', () => {
     await page.waitForFunction("typeof window.hValidateSegment === 'function'");
   });
 
+  /** Replace the open modal's value via its JSON tab. */
+  async function editJson(page, change) {
+    await page.click('#hedit-tab-json');
+    const ta = page.locator('#hedit-ta');
+    const value = JSON.parse(await ta.inputValue());
+    change(value);
+    await ta.fill(JSON.stringify(value, null, 2));
+  }
+
+  const save = page => page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
+
   test('schema-invalid segment edit is blocked with errors in the modal', async ({ page }) => {
-    await page.evaluate("globalThis.__SEG_VALID__ = false; globalThis.__ERRORS__ = [{ instancePath: '/date', message: 'must match format \"date\"', params: {} }]");
     await page.evaluate('hOpenEdit(0)');
     await expect(page.locator('#hedit-modal')).toBeVisible();
-    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
+    await editJson(page, v => { v.date = 'the 18th'; }); // fails format: date
+    await save(page);
     await expect(page.locator('#hedit-err')).toContainText('Schema:');
     await expect(page.locator('#hedit-err')).toContainText('/date');
     await expect(page.locator('#hedit-modal')).toBeVisible(); // save blocked
 
     // Once the value validates again, the same Save goes through.
-    await page.evaluate('globalThis.__SEG_VALID__ = true');
-    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
+    await editJson(page, v => { v.date = '2026-09-18'; });
+    await save(page);
     await expect(page.locator('#hedit-modal')).toBeHidden();
   });
 
   test('trip edit is blocked by /trip schema errors', async ({ page }) => {
-    await page.evaluate("globalThis.__DOC_VALID__ = false; globalThis.__ERRORS__ = [{ instancePath: '/trip/start', message: 'must match format \"date\"', params: {} }]");
     await page.evaluate('hOpenEditTrip()');
-    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
+    await editJson(page, v => { v.start = 'next Tuesday'; });
+    await save(page);
     await expect(page.locator('#hedit-err')).toContainText('/trip/start');
     await expect(page.locator('#hedit-modal')).toBeVisible();
   });
 
   test('trip edit is not blocked by pre-existing segment errors elsewhere', async ({ page }) => {
-    await page.evaluate("globalThis.__DOC_VALID__ = false; globalThis.__ERRORS__ = [{ instancePath: '/segments/0/cost', message: 'stub: invalid', params: {} }]");
+    // A saved document is restored on boot without being revalidated, so an
+    // itinerary with a broken segment is a state the app really reaches (it
+    // was valid under an older schema, or came in via "Load anyway"). Editing
+    // the trip must not be held hostage to a fault somewhere else in it.
+    const broken = { ...baseItinerary, segments: [{ ...baseItinerary.segments[0] }] };
+    delete broken.segments[0].duration_min;
+    await page.addInitScript(itin => {
+      localStorage.setItem('hItinerary', JSON.stringify(itin));
+    }, broken);
+    await page.reload();
+    await expect(page.locator('#happ')).toBeVisible();
+
     await page.evaluate('hOpenEditTrip()');
-    await page.locator('#hedit-ft').getByRole('button', { name: 'Save' }).click();
+    await editJson(page, v => { v.name = 'Renamed while a segment is broken'; });
+    await save(page);
     await expect(page.locator('#hedit-modal')).toBeHidden();
+    await expect(page.locator('#htname')).toContainText('Renamed while a segment is broken');
   });
 
   test('valid segment edit still saves and re-renders', async ({ page }) => {
@@ -124,8 +128,6 @@ test.describe('JSON edit modal validation', () => {
 
 test.describe('Edit modal form', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     await page.addInitScript(itin => {
       localStorage.setItem('hItinerary', JSON.stringify(itin));
     }, baseItinerary);
