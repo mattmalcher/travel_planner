@@ -1,7 +1,7 @@
 // The authoring doctrine (src/lib/doctrine.js) is rendered into two places: the
 // in-app assistant's system prompt, and the desktop authoring skill's SKILL.md.
 // Nothing at runtime would notice if one of those went stale, and the repo has
-// already been bitten by exactly that — .claude/commands/find-stop.md kept
+// already been bitten by exactly that — the find-stop skill kept
 // telling readers to write "station" for two schema versions after it became
 // "place". So the drift check lives here.
 import { test } from 'node:test';
