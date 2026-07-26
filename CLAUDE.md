@@ -216,6 +216,22 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   `type` names. Under the `oneOf` ajv reports every branch, so a half-filled
   event demands transport's `mode` and `departs` — 14 misleading errors instead
   of one true one (issue #76).
+- **Every colour comes from a token, and dark mode is one media query**
+  (issue #95): the palette is the `:root` custom properties at the top of
+  `styles.css` and the `prefers-color-scheme: dark` block that redefines them
+  — there is no toggle, nothing stored, and no JS, so a saved `file://` copy
+  follows the OS like the hosted page does. Never write a literal colour into
+  a rule, an inline `style=` or a template string; that is what leaves a white
+  card on a dark page, and `tests/e2e/theme.spec.js` sweeps the rendered page
+  for one. `color-scheme` on `:root` is doing real work — the buttons,
+  textareas, date/time pickers and scrollbars are all unstyled natives, and it
+  is the only thing that re-themes them. Leaflet's popups and controls come
+  from the CDN stylesheet in fixed light colours, so they are restated against
+  the tokens; its tiles go through `--map-tile-filter`, an inversion applied
+  to `.leaflet-tile` alone so the pins and route line above it keep their real
+  colours. The chart-ish colours that are not themed — gantt block fills, map
+  pins — are deliberate: they carry meaning, sit under white text, and read on
+  either background.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add
