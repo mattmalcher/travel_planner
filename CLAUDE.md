@@ -20,10 +20,15 @@ make test-unit   # node --test tests/unit/*.test.js  (milliseconds — run these
 make test-e2e    # build + Playwright against dist/  (slower smoke layer)
 make test        # unit then e2e
 make host        # build + serve dist/ on http://localhost:8345
+make demo        # build + record demo/demo.gif, the README animation (needs ffmpeg)
 ```
 
 CI (`.github/workflows/ci.yml`) runs lint + build + unit + e2e on every PR.
 Deploy workflows build in CI and publish `dist/` — the artifact is not in git.
+The demo recording (`.github/workflows/demo.yml`, `scripts/demo.mjs`) is the
+same deal: CI drives the built page through a scripted tour, ffmpeg makes a
+GIF, and it is published to the gh-pages root as `demo.gif` for the README —
+never committed, since every run re-encodes to different bytes.
 
 ## Architecture map
 
