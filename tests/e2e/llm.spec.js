@@ -40,32 +40,11 @@ const newSegment = {
   cost: { amount: 120.0, currency: "GBP", status: "paid", paid_by: "George Jetson" }
 };
 
-// Stub the ajv ESM modules so the test is hermetic (no esm.sh network needed) and
-// so we can deterministically drive validation outcomes. The app compiles three
-// validators — the full document, a single segment (a oneOf schema) and the
-// trip (currency_primary at its top level) — driven independently via
-// globalThis.__DOC_VALID__ / __SEG_VALID__ / __TRIP_VALID__ so a tool call can
-// be accepted while the resulting document still fails.
-const AJV_STUB = `
-// The app validates a segment against the ONE subschema its type names, and
-// falls back to the oneOf only for an unknown type (issue #76) — so a segment
-// validator is either shape.
-const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
-export default class Ajv {
-  constructor() {}
-  compile(schema) {
-    const flag = isSegmentSchema(schema) ? '__SEG_VALID__'
-      : (schema && schema.properties && schema.properties.currency_primary ? '__TRIP_VALID__' : '__DOC_VALID__');
-    function validate(data) {
-      const ok = (globalThis[flag] !== false);
-      validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/segments/0', message: 'stub: invalid', params: {} }]);
-      return ok;
-    }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
+// ajv and the schema are compiled into the page (src/validate.js), so tool
+// payloads and the resulting draft are checked by the real validator here —
+// which is the point of the two validation tests below: an invalid payload is
+// refused at tool time with the schema's own messages, and a draft that is
+// invalid for some other reason blocks Apply in the preview.
 
 // Build an OpenRouter mock that replays a scripted sequence of assistant
 // turns: each entry is either an array of tool calls or a final text reply
@@ -89,8 +68,6 @@ const toolCall = (id, name, args) => ({ id, type: 'function', function: { name, 
 
 test.describe('AI assistant (OpenRouter)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     await page.addInitScript((itin) => {
       localStorage.setItem('hItinerary', JSON.stringify(itin));
       localStorage.setItem('hOpenRouterKey', 'test-key');
@@ -239,29 +216,61 @@ test.describe('AI assistant (OpenRouter)', () => {
     for (const r of requests) expect(r.temperature).toBe(0.2);
   });
 
-  test('blocks apply and surfaces errors when the result is not schema-valid', async ({ page }) => {
-    await mockOpenRouter(page, [
+  test('refuses a half-formed segment at tool time and hands the errors back', async ({ page }) => {
+    const requests = await mockOpenRouter(page, [
       // Legacy *_json string form, still accepted for older transcripts and
-      // models that stringify anyway (issue #42).
+      // models that stringify anyway (issue #42) — and a transport segment
+      // with nothing on it but an id and a type.
       [toolCall('call_1', 'add_segment', { segment_json: JSON.stringify({ id: 'seg-2', type: 'transport' }) })],
-      'Done — I made the requested change.',
+      'Sorry — I could not complete that.',
     ]);
     await page.goto('/holiday_itinerary_viewer.html');
-    // Accept the tool call (segment validation passes) but fail validation of
-    // the resulting document, so the preview must block Apply.
-    await page.evaluate(() => {
-      globalThis.__DOC_VALID__ = false;
-      globalThis.__ERRORS__ = [{ instancePath: '/segments/1', message: "must have required property 'operator'", params: {} }];
-    });
 
     await page.getByRole('button', { name: 'AI' }).click();
     await page.locator('#hchat-input').fill('Add a broken segment');
     await page.locator('#hchat-send').click();
+    await expect(page.locator('#hchat-msgs')).toContainText('could not complete');
+
+    // The tool result carries the schema's own complaints, so the model can
+    // fix them rather than guess — this is the real validator talking.
+    const result = requests[1].messages.at(-1);
+    expect(result.role).toBe('tool');
+    expect(result.content).toMatch(/^ERROR — segment failed schema validation/);
+    expect(result.content).toContain('operator');
+
+    // Nothing was recorded, so there is no preview and nothing to apply.
+    await expect(page.locator('#hchat-preview')).toBeHidden();
+    const stored = await savedDoc(page);
+    expect(stored.segments.map(s => s.id)).not.toContain('seg-2');
+  });
+
+  test('blocks apply when the document as a whole is not schema-valid', async ({ page }) => {
+    // Every tool payload is checked on the way in, so the way a draft still
+    // ends up invalid is a fault that was already in the document: saved trips
+    // are restored without revalidation, so one that arrived via "Load anyway"
+    // (or predates a schema change) stays broken until someone fixes it. A
+    // valid AI edit on top must not be applied over the top of that.
+    const broken = { ...baseItinerary, segments: [{ ...baseItinerary.segments[0] }] };
+    delete broken.segments[0].duration_min;
+    await page.addInitScript(itin => {
+      localStorage.setItem('hItinerary', JSON.stringify(itin));
+    }, broken);
+
+    await mockOpenRouter(page, [
+      [toolCall('call_1', 'add_segment', { segment: newSegment })],
+      'Done — I made the requested change.',
+    ]);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await page.getByRole('button', { name: 'AI' }).click();
+    await page.locator('#hchat-input').fill('Add the return leg');
+    await page.locator('#hchat-send').click();
 
     const preview = page.locator('#hchat-preview');
     await expect(preview).toBeVisible();
+    await expect(preview).toContainText('Added transport (seg-2)'); // the edit itself was fine
     await expect(preview).toContainText('schema errors remain');
-    await expect(preview).toContainText("must have required property 'operator'");
+    await expect(preview).toContainText('duration_min');
     await expect(preview.getByRole('button', { name: 'Apply changes' })).toBeDisabled();
 
     // Itinerary in storage is unchanged (no seg-2 applied).
@@ -271,10 +280,6 @@ test.describe('AI assistant (OpenRouter)', () => {
 });
 
 test.describe('Schema version guard', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
-  });
 
   test('does not auto-load saved data from an incompatible major version', async ({ page }) => {
     await page.addInitScript((itin) => {

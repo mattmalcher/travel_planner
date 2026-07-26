@@ -45,22 +45,10 @@ const listItinerary = {
 
 // Same ajv stub as viewer.spec.js: these tests exercise the view, not
 // validation, and must not race the esm.sh import.
-const AJV_STUB = `
-export default class Ajv {
-  constructor() {}
-  compile() {
-    function validate() { validate.errors = null; return true; }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
 
 test.describe('Lists view', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     await page.goto('/holiday_itinerary_viewer.html');
     await page.setInputFiles('#hfile', {
       name: 'lists.json',
@@ -163,8 +151,6 @@ test.describe('Lists view', () => {
 test.describe('Editing lists by hand', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
     await page.goto('/holiday_itinerary_viewer.html');
     await page.setInputFiles('#hfile', {
       name: 'lists.json',

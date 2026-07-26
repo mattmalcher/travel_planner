@@ -12,10 +12,16 @@ export default [
   },
   {
     // Browser app code (bundled by scripts/build.mjs). L is Leaflet, loaded
-    // from a CDN script tag; __H_FORM_SPEC__ is substituted at build time by
-    // esbuild's define (see src/form-spec.js).
+    // from a CDN script tag; __H_FORM_SPEC__ and __H_SCHEMA_TEXT__ are
+    // substituted at build time by esbuild's define (see src/form-spec.js and
+    // src/validate.js).
     files: ['src/**/*.js'],
-    languageOptions: { globals: { ...globals.browser, L: 'readonly', __H_FORM_SPEC__: 'readonly' } },
+    languageOptions: {
+      globals: {
+        ...globals.browser, L: 'readonly',
+        __H_FORM_SPEC__: 'readonly', __H_SCHEMA_TEXT__: 'readonly',
+      },
+    },
   },
   {
     // The service worker runs in a worker scope, not a window.

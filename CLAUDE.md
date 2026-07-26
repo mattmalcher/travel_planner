@@ -27,7 +27,7 @@ Deploy workflows build in CI and publish `dist/` — the artifact is not in git.
 
 ```
 src/
-  index.html        skeleton markup; build replaces the three <!-- build:* --> placeholders
+  index.html        skeleton markup; build replaces the two <!-- build:* --> placeholders
   styles.css        all CSS (inlined & minified by the build)
   main.js           entry point: window.* handler exports, DOM wiring, boot
   state.js          THE shared mutable state object; schema version constant
@@ -42,8 +42,10 @@ src/
   app.js            load/reset, tab switching, edit modal (form ⇄ JSON), version guard
   form-spec.js      edit-modal field descriptors — the __H_FORM_SPEC__ placeholder
                     is filled at build time by specFromSchema() (issue #65)
-  validate.js       ajv setup (NOT bundled — injected as a separate module script;
-                    loads ajv from esm.sh at runtime, degrades gracefully offline)
+  validate.js       ajv setup: ajv and the schema are BOTH compiled into the
+                    bundle, so upload/share-link validation works offline and
+                    on a saved file:// page. main.js calls setupValidation()
+                    before boot(), so there is no validator to race.
   sw.js             offline service worker (issue #45): precache + stale-while-
                     revalidate shell, cache-first CDNs; bundled to dist/sw.js
   sw-register.js    guarded SW registration + "Offline ready" badge (no-ops on
@@ -90,7 +92,7 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 ## Invariants
 
 - **Single-file output**: the built page must stay fully self-contained
-  (external CDN links for Leaflet/icons/ajv only). Anything new in `src/`
+  (external CDN links for Leaflet and the icon webfont only). Anything new in `src/`
   must be inlined by `scripts/build.mjs`. The offline sidecars the build
   also emits (`sw.js`, `manifest.webmanifest`, icons — issue #45) are
   deploy conveniences, never dependencies: the page must keep working when
@@ -145,6 +147,27 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   promote into a segment, and `phrases` are reference material you never tick
   off at all. Anything that gains a date or a cost becomes a segment; nothing
   in `lists` or `phrases` is ever counted into the budget.
+- **Validation is not optional, and not on the network**: ajv and the schema
+  are bundled (see `src/validate.js`), so an uploaded file and an incoming
+  share link meet the same guard whatever the network is doing. The validators
+  compile on *first use*, not at boot — ajv's codegen cost ~1.5s of
+  main-thread time on a low-end phone, on every load, for work most loads
+  never need. Keep it that way: compiling eagerly is a real regression for
+  slow devices, and buys nothing (compilation is synchronous and local, so
+  the first caller still gets a validator with no network and no await). Callers keep
+  their `{ok: true}` fallback, but it now only covers a schema ajv cannot
+  compile — a build error. The one deliberate way past the guard is the
+  user-facing **"Load anyway"** button, which is why escaping (below) has to
+  hold on its own: everything reaching HTML is still untrusted.
+- **Every external subresource carries an SRI hash**: the page loads Leaflet
+  and the Tabler webfont from jsdelivr's `/npm/` paths, which serve the
+  published tarball file byte-for-byte — so `tests/unit/sri.test.js` can
+  recompute each `integrity` hash from the pinned devDependency and fail when
+  a URL and its hash drift apart. A new CDN asset needs a pinned version, an
+  `integrity` + `crossorigin="anonymous"` pair, and a matching devDependency;
+  a host with no npm package behind it cannot be checked and should not be
+  added. `crossorigin` is not decoration — without it the response is opaque
+  and the browser cannot check the hash at all.
 - **Icon names must exist in the Tabler webfont**: an unknown `ti-*` class
   renders as nothing at all, silently (the Schedule tab shipped a blank
   `ti-chart-gantt` this way). `tests/unit/icons.test.js` checks every name in
@@ -164,8 +187,10 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 
 - Unit tests (`tests/unit/*.test.js`): `node:test` + `assert/strict`,
   import straight from `src/lib/*.js`. Add one when you touch a lib module.
-- E2E specs stub the network (esm.sh, OpenRouter) with `page.route` — keep
-  them hermetic. Playwright's webServer serves `dist/`, so run the build
+- E2E specs stub the network (OpenRouter) with `page.route` — keep them
+  hermetic. They do NOT stub ajv: it is compiled into the page, so a test
+  that needs a document refused makes one the schema really rejects (a
+  missing required field) rather than flagging a stub. Playwright's webServer serves `dist/`, so run the build
   (npm scripts for e2e do this automatically) before `playwright test`.
 - `@playwright/test` is pinned to match preinstalled browsers in the
   remote/CI environments; CI runs `npx playwright install --with-deps chromium`.

@@ -1,7 +1,10 @@
 // Upload validation guard (issue #15): uploaded files are checked against the
-// declared schema_version and validated with ajv before loading, with a
-// "load anyway" escape hatch. Hermetic: ajv is stubbed so validation outcomes
-// are driven deterministically via globalThis.__DOC_VALID__ / __ERRORS__.
+// declared schema_version and validated against the schema before loading,
+// with a "load anyway" escape hatch.
+//
+// ajv and the schema are compiled into the page (src/validate.js), so these
+// run against the real validator — hermetic without a stub, and testing the
+// guard users actually get rather than a fake standing in for it.
 import { test, expect } from '@playwright/test';
 
 const validItinerary = {
@@ -30,25 +33,14 @@ const validItinerary = {
 
 // Same stub pattern as llm.spec.js: validation outcome is controlled by
 // globalThis flags so the test drives ajv deterministically and offline.
-const AJV_STUB = `
-// The app validates a segment against the ONE subschema its type names, and
-// falls back to the oneOf only for an unknown type (issue #76) — so a segment
-// validator is either shape.
-const isSegmentSchema = s => !!(s && (s.oneOf || /Segment$/.test(s.$ref || '')));
-export default class Ajv {
-  constructor() {}
-  compile(schema) {
-    const flag = isSegmentSchema(schema) ? '__SEG_VALID__' : '__DOC_VALID__';
-    function validate(data) {
-      const ok = (globalThis[flag] !== false);
-      validate.errors = ok ? null : (globalThis.__ERRORS__ || [{ instancePath: '/segments/0', message: 'stub: invalid', params: {} }]);
-      return ok;
-    }
-    return validate;
-  }
-}
-`;
-const FMT_STUB = `export default function addFormats() {}`;
+
+/* Genuinely invalid rather than flagged invalid: the transport segment is
+   missing `duration_min`, which its subschema requires, so ajv reports it
+   at /segments/0. */
+const invalidItinerary = {
+  ...validItinerary,
+  segments: [{ ...validItinerary.segments[0], duration_min: undefined }],
+};
 
 function uploadFile(page, doc) {
   return page.setInputFiles('#hfile', {
@@ -59,10 +51,6 @@ function uploadFile(page, doc) {
 }
 
 test.describe('Upload validation guard', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route(/esm\.sh\/ajv@8/, r => r.fulfill({ contentType: 'application/javascript', body: AJV_STUB }));
-    await page.route(/esm\.sh\/ajv-formats/, r => r.fulfill({ contentType: 'application/javascript', body: FMT_STUB }));
-  });
 
   test('valid upload loads straight into the app', async ({ page }) => {
     await page.goto('/holiday_itinerary_viewer.html');
@@ -72,11 +60,8 @@ test.describe('Upload validation guard', () => {
   });
 
   test('schema-invalid upload shows a warning and Load anyway proceeds', async ({ page }) => {
-    await page.addInitScript(() => { globalThis.__DOC_VALID__ = false; });
     await page.goto('/holiday_itinerary_viewer.html');
-    // wait for the (stubbed) validator to finish loading so the guard is live
-    await page.waitForFunction("typeof window.hValidate === 'function'");
-    await uploadFile(page, validItinerary);
+    await uploadFile(page, invalidItinerary);
     const warn = page.locator('#hverwarn');
     await expect(warn).toBeVisible();
     await expect(warn).toContainText('does not match');
@@ -88,10 +73,8 @@ test.describe('Upload validation guard', () => {
   });
 
   test('Cancel on an invalid upload keeps the upload screen', async ({ page }) => {
-    await page.addInitScript(() => { globalThis.__DOC_VALID__ = false; });
     await page.goto('/holiday_itinerary_viewer.html');
-    await page.waitForFunction("typeof window.hValidate === 'function'");
-    await uploadFile(page, validItinerary);
+    await uploadFile(page, invalidItinerary);
     await expect(page.locator('#hverwarn')).toBeVisible();
     await page.locator('#hverwarn').getByRole('button', { name: 'Cancel' }).click();
     await expect(page.locator('#hverwarn')).toBeHidden();
