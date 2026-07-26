@@ -1,6 +1,6 @@
 ---
 name: browser-research
-description: "Use this skill when researching trip details from the web and the page cannot be fetched programmatically — a bot wall or 403 to curl/WebFetch, a timetable or fare grid that is empty until JavaScript runs, or something only visible while signed in (bookings, saved places, a confirmation email). Drives the user's real Chrome via the claude-in-chrome extension, then hands findings to find-stop and itinerary-authoring for writing into the JSON. Covers when NOT to reach for the browser, the known-blocked travel hosts, tab hygiene, and what needs asking before clicking."
+description: "Use this skill when researching trip details from the web and the page cannot be fetched programmatically — a bot wall or 403 to curl/WebFetch, a timetable or fare grid that is empty until JavaScript runs, or something only visible while signed in (bookings, saved places, a confirmation email). Drives the user's real Chrome via the claude-in-chrome extension, then hands findings to find-stop and itinerary-authoring for writing into the JSON. Covers when NOT to reach for the browser, the known-blocked travel hosts, logging what you read to the scratchpad so follow-ups need no second visit, tab hygiene, and what needs asking before clicking."
 ---
 
 # Researching a trip through the user's browser
@@ -57,6 +57,8 @@ Then `tabs_context_mcp{createIfEmpty:true}` once to get a tab id.
 - **Screenshots only when layout carries meaning** — a fiche horaire grid, a
   seat map, a calendar of fares. A screenshot per step is how a research session
   eats its context window.
+- **`get_page_text` misses modals.** If a click leaves the text unchanged, the
+  detail opened in a dialog — screenshot it rather than clicking again.
 - **`browser_batch`** whenever two or more steps are predictable (navigate →
   click field → type → Return → read). One round trip instead of five.
 
@@ -69,12 +71,49 @@ These are the ones worth skipping straight to the browser for:
 | `ter.sncf.com` | 403 to non-browser clients | The PDF host `ter-fiches-horaires.sncf.fr` serves fine with a direct link — try WebSearch for the link first (see `sncf-timetables`) |
 | `sncf-connect.com` | Bot wall + JS-rendered results | Booking engine; for timetables prefer the fiche horaire route entirely |
 | `thetrainline.com` | Bot wall | Fares and times render only after JS |
+| `eurostar.com` | Search results are a bot wall; the static route pages fetch fine | Only the fare grid needs the browser — see below |
 | Booking.com / Airbnb / hotel chains | Bot wall, geo/session-dependent pricing | Prices differ by session — say so when reporting one |
 | Google Maps / Flights | JS-rendered | Opening hours and journey times need the browser |
 | Attraction & museum sites | Usually fine to fetch | Try rung 2 first; many are plain HTML |
 
 Prices and availability are **session- and date-of-lookup-dependent**. Record
 what was seen and when; never present a fare as stable.
+
+## Keep everything you read
+
+A page you have already loaded is the expensive thing in this workflow. Losing
+what it said — to a filtered summary, a context compaction, or a tab the browser
+closed between turns — means paying for it twice.
+
+**Log raw extractions to the scratchpad as you go**, one file per research
+session, appended to after each page: the URL, the date read, and the figures
+verbatim. Then follow-ups (*"what about the earlier trains?"*, *"what did the
+other weekend cost?"*) are answered from the file instead of the browser, and the
+data survives a summarised context. This is also where provenance comes from
+when the findings are written up.
+
+**Capture the whole table, not the rows that answer today's question.** When a
+page shows a grid — every departure, all fare classes, all room types — take it
+all; the incremental cost over the subset you think you need is nil. Pre-filtering
+to a plausible-looking subset is the recurring mistake, because it hides the
+*shape* of the data, and the shape is usually what the user is deciding on. Fares
+in particular are not monotonic in time of day, so "later is cheaper" is not a
+rule that can be applied blind.
+
+## Host quirks worth knowing
+
+- **Eurostar** sells London→France through tickets including the onward TGV, so
+  one search answers "what does this weekend cost by train". Its results page is
+  a deep link — `/search/uk-en?adult=2&origin=<id>&destination=<id>&outbound=YYYY-MM-DD`
+  — so after one form submission every further date is a `navigate` +
+  `get_page_text`, several to a `browser_batch`. Station ids are opaque
+  (London St Pancras `7015400`, Grenoble `8774700`); read a new one out of the URL
+  after searching that station once. Two traps: the **return leg is not in the
+  deep link** (the site wants an outbound selected first, so price each direction
+  as a one-way and say the total is two one-ways), and the **per-leg breakdown**
+  — service numbers, individual leg times, the cross-Paris transfer window — is
+  behind the "N change" button in a modal. Get it before writing segments; a
+  through time alone cannot tell you whether the connection is 1 hr 15 or 2 hr 16.
 
 ## Boundaries — this is the user's real browser
 
