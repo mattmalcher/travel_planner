@@ -2,7 +2,7 @@ node_modules/
 playwright-report/
 blob-report/
 test-results/
-data/*.json
+data/**/*.json
 dist/
 demo/
 .demo-frames/
