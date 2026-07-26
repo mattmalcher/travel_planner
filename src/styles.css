@@ -1,5 +1,19 @@
-:root{--color-text-primary:#1e293b;--color-text-secondary:#64748b;--color-text-tertiary:#94a3b8;--color-text-success:#16a34a;--color-text-warning:#d97706;--color-text-danger:#dc2626;--color-text-info:#0284c7;--color-background-primary:#ffffff;--color-background-secondary:#f1f5f9;--color-background-success:#dcfce7;--color-background-warning:#fef3c7;--color-background-danger:#fee2e2;--color-background-info:#e0f2fe;--color-border-tertiary:#e2e8f0;--color-border-secondary:#cbd5e1;--border-radius-lg:12px;--border-radius-md:8px}
-body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:var(--color-text-primary)}
+:root{color-scheme:light;--color-text-primary:#1e293b;--color-text-secondary:#64748b;--color-text-tertiary:#94a3b8;--color-text-success:#16a34a;--color-text-warning:#d97706;--color-text-danger:#dc2626;--color-text-info:#0284c7;--color-background-page:#f8fafc;--color-background-page-blur:rgba(248,250,252,.92);--color-background-primary:#ffffff;--color-background-secondary:#f1f5f9;--color-background-success:#dcfce7;--color-background-warning:#fef3c7;--color-background-danger:#fee2e2;--color-background-info:#e0f2fe;--color-border-tertiary:#e2e8f0;--color-border-secondary:#cbd5e1;--color-scrim:rgba(0,0,0,.5);--map-tile-filter:none;--border-radius-lg:12px;--border-radius-md:8px}
+/* Dark mode (issue #95): the system preference is the only control — there is
+   no in-app toggle and nothing stored, so a saved file:// copy and a fresh
+   browser both follow the OS. Every rule below this line is written against
+   the tokens above, so the theme is this one block plus `color-scheme`, which
+   is what re-themes the native controls the page never styles itself: the
+   buttons, the date/time pickers, the textareas and the scrollbars. */
+@media (prefers-color-scheme:dark){
+  :root{color-scheme:dark;--color-text-primary:#e2e8f0;--color-text-secondary:#94a3b8;--color-text-tertiary:#64748b;--color-text-success:#4ade80;--color-text-warning:#fbbf24;--color-text-danger:#f87171;--color-text-info:#38bdf8;--color-background-page:#0f172a;--color-background-page-blur:rgba(15,23,42,.92);--color-background-primary:#1c283c;--color-background-secondary:#263449;--color-background-success:#14532d;--color-background-warning:#452c06;--color-background-danger:#4c1d1d;--color-background-info:#0c4a6e;--color-border-tertiary:#334155;--color-border-secondary:#475569;--color-scrim:rgba(0,0,0,.65);
+  /* OpenStreetMap ships no dark tiles, and swapping in a dark tile host would
+     add an unpinnable third-party origin. Inverting the raster keeps the one
+     tile source: applied to .leaflet-tile only, so the markers, the route line
+     and the popups above it keep their real colours. */
+  --map-tile-filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
+}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--color-background-page);color:var(--color-text-primary)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .hv{display:none}.hv.on{display:block}
 /* The tab strip scrolls within itself rather than pushing the page wide:
@@ -20,7 +34,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
    the Lists view's list chips (issue #69): the same widget over different
    anchors (.hjump-a), driven by views/jump-nav.js. */
 .hjump-a{scroll-margin-top:56px}
-.hjump-nav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:.6rem 1.25rem;margin:-1.25rem -1.25rem 1rem;background:rgba(248,250,252,.92);backdrop-filter:blur(4px);border-bottom:.5px solid var(--color-border-tertiary);scrollbar-width:none}
+.hjump-nav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:.6rem 1.25rem;margin:-1.25rem -1.25rem 1rem;background:var(--color-background-page-blur);backdrop-filter:blur(4px);border-bottom:.5px solid var(--color-border-tertiary);scrollbar-width:none}
 .hjump-chip{flex-shrink:0;font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .15s;max-width:11rem;overflow:hidden;text-overflow:ellipsis}
 .hjump-chip:hover{color:var(--color-text-primary)}
 .hjump-chip.on{background:var(--color-text-primary);border-color:var(--color-text-primary);color:var(--color-background-primary)}
@@ -40,11 +54,11 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;
 .hdrop{border:.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:2.25rem 2rem;cursor:pointer;max-width:460px;margin:0 auto 1rem;transition:background .15s;text-align:center}
 .hdrop:hover,.hdrop.over{background:var(--color-background-secondary)}
 #hvgantt{overflow:hidden}
-#hedit-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:1rem}
+#hedit-modal{display:none;position:fixed;inset:0;background:var(--color-scrim);z-index:1000;align-items:center;justify-content:center;padding:1rem}
 #hedit-modal.on{display:flex}
 #hedit-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:540px;display:flex;flex-direction:column;max-height:90vh}
 #hedit-hd{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:.5px solid var(--color-border-tertiary)}
-#hedit-ta{border:none;outline:none;padding:.75rem 1rem;font-family:ui-monospace,monospace;font-size:12px;resize:none;min-height:220px;flex:1;overflow-y:auto}
+#hedit-ta{border:none;outline:none;background:var(--color-background-primary);color:var(--color-text-primary);padding:.75rem 1rem;font-family:ui-monospace,monospace;font-size:12px;resize:none;min-height:220px;flex:1;overflow-y:auto}
 #hedit-ft{display:flex;align-items:center;gap:8px;padding:.75rem 1rem;border-top:.5px solid var(--color-border-tertiary)}
 #hedit-err{flex:1;font-size:11px;color:var(--color-text-danger)}
 .hedit-btn{display:none}
@@ -125,7 +139,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hpv-warn{background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
 #hchat-ft{display:flex;gap:8px;align-items:flex-end;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom));border-top:.5px solid var(--color-border-tertiary);flex-shrink:0}
 /* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25). */
-#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;min-height:38px;max-height:120px;outline:none}
+#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);min-height:38px;max-height:120px;outline:none}
 /* On small screens the open chat is genuinely fullscreen and the page behind
    it is taken out of play, so no touch gesture can scroll the itinerary
    (issue #48). visibility rather than display so showApp()'s inline
@@ -135,11 +149,11 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
   body.hchat-open{overflow:hidden}
   body.hchat-open #happ,body.hchat-open #hupl{visibility:hidden}
 }
-#hset-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200;align-items:center;justify-content:center;padding:1rem}
+#hset-modal{display:none;position:fixed;inset:0;background:var(--color-scrim);z-index:1200;align-items:center;justify-content:center;padding:1rem}
 #hset-modal.on{display:flex}
 #hset-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:440px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.7rem}
 .hset-lbl{font-size:12px;font-weight:500;display:block;margin-bottom:3px}
-.hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:16px;outline:none}
+.hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
 /* Lists view (issue #40): item rows with a tick-off checkbox and chips for
    the link / schedule / promoted-segment actions. */
 .hli{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:.5px solid var(--color-border-tertiary);font-size:13px}
@@ -205,7 +219,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 
 /* Trip library (issue #80): the switcher modal and the same rows as the
    opening screen's "trips saved in this browser" list. */
-#hlib-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;padding:1rem}
+#hlib-modal{display:none;position:fixed;inset:0;background:var(--color-scrim);z-index:1100;align-items:center;justify-content:center;padding:1rem}
 #hlib-modal.on{display:flex}
 #hlib-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:520px;display:flex;flex-direction:column;max-height:90vh}
 #hlib-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:.7rem .9rem;border-bottom:.5px solid var(--color-border-tertiary)}
@@ -230,3 +244,16 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hlib-none{font-size:12px;color:var(--color-text-tertiary);padding:6px 2px}
 #hstorewarn{align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;line-height:1.4;padding:.5rem 1.25rem;background:var(--color-background-warning);color:var(--color-text-warning)}
 #hstorewarn span{flex:1;min-width:12rem}
+
+/* Leaflet's own chrome is styled from the CDN stylesheet in fixed light
+   colours, so the map's popups and controls are restated here against the
+   tokens — identical to Leaflet's defaults under the light palette, and
+   carried along by the dark one. The tiles themselves go through
+   --map-tile-filter, which is `none` in light mode. */
+.leaflet-tile{filter:var(--map-tile-filter)}
+.leaflet-container{background:var(--color-background-secondary);color:var(--color-text-primary)}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--color-background-primary);color:var(--color-text-primary)}
+.leaflet-popup-content a,.leaflet-container a{color:var(--color-text-info)}
+.leaflet-bar a,.leaflet-bar a:hover{background:var(--color-background-primary);color:var(--color-text-primary);border-bottom-color:var(--color-border-tertiary)}
+.leaflet-bar a:hover{background:var(--color-background-secondary)}
+.leaflet-control-attribution{background:var(--color-background-page-blur);color:var(--color-text-secondary)}
