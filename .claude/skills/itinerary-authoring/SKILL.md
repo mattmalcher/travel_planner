@@ -127,9 +127,12 @@ Two more traps in the same area:
 
 ## 4. Geocoding stops
 
-Use `/find-stop` for coordinates. Two translations to get right:
+Use the `find-stop` skill for coordinates — it searches the Trainline stations
+database before falling back to OpenStreetMap, and knows which same-named
+result is a real platform rather than a city centroid. Two translations to get
+right:
 
-- OpenStreetMap returns `lon`; the schema uses **`lng`**.
+- OpenStreetMap returns `lon` and Trainline `longitude`; the schema uses **`lng`**.
 - A `TransportStop`'s name field is **`place`** (it was `station` before schema
   3.0).
 
