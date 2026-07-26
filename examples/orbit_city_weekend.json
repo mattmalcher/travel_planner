@@ -1,0 +1,56 @@
+{
+  "schema_version": "3.4.0",
+  "trip": {
+    "name": "Weekend in Orbit City",
+    "travellers": ["Judy Jetson", "Elroy Jetson"],
+    "start": "2027-05-14",
+    "end": "2027-05-16",
+    "currency_primary": "GBP"
+  },
+  "segments": [
+    {
+      "id": "seg-1",
+      "type": "transport",
+      "mode": "train",
+      "operator": "Skyway Rail",
+      "ref": "OC1234",
+      "date": "2027-05-14",
+      "departs": { "place": "Bedrock Central", "time": "09:15" },
+      "arrives": { "place": "Orbit City Skyport", "time": "11:40" },
+      "duration_min": 145,
+      "cost": { "amount": 48, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" }
+    },
+    {
+      "id": "seg-2",
+      "type": "accommodation",
+      "name": "Hotel Spacely",
+      "address": "1 Sprocket Plaza, Orbit City",
+      "checkin": { "date": "2027-05-14", "from": "15:00" },
+      "checkout": { "date": "2027-05-16", "by": "10:00" },
+      "cost": { "amount": 120, "currency": "GBP", "status": "pending", "due": "2027-05-01" }
+    },
+    {
+      "id": "seg-3",
+      "type": "event",
+      "subtype": "tour",
+      "name": "Sky Tram tour",
+      "venue": "Orbit City Observation Deck",
+      "date": "2027-05-15",
+      "time": "14:00",
+      "duration_min": 90,
+      "cost": { "amount": 22, "currency": "GBP", "status": "pending" }
+    },
+    {
+      "id": "seg-4",
+      "type": "transport",
+      "mode": "train",
+      "operator": "Skyway Rail",
+      "ref": "OC4321",
+      "date": "2027-05-16",
+      "departs": { "place": "Orbit City Skyport", "time": "16:20" },
+      "arrives": { "place": "Bedrock Central", "time": "18:45" },
+      "duration_min": 145,
+      "cost": { "amount": 48, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" }
+    }
+  ]
+}
