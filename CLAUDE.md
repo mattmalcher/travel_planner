@@ -14,6 +14,8 @@ build output.**
 make install     # npm install
 make build       # src/ → dist/holiday_itinerary_viewer.html (esbuild, scripts/build.mjs)
 make lint        # ESLint over src/, scripts/, tests/
+make validate    # schema-check + lint an itinerary file (FILE=data/*.json)
+make itin ARGS="digest data/trip.json"   # the desktop itinerary CLI
 make test-unit   # node --test tests/unit/*.test.js  (milliseconds — run these while iterating)
 make test-e2e    # build + Playwright against dist/  (slower smoke layer)
 make test        # unit then e2e
@@ -55,6 +57,10 @@ src/
     sort.js         segDate/segTime/sortSegments (shared list+map ordering)
     dates.js        formatting, toMs/msToIso, and ALL default times (issue #13)
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
+    doctrine.js     THE authoring rules, as scoped data: the in-app assistant
+                    renders scope app|both into its prompt, the desktop skill
+                    renders scope desktop|both into its SKILL.md. One source,
+                    guarded by tests/unit/doctrine.test.js
     library.js      the trip library: document identity (trip_id/rev), the
                     index, revision history, import decisions, quota policy —
                     the store is a parameter, so all of it is unit-testable
@@ -84,7 +90,15 @@ src/
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
+scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
+                    doctrine / bump. Reuses src/lib/ for all interpretation and
+                    owns only argv, file I/O and formatting; ajv stays here
+                    rather than in lib/ so the bundle can never gain a second copy
+.claude/skills/itinerary-authoring/   the desktop editing skill (doctrine block
+                    generated — never hand-edit it, run `itin doctrine --write`)
 examples/           anonymised fixture itineraries (fictional people/refs only)
+data/               gitignored real trips; hand-versioned _0.N snapshots of one
+                    trip_id, round-tripped through the app's download/upload
 tests/unit/         node --test, import directly from src/lib/
 tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 ```
@@ -173,6 +187,30 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   `ti-chart-gantt` this way). `tests/unit/icons.test.js` checks every name in
   `src/` against the pinned `@tabler/icons-webfont` devDependency, which must
   stay at the version `src/index.html` loads from the CDN.
+- **The authoring doctrine has one source, `lib/doctrine.js`**: the rules that
+  say what a well-formed *plan* looks like (as opposed to well-formed JSON) are
+  scoped data, not prose in a prompt. `src/ai/prompt.js` renders the `app` view;
+  `.claude/skills/itinerary-authoring/SKILL.md` carries the `desktop` view inside
+  generated markers, synced by `npm run itin -- doctrine --write`. Add a rule by
+  adding an entry with the right `scope` — never by editing the prompt string or
+  the SKILL.md block, both of which `tests/unit/doctrine.test.js` will catch.
+  The split matters: the digest disclosure, read-before-edit and
+  prefer-a-patch rules are mobile context-window mitigations and are *wrong* on
+  the desktop, where the whole file is in hand.
+- **A desktop-edited file must have its `rev` bumped before it goes back**
+  (`npm run itin -- bump`). `classifyImport` reads same `trip_id` + same `rev` +
+  different content as a **fork**, and `src/app.js` offers "Keep both" *first*
+  for a fork — which mints a new `trip_id`. An unbumped hand edit is exactly that
+  signature, so re-uploading one sits a tap away from splitting the trip in two.
+  A higher `rev` classifies as `newer` (Replace first) and `library.js` takes the
+  incoming document as-is. This is the one identity field anything outside
+  `persist()` may write, and only a file handed back as a finished revision —
+  never a view, a form or the AI.
+- **Errors about a segment come from its own subschema, never the `oneOf`**: both
+  `src/validate.js` and `scripts/itin.mjs` pick the one definition a segment's
+  `type` names. Under the `oneOf` ajv reports every branch, so a half-filled
+  event demands transport's `mode` and `departs` — 14 misleading errors instead
+  of one true one (issue #76).
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add
