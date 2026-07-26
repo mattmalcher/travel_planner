@@ -6,9 +6,6 @@
 share link, then the Itinerary, Map, Schedule, Lists, Phrases and Budget
 tabs](https://mattmalcher.github.io/travel_planner/demo.gif)
 
-*The tour above is recorded from the built page by CI (`make demo`) every time
-the app changes, so it can never drift from what the viewer actually does.*
-
 # What is this thing?
 
 A tool for planning holidays, and viewing that plan when you are there.
