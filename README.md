@@ -2,8 +2,35 @@
 
 **[Open the viewer](https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html)**
 
+# What is this thing?
+
+A tool for planning holidays, and viewing that plan when you are there.
+
+# Why does it exist?
+
+I find planning holidays really stressful, but I like having a plan. I also like procrastinating by making things to avoid holiday planning.
+
+I started using AI tools to try and make plans for me, but its hard to get the details you want and do incremental changes. You also often end up with really generic recommendataions.
+Also, there are things its very hard for it to do (like book accomodation) that are kind of crucial, and need to be in the plan, but it doesnt control them.
+
+I also find it hard to visualise dates and times, so I wanted a viewer you could show the plan in and see where you have gaps or overlaps. I am a big fan of the (clashfinder)[https://clashfinder.com/], and thought something like a holiday version of that could be good.
+
+To enable that I started with a standard format ([holiday_itinerary_schema.json](schema/holiday_itinerary_schema.json)) which can be read by AI tools, and at a pinch, a person. Having a standard format makes it easier to go back and forth, and it means you can design a viewer for that format.
+
+# Why does it work this way?
+
+It was important to me that this thing worked both on a desktop (big holiday research task time), but also on a phone (when you are out and about on your holiday). Inevitably things go wrong, or you learn about some new thing when you arrive somewhere, so it needs to be easy to update the plan on mobile. (The AI features are targeted at something like "remove event $BLAH, and put it on Tuesday, and make me a list of alternative $BLAH things I could do today")
+
+Working offline is important too, its pointless having some fancy AI itinary thing, which you are then unable to load if you head out on a walk up a mountain, or on patchy signal on a train. I have tried to go PWA (Progressive Web App) and make this thing work in airplane mode. I have also tried to make sure that AI isnt the only way to modify the plan, so you arent stuffed when you cant access one.
+
+Maintaining a server and keeping it up to date and secure to enable your holiday planning feels like a bad idea. I also like the idea (however unlikely) that other people might use this thing. I dont want to have to look after their holiday plan details! So this thing is just a web page hosted on Github - no backend, stuff gets stored in browser local storage.
+
+Having no server to store state makes some things a bit harder. Another key feature for me is the ability to share the plans and work on them with someone else in a versioned way. The workaround is share links which contain the entire plan. That way people can use this, and all someone has to do to view someone else's plan is click on a link. This is also a neat workaround for any issues people might have with local storage getting cleared out - they can just click their link again.
+
+
+# What is this thing? (techy version)
 A standalone HTML viewer for `HolidayItinerary` JSON files: itinerary, map,
-schedule (gantt) and budget views, plus an optional AI editor (bring your own
+schedule and budget views, plus an optional AI editor (bring your own
 OpenRouter key). Load a file, or start an itinerary from scratch and build it
 up by hand, then send the whole trip to someone as a link — the itinerary
 travels inside the link's `#` fragment, so there is nothing to host and no
@@ -38,28 +65,6 @@ npx playwright install chromium   # browser for the E2E suite
 | `make test` | Unit tests followed by E2E tests |
 | `make test-ui` | Playwright interactive UI runner |
 
-## Directory Structure
-
-```text
-.
-├── src/                    # modular app source (built into a single file)
-│   ├── index.html          #   markup skeleton with build placeholders
-│   ├── styles.css          #   all CSS
-│   ├── main.js             #   entry point / bootstrap
-│   ├── lib/                #   pure logic (cost, sort, dates, gantt geometry…)
-│   ├── views/              #   DOM rendering (list, budget, map, gantt)
-│   └── ai/                 #   OpenRouter assistant
-├── schema/
-│   └── holiday_itinerary_schema.json   # JSON Schema for itinerary files
-├── examples/               # anonymised example itineraries
-├── scripts/build.mjs       # esbuild single-file bundler
-├── tests/
-│   ├── unit/               # node --test unit tests (milliseconds)
-│   └── e2e/                # Playwright tests against the built artifact
-├── playwright.config.js
-├── Makefile
-└── CLAUDE.md               # commands, architecture map and invariants
-```
 
 ## Guidance for AI Models & Developers
 
