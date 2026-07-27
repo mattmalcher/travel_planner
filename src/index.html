@@ -72,22 +72,22 @@
     <div style="display:flex;gap:8px;flex-shrink:0">
       <!-- The trip switcher (issue #80): several trips live here, and this is
            where you flip between them, wind one back, or forget one. -->
-      <button onclick="hLibOpen()" style="font-size:12px" title="Switch trip"><i class="ti ti-luggage" aria-hidden="true"></i></button>
-      <button onclick="hChatOpen()" style="font-size:12px" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
-      <button id="hedit-toggle" onclick="hToggleEdit()" style="font-size:12px" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+      <button onclick="hLibOpen()" class="htool" title="Switch trip"><i class="ti ti-luggage" aria-hidden="true"></i></button>
+      <button onclick="hChatOpen()" class="htool" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
+      <button id="hedit-toggle" onclick="hToggleEdit()" class="htool" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       <!-- Share a link with the whole itinerary in it (issue #81) — a shared
            secret, which the confirmation on the link says out loud. -->
-      <button onclick="hShare()" style="font-size:12px" title="Share a link to this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
-      <button onclick="hDownload()" style="font-size:12px" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
-      <button onclick="hCloseTrip()" style="font-size:12px" title="Close this trip — it stays in your saved trips"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
+      <button onclick="hShare()" class="htool" title="Share a link to this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
+      <button onclick="hDownload()" class="htool" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
+      <button onclick="hCloseTrip()" class="htool" title="Close this trip — it stays in your saved trips"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
     </div>
   </div>
   <!-- Shown only when a save failed: iOS private browsing rejects every write,
        and the download is the durable copy either way (issue #80). -->
   <div id="hstorewarn" style="display:none">
     <span><i class="ti ti-alert-triangle" aria-hidden="true"></i> This browser wouldn't save your changes — download the JSON to keep them.</span>
-    <button onclick="hDownload()" style="font-size:11px"><i class="ti ti-download" aria-hidden="true"></i> Download</button>
-    <button onclick="hStoreWarnClose()" style="font-size:11px" title="Dismiss"><i class="ti ti-x" aria-hidden="true"></i></button>
+    <button onclick="hDownload()" class="htool"><i class="ti ti-download" aria-hidden="true"></i> Download</button>
+    <button onclick="hStoreWarnClose()" class="htool" title="Dismiss"><i class="ti ti-x" aria-hidden="true"></i></button>
   </div>
   <!-- ARIA tabs pattern (issue #90): the strip is ONE tab stop, and Left/Right
        (plus Home/End) move along it — the roving tabindex and aria-selected are
@@ -130,16 +130,16 @@
           <button id="hedit-tab-form" class="hedit-tab on" onclick="hEditTab('form')">Form</button>
           <button id="hedit-tab-json" class="hedit-tab" onclick="hEditTab('json')">JSON</button>
         </span>
-        <button onclick="hCloseEdit()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+        <button onclick="hCloseEdit()" class="htool"><i class="ti ti-x" aria-hidden="true"></i></button>
       </span>
     </div>
     <div id="hedit-form"></div>
     <textarea id="hedit-ta" spellcheck="false"></textarea>
     <div id="hedit-ft">
-      <button id="hedit-del" onclick="hDeleteEdit()" style="font-size:12px;color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Delete</button>
+      <button id="hedit-del" onclick="hDeleteEdit()" class="htool" style="color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Delete</button>
       <span id="hedit-err"></span>
-      <button onclick="hCloseEdit()" style="font-size:12px">Cancel</button>
-      <button onclick="hSaveEdit()" style="font-size:12px;font-weight:500">Save</button>
+      <button onclick="hCloseEdit()" class="htool">Cancel</button>
+      <button onclick="hSaveEdit()" class="htool" style="font-weight:500">Save</button>
     </div>
   </div>
 </div>
@@ -148,9 +148,9 @@
   <div id="hchat-hd">
     <span style="font-size:13px;font-weight:500"><i class="ti ti-sparkles" aria-hidden="true"></i> AI assistant</span>
     <span style="display:flex;gap:6px">
-      <button onclick="hSetOpen()" style="font-size:12px;padding:2px 6px" title="Settings"><i class="ti ti-settings" aria-hidden="true"></i></button>
-      <button onclick="hChatClear()" style="font-size:12px;padding:2px 6px" title="Clear conversation"><i class="ti ti-trash" aria-hidden="true"></i></button>
-      <button onclick="hChatClose()" style="font-size:12px;padding:2px 6px" title="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <button onclick="hSetOpen()" class="htool" title="Settings"><i class="ti ti-settings" aria-hidden="true"></i></button>
+      <button onclick="hChatClear()" class="htool" title="Clear conversation"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      <button onclick="hChatClose()" class="htool" title="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
     </span>
   </div>
   <div id="hchat-msgs"></div>
@@ -158,7 +158,7 @@
   <div id="hchat-preview"></div>
   <div id="hchat-ft">
     <textarea id="hchat-input" placeholder="e.g. Add a Eurostar from London to Paris on 18 September at 16:31" rows="1"></textarea>
-    <button onclick="hChatSubmit()" id="hchat-send" style="font-size:12px;font-weight:500" title="Send"><i class="ti ti-send" aria-hidden="true"></i></button>
+    <button onclick="hChatSubmit()" id="hchat-send" class="htool" style="font-weight:500" title="Send"><i class="ti ti-send" aria-hidden="true"></i></button>
   </div>
 </div>
 
@@ -168,7 +168,7 @@
   <div id="hlib-inner">
     <div id="hlib-hd">
       <span style="font-size:13px;font-weight:500"><i class="ti ti-luggage" aria-hidden="true"></i> Your trips</span>
-      <button onclick="hLibClose()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <button onclick="hLibClose()" class="htool"><i class="ti ti-x" aria-hidden="true"></i></button>
     </div>
     <div id="hlib-list"></div>
     <div id="hlib-ft">
@@ -183,7 +183,7 @@
         Saved trips live in this browser only — treat them as a cache, not an archive, and download a trip to keep it. iOS clears a site's storage after about a week of not visiting; adding this page to your Home Screen exempts it.
       </div>
       <div style="display:flex;justify-content:flex-end">
-        <button onclick="hLibForget()" style="font-size:12px;color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Forget all saved trips</button>
+        <button onclick="hLibForget()" class="htool" style="color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Forget all saved trips</button>
       </div>
     </div>
   </div>
@@ -193,7 +193,7 @@
   <div id="hset-inner">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:13px;font-weight:500">AI assistant settings</span>
-      <button onclick="hSetClose()" style="font-size:12px;padding:2px 6px"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <button onclick="hSetClose()" class="htool"><i class="ti ti-x" aria-hidden="true"></i></button>
     </div>
     <div>
       <label class="hset-lbl" for="hset-key">OpenRouter API key</label>
@@ -210,8 +210,8 @@
       Your key is stored only in this browser (localStorage) and sent directly to OpenRouter — there is no backend. Get a key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--color-text-info)">openrouter.ai/keys</a>.
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="hSetClearKey()" style="font-size:12px">Clear key</button>
-      <button onclick="hSetSave()" style="font-size:12px;font-weight:500">Save</button>
+      <button onclick="hSetClearKey()" class="htool">Clear key</button>
+      <button onclick="hSetSave()" class="htool" style="font-weight:500">Save</button>
     </div>
   </div>
 </div>
