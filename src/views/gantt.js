@@ -129,7 +129,7 @@ export function renderGantt() {
     }).join('');
   }
   const gapHtml = gapBlocks.map(g => `<div class="hgt-gap" style="top:${g.top.toFixed(1)}px;height:${Math.max(g.bot - g.top, 4).toFixed(1)}px" title="No accommodation booked"></div>`).join('');
-  const toggleBtn = `<button onclick="hGanttToggle()" style="font-size:10px;padding:2px 6px;line-height:1.4" title="${state.ganttCompact ? 'Switch to proportional time' : 'Switch to compact view'}">${state.ganttCompact ? '<i class="ti ti-clock" aria-hidden="true"></i> Time' : '<i class="ti ti-layout-list" aria-hidden="true"></i> Compact'}</button>`;
+  const toggleBtn = `<button onclick="hGanttToggle()" class="htool" style="font-size:10px" title="${state.ganttCompact ? 'Switch to proportional time' : 'Switch to compact view'}">${state.ganttCompact ? '<i class="ti ti-clock" aria-hidden="true"></i> Time' : '<i class="ti ti-layout-list" aria-hidden="true"></i> Compact'}</button>`;
   document.getElementById('hvgantt').innerHTML = `
     <div class="hgt-wrap">
       <div class="hgt-head">

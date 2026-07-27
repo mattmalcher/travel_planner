@@ -135,7 +135,7 @@ export function renderList() {
               <div><div style="font-size:14px;font-weight:500">${title}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${sub}</div></div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-              <button class="hedit-btn" onclick="hOpenEdit(${HD.segments.indexOf(s)})" style="font-size:11px;padding:1px 5px;line-height:1.5;color:var(--color-text-secondary)" title="Edit segment"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+              <button class="hpencil hedit-btn" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment"><i class="ti ti-pencil" aria-hidden="true"></i></button>
               ${costStr ? `<span style="font-size:13px;font-weight:500">${costStr}</span>` : ''}
               ${costBadge(ci)}${proposalBadge(s)}
             </div>

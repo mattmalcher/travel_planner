@@ -1,12 +1,23 @@
-:root{color-scheme:light;--color-text-primary:#1e293b;--color-text-secondary:#64748b;--color-text-tertiary:#94a3b8;--color-text-success:#16a34a;--color-text-warning:#d97706;--color-text-danger:#dc2626;--color-text-info:#0284c7;--color-background-page:#f8fafc;--color-background-page-blur:rgba(248,250,252,.92);--color-background-primary:#ffffff;--color-background-secondary:#f1f5f9;--color-background-success:#dcfce7;--color-background-warning:#fef3c7;--color-background-danger:#fee2e2;--color-background-info:#e0f2fe;--color-border-tertiary:#e2e8f0;--color-border-secondary:#cbd5e1;--color-scrim:rgba(0,0,0,.5);--map-tile-filter:none;--border-radius-lg:12px;--border-radius-md:8px}
+/* The palette. Every text token here clears WCAG 1.4.3 AA (4.5:1) against every
+   background token it is actually rendered on — the page, the cards, the
+   secondary fill and the tinted badge backgrounds — and
+   tests/unit/contrast.test.js recomputes those ratios from this block, in both
+   themes, so a later tweak cannot quietly drop one under (issue #91). AA gives
+   no size discount at the sizes used here: the large-text exception starts at
+   18.66px bold / 24px and most of this text is 10–12px. */
+:root{color-scheme:light;--color-text-primary:#1e293b;--color-text-secondary:#475569;--color-text-tertiary:#5b6b7f;--color-text-success:#15803d;--color-text-warning:#b45309;--color-text-danger:#b91c1c;--color-text-info:#0369a1;--color-background-page:#f8fafc;--color-background-page-blur:rgba(248,250,252,.92);--color-background-primary:#ffffff;--color-background-secondary:#f1f5f9;--color-background-success:#dcfce7;--color-background-warning:#fef3c7;--color-background-danger:#fee2e2;--color-background-info:#e0f2fe;--color-border-tertiary:#e2e8f0;--color-border-secondary:#cbd5e1;--color-scrim:rgba(0,0,0,.5);--map-tile-filter:none;--border-radius-lg:12px;--border-radius-md:8px}
 /* Dark mode (issue #95): the system preference is the only control — there is
    no in-app toggle and nothing stored, so a saved file:// copy and a fresh
    browser both follow the OS. Every rule below this line is written against
    the tokens above, so the theme is this one block plus `color-scheme`, which
    is what re-themes the native controls the page never styles itself: the
-   buttons, the date/time pickers, the textareas and the scrollbars. */
+   buttons, the date/time pickers, the textareas and the scrollbars.
+   The dimmest a dark grey can go and still clear 4.5:1 against
+   --color-background-secondary is slate-400, so tertiary sits there and
+   secondary moved a step up to slate-300 to keep the hierarchy readable —
+   the same shift the light ramp made downwards. */
 @media (prefers-color-scheme:dark){
-  :root{color-scheme:dark;--color-text-primary:#e2e8f0;--color-text-secondary:#94a3b8;--color-text-tertiary:#64748b;--color-text-success:#4ade80;--color-text-warning:#fbbf24;--color-text-danger:#f87171;--color-text-info:#38bdf8;--color-background-page:#0f172a;--color-background-page-blur:rgba(15,23,42,.92);--color-background-primary:#1c283c;--color-background-secondary:#263449;--color-background-success:#14532d;--color-background-warning:#452c06;--color-background-danger:#4c1d1d;--color-background-info:#0c4a6e;--color-border-tertiary:#334155;--color-border-secondary:#475569;--color-scrim:rgba(0,0,0,.65);
+  :root{color-scheme:dark;--color-text-primary:#e2e8f0;--color-text-secondary:#cbd5e1;--color-text-tertiary:#94a3b8;--color-text-success:#4ade80;--color-text-warning:#fbbf24;--color-text-danger:#f87171;--color-text-info:#7dd3fc;--color-background-page:#0f172a;--color-background-page-blur:rgba(15,23,42,.92);--color-background-primary:#1c283c;--color-background-secondary:#263449;--color-background-success:#14532d;--color-background-warning:#452c06;--color-background-danger:#4c1d1d;--color-background-info:#0c4a6e;--color-border-tertiary:#334155;--color-border-secondary:#475569;--color-scrim:rgba(0,0,0,.65);
   /* OpenStreetMap ships no dark tiles, and swapping in a dark tile host would
      add an unpinnable third-party origin. Inverting the raster keeps the one
      tile source: applied to .leaflet-tile only, so the markers, the route line
@@ -50,7 +61,11 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--co
    anchors (.hjump-a), driven by views/jump-nav.js. */
 .hjump-a{scroll-margin-top:56px}
 .hjump-nav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:.6rem 1.25rem;margin:-1.25rem -1.25rem 1rem;background:var(--color-background-page-blur);backdrop-filter:blur(4px);border-bottom:.5px solid var(--color-border-tertiary);scrollbar-width:none}
-.hjump-chip{flex-shrink:0;font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .15s;max-width:11rem;overflow:hidden;text-overflow:ellipsis}
+/* min-height here and on the row chips below is WCAG 2.5.8 (issue #91): 11px
+   text at 3px padding is a ~17px tall target, under the 24×24 minimum. The
+   spacing exception does not rescue them — .hli is a gap:8px flex row, so the
+   chips genuinely are adjacent. */
+.hjump-chip{flex-shrink:0;min-height:24px;box-sizing:border-box;line-height:16px;font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .15s;max-width:11rem;overflow:hidden;text-overflow:ellipsis}
 .hjump-chip:hover{color:var(--color-text-primary)}
 .hjump-chip.on{background:var(--color-text-primary);border-color:var(--color-text-primary);color:var(--color-background-primary)}
 .hjump-chip.hday-today{border-color:var(--color-text-danger);color:var(--color-text-danger);font-weight:600}
@@ -76,12 +91,27 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--co
 #hedit-ta{border:none;background:var(--color-background-primary);color:var(--color-text-primary);padding:.75rem 1rem;font-family:ui-monospace,monospace;font-size:12px;resize:none;min-height:220px;flex:1;overflow-y:auto}
 #hedit-ft{display:flex;align-items:center;gap:8px;padding:.75rem 1rem;border-top:.5px solid var(--color-border-tertiary)}
 #hedit-err{flex:1;font-size:11px;color:var(--color-text-danger)}
+/* The header toolbar, and the "New list" / "New group" buttons that match it.
+   A native button at font-size:12px comes out about 20px tall and, icon-only,
+   16px wide — the same WCAG 2.5.8 shortfall the row chips had (issue #91), on
+   the controls reached most often. One class also replaces the inline
+   `font-size:12px` that every one of these call sites was repeating. */
+.htool{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:24px;min-height:24px;box-sizing:border-box;padding:2px 7px;font-size:12px;line-height:1.4}
 .hedit-btn{display:none}
 #happ.hedit-on .hedit-btn{display:inline-block}
+/* The trip / segment / list / phrase-group pencil. Four call sites carried the
+   same inline style and were drifting apart, so it is one class (issue #91),
+   sized to the 24×24 WCAG 2.5.8 minimum rather than the ~16px the old
+   `padding:1px 5px` gave. Like .hli-edit further down it sets a display, which
+   outranks the single-class .hedit-btn{display:none} above — hence the restated
+   hidden default at the same specificity. */
+.hpencil{align-items:center;justify-content:center;min-width:24px;min-height:24px;box-sizing:border-box;padding:1px 5px;font-size:11px;line-height:1.5;color:var(--color-text-secondary);cursor:pointer;vertical-align:middle}
+.hpencil.hedit-btn{display:none}
+#happ.hedit-on .hpencil.hedit-btn{display:inline-flex}
 /* Edit modal form (issue #65): the generated fields are the default view and
    the raw JSON textarea is the "JSON" tab — exactly one of the two shows. */
 #hedit-tabs{display:inline-flex;border:.5px solid var(--color-border-secondary);border-radius:999px;overflow:hidden}
-.hedit-tab{font-family:inherit;font-size:11px;font-weight:500;padding:3px 10px;border:none;background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer}
+.hedit-tab{display:inline-flex;align-items:center;min-height:24px;box-sizing:border-box;font-family:inherit;font-size:11px;font-weight:500;padding:3px 10px;border:none;background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer}
 .hedit-tab.on{background:var(--color-text-primary);color:var(--color-background-primary)}
 /* overflow-x:clip, not the default: a box with overflow-y:auto has its other
    axis computed to auto too, which makes the whole form pannable sideways
@@ -179,7 +209,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hli-local{color:var(--color-text-secondary);font-style:italic}
 .hli.done .hli-local{color:var(--color-text-tertiary)}
 .hli-note{width:100%;padding-left:24px;font-size:11px;color:var(--color-text-tertiary)}
-.hli-chip,.hli-edit,.hli-del{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;font-family:inherit;padding:1px 8px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;text-decoration:none;transition:color .15s}
+.hli-chip,.hli-edit,.hli-del{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;box-sizing:border-box;gap:4px;font-size:11px;font-weight:500;font-family:inherit;padding:1px 8px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;text-decoration:none;transition:color .15s}
 .hli-chip:hover,.hli-edit:hover{color:var(--color-text-primary)}
 /* The chip rules above set a display, which outranks the single-class
    .hedit-btn{display:none} — so restate the hidden default at the same
@@ -222,7 +252,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 /* Both actions ride with the pencils in edit mode; like .hli-edit/.hli-del
    they set a display, so the hidden default is restated at that specificity. */
 .hph-acts{display:flex;gap:4px;flex-shrink:0}
-.hph-edit,.hph-del{display:inline-flex;align-items:center;font-size:11px;font-family:inherit;padding:1px 6px;border-radius:999px;border:.5px solid transparent;background:var(--color-background-primary);color:var(--color-text-tertiary);cursor:pointer;transition:color .15s}
+.hph-edit,.hph-del{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;box-sizing:border-box;font-size:11px;font-family:inherit;padding:1px 6px;border-radius:999px;border:.5px solid transparent;background:var(--color-background-primary);color:var(--color-text-tertiary);cursor:pointer;transition:color .15s}
 .hph-edit:hover{color:var(--color-text-primary);border-color:var(--color-border-secondary)}
 .hph-del:hover{color:var(--color-text-danger);border-color:var(--color-border-secondary)}
 .hph-edit.hedit-btn,.hph-del.hedit-btn{display:none}
@@ -250,12 +280,12 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hlib-meta{font-size:11px;color:var(--color-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hlib-tag{font-size:10px;font-weight:500;color:var(--color-text-tertiary);border:.5px solid var(--color-border-secondary);border-radius:999px;padding:0 5px;vertical-align:1px}
 .hlib-row.on .hlib-name{color:var(--color-text-primary)}
-.hlib-icon{flex-shrink:0;font-size:12px;padding:3px 7px;font-family:inherit;background:var(--color-background-primary);border:.5px solid transparent;border-radius:var(--border-radius-md);color:var(--color-text-tertiary);cursor:pointer}
+.hlib-icon{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;box-sizing:border-box;font-size:12px;padding:3px 7px;font-family:inherit;background:var(--color-background-primary);border:.5px solid transparent;border-radius:var(--border-radius-md);color:var(--color-text-tertiary);cursor:pointer}
 .hlib-icon:hover{color:var(--color-text-primary);border-color:var(--color-border-secondary)}
 .hlib-hist{margin:0 0 6px 10px;padding-left:10px;border-left:.5px solid var(--color-border-tertiary)}
 .hlib-rev{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-text-secondary);padding:3px 0}
 .hlib-rev-meta{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hlib-rev button{font-size:11px;padding:1px 6px}
+.hlib-rev button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:24px;min-height:24px;box-sizing:border-box;font-size:11px;padding:1px 6px}
 .hlib-none{font-size:12px;color:var(--color-text-tertiary);padding:6px 2px}
 #hstorewarn{align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;line-height:1.4;padding:.5rem 1.25rem;background:var(--color-background-warning);color:var(--color-text-warning)}
 #hstorewarn span{flex:1;min-width:12rem}

@@ -89,7 +89,7 @@ export function renderRecent(nowMs = Date.now()) {
   el.style.display = 'block';
   el.innerHTML = `<div class="hlib-hd-row">
       <span><i class="ti ti-luggage" aria-hidden="true"></i> Trips saved in this browser</span>
-      ${rest > 0 ? `<button onclick="hLibOpen()" style="font-size:11px">All ${index.length}…</button>` : ''}
+      ${rest > 0 ? `<button onclick="hLibOpen()" class="htool">All ${index.length}…</button>` : ''}
     </div>${tripRows(shown, nowMs)}`;
 }
 

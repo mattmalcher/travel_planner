@@ -14,7 +14,7 @@ export function updateHeader() {
   // Trip dates and travellers used to live here too, but they are redundant —
   // dates appear on the itinerary/schedule views and travellers via cost splits — and on
   // a narrow phone the extra line just crowds the header (issue #66).
-  document.getElementById('htname').innerHTML = `${esc(HD.trip.name)} <button class="hedit-btn" onclick="hOpenEditTrip()" style="font-size:11px;padding:1px 5px;line-height:1.5;color:var(--color-text-secondary);vertical-align:middle" title="Edit trip details"><i class="ti ti-pencil" aria-hidden="true"></i></button>`;
+  document.getElementById('htname').innerHTML = `${esc(HD.trip.name)} <button class="hpencil hedit-btn" onclick="hOpenEditTrip()" title="Edit trip details"><i class="ti ti-pencil" aria-hidden="true"></i></button>`;
 }
 
 export function renderAll() {
