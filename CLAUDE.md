@@ -251,6 +251,28 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   else; a control that sets `outline:none` to style its own focus is how five
   inputs ended up signalling focus with a .5px border alone, under the 3:1
   WCAG 2.4.11 asks. Style focus *in addition* to the ring, never instead of it.
+- **The text tokens are the AA contrast contract** (issue #91): every
+  `--color-text-*` in `styles.css` clears WCAG 1.4.3's 4.5:1 against every
+  `--color-background-*` it is rendered on, in *both* themes, and
+  `tests/unit/contrast.test.js` recomputes those ratios from the two `:root`
+  blocks — a new pairing needs a line in its `PAIRS` table. There is no
+  large-text discount available here (the exception starts at 18.66px bold /
+  24px; this text is 10–14px), and no scoping a token change to one view. The
+  three greys are deliberately a hierarchy, not three names for the same value:
+  once all of them clear AA they crowd together, so the test also asserts
+  primary stands out more than secondary more than tertiary.
+- **Interactive controls are at least 24×24 CSS px** (WCAG 2.5.8, issue #91).
+  Chips and icon buttons get there with `min-height`/`min-width` plus
+  `box-sizing:border-box` — a native `<button>` at `font-size:11px` renders
+  about 16px and reads as fine until you measure it. Two shared classes exist
+  so the sizing is not re-typed per call site: `.hpencil` for the trip /
+  segment / list / phrase-group pencils, and `.htool` for the header toolbar
+  and the dialog buttons that match it. Note both set a `display`, which
+  outranks the single-class `.hedit-btn{display:none}` — a new class in that
+  family must restate the hidden default at its own specificity or the control
+  is visible outside edit mode. The 24px-apart spacing exception does not
+  apply: these sit in `gap:8px` rows. `tests/e2e/a11y.spec.js` measures every
+  control in every view on the rendered page.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add

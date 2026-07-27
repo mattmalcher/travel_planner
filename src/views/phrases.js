@@ -125,7 +125,7 @@ function addRow(gi) {
   </div>`;
 }
 
-const newGroupBtn = `<button onclick="hOpenAddPhraseGroup()" style="font-size:12px"><i class="ti ti-plus" aria-hidden="true"></i> New group</button>`;
+const newGroupBtn = `<button onclick="hOpenAddPhraseGroup()" class="htool"><i class="ti ti-plus" aria-hidden="true"></i> New group</button>`;
 
 /** The jump strip over the groups — the same widget the Itinerary and Lists
     views use, keyed by index so a group with no id still works. */
@@ -161,7 +161,7 @@ export function renderPhrases() {
         </div>
         ${todo ? `<span class="hli-progress hph-todo-count" title="Phrases with no translation yet">${todo} to translate</span>` : ''}
         <span class="hli-progress">${phraseCount(group)}</span>
-        <button class="hedit-btn" onclick="hOpenEditPhraseGroup(${gi})" style="font-size:11px;padding:1px 5px;line-height:1.5;color:var(--color-text-secondary)" title="Edit group"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+        <button class="hpencil hedit-btn" onclick="hOpenEditPhraseGroup(${gi})" title="Edit group"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       </div>
       <div style="margin-top:8px">${items.map(p => phraseRow(p, gi, group.items.indexOf(p))).join('') ||
         '<div style="font-size:12px;color:var(--color-text-tertiary)">No phrases yet.</div>'}</div>

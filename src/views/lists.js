@@ -152,7 +152,7 @@ function addRow(li) {
   </div>`;
 }
 
-const newListBtn = `<button onclick="hOpenAddList()" style="font-size:12px"><i class="ti ti-plus" aria-hidden="true"></i> New list</button>`;
+const newListBtn = `<button onclick="hOpenAddList()" class="htool"><i class="ti ti-plus" aria-hidden="true"></i> New list</button>`;
 
 /** The jump strip over the lists (issue #69) — the itinerary's day chips for
     lists, so a long Lists tab is navigable without scrolling through it.
@@ -187,7 +187,7 @@ export function renderLists() {
         <i class="ti ${listIcon(list.kind)}" style="font-size:17px;color:var(--color-text-secondary)" aria-hidden="true"></i>
         <div style="font-size:14px;font-weight:500;flex:1">${esc(list.name)}</div>
         <span class="hli-progress">${p.done}/${p.total}</span>
-        <button class="hedit-btn" onclick="hOpenEditList(${li})" style="font-size:11px;padding:1px 5px;line-height:1.5;color:var(--color-text-secondary)" title="Edit list"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+        <button class="hpencil hedit-btn" onclick="hOpenEditList(${li})" title="Edit list"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       </div>
       <div style="margin-top:8px">${[...open, ...done].map(row).join('') ||
         '<div style="font-size:12px;color:var(--color-text-tertiary)">No items yet.</div>'}</div>

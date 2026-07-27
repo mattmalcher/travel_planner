@@ -93,6 +93,33 @@ test.describe('keyboard access', () => {
     }
   });
 
+  // WCAG 2.5.8 (issue #91). The unit test cannot see this one: the shortfall
+  // was in what the browser computes from a font size and a padding, not in
+  // anything written down. Every interactive control in a live view is swept,
+  // so a new chip added without a min-height fails here rather than shipping
+  // a 16px tap target.
+  //
+  // No spacing exception is granted: the rows these sit in are gap:8px flex
+  // rows, so the chips are genuinely adjacent, and the toolbar buttons sit 8px
+  // apart too. 23.5 rather than 24 is the .5px borders' rounding, not slack.
+  test('every control clears the 24x24 minimum target size', async ({ page }) => {
+    await page.click('#hedit-toggle'); // reveals the pencils and inline deletes
+    const undersized = [];
+    for (const v of ORDER) {
+      await page.click(`.htab[data-v="${v}"]`);
+      undersized.push(...await page.locator(`#hv${v} button, #hv${v} a, #happ > div:first-child button`)
+        .evaluateAll(els => els.flatMap(el => {
+          const r = el.getBoundingClientRect();
+          if (!r.width) return []; // not rendered in this view
+          return r.width < 23.5 || r.height < 23.5
+            ? [`${el.className || el.tagName} "${(el.textContent || '').trim().slice(0, 20)}" `
+              + `${r.width.toFixed(1)}x${r.height.toFixed(1)}`]
+            : [];
+        })));
+    }
+    expect(undersized).toEqual([]);
+  });
+
   test('a keyboard-focused input has a visible outline', async ({ page }) => {
     await page.click('.htab[data-v="lists"]');
     const input = page.locator('#hvlists .hli-add-in').first();
