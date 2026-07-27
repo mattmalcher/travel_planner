@@ -40,8 +40,8 @@ export function load(data) {
 export function showUploadWarning(html, buttons) {
   const w = document.getElementById('hverwarn');
   const actions = buttons || [
-    '<button onclick="hUploadAnyway()" style="font-size:12px">Load anyway</button>',
-    '<button onclick="hUploadCancel()" style="font-size:12px">Cancel</button>',
+    '<button onclick="hUploadAnyway()" class="htool">Load anyway</button>',
+    '<button onclick="hUploadCancel()" class="htool">Cancel</button>',
   ];
   w.innerHTML = html + `
     <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">${actions.join('')}</div>`;
@@ -105,9 +105,9 @@ export function loadImport(doc) {
     return;
   }
   state.pendingImport = d;
-  const both = '<button onclick="hImportBoth()" style="font-size:12px">Keep both</button>';
-  const replace = '<button onclick="hImportReplace()" style="font-size:12px">Replace</button>';
-  const cancel = '<button onclick="hImportCancel()" style="font-size:12px">Cancel</button>';
+  const both = '<button onclick="hImportBoth()" class="htool">Keep both</button>';
+  const replace = '<button onclick="hImportReplace()" class="htool">Replace</button>';
+  const cancel = '<button onclick="hImportCancel()" class="htool">Cancel</button>';
   const body = d.kind === 'newer'
     ? `This file is rev ${d.rev} of <b>${name}</b>; the copy saved here is rev ${d.mine}.`
     : d.kind === 'older'
@@ -588,9 +588,9 @@ export function loadSaved() {
     w.innerHTML = `<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Saved ${n === 1 ? 'itinerary is' : 'itineraries are'} from a different version</div>
       ${n === 1 ? 'It was' : `${n} saved trips were`} saved for schema <code>${esc(ver)}</code> but this version expects <code>${H_SCHEMA_VERSION}</code>, so ${n === 1 ? 'it was' : 'they were'} not loaded automatically.
       <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">
-        <button onclick="hDownloadSaved()" style="font-size:12px">Download backup</button>
-        <button onclick="hForceLoadSaved()" style="font-size:12px">Load anyway</button>
-        <button onclick="hDiscardSaved()" style="font-size:12px">Discard</button>
+        <button onclick="hDownloadSaved()" class="htool">Download backup</button>
+        <button onclick="hForceLoadSaved()" class="htool">Load anyway</button>
+        <button onclick="hDiscardSaved()" class="htool">Discard</button>
       </div>`;
     w.style.display = 'block';
     return;
