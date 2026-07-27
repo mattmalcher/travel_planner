@@ -160,6 +160,12 @@ export function switchView(v) {
   document.querySelectorAll('.htab').forEach(t => {
     const on = t.dataset.v === v;
     t.classList.toggle('on', on);
+    // The ARIA state and the roving tabindex are the same fact as the `on`
+    // class, so they are settled here rather than by the key handler — a view
+    // switched from anywhere (revealSegment, closeTrip, a list chip) leaves
+    // the strip with exactly one tab stop, on the selected tab (issue #90).
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
     document.getElementById('hv' + t.dataset.v).className = 'hv' + (on ? ' on' : '');
   });
   if (v === 'map' && !state.mapReady && state.HD) { state.mapReady = true; setTimeout(renderMap, 120); }
@@ -167,6 +173,27 @@ export function switchView(v) {
   // A hidden view can't measure its jump strip, so mark the current chip on
   // arrival; a no-op for the views that have no strip (issue #69).
   updateActiveChip('hv' + v);
+}
+
+/**
+ * Left/Right/Home/End along the tab strip (issue #90). Automatic activation,
+ * as the ARIA tabs pattern has it for a strip this small: the arrow both moves
+ * focus and switches the view, so a keyboard user browses the views the way a
+ * pointer user does. Focus stays on the strip, which is what lets the next
+ * arrow keep working; Tab from there walks into the revealed panel's content.
+ * Enter/Space need no handling — the tabs are real buttons.
+ */
+export function tabKey(e) {
+  const step = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' }[e.key];
+  if (step === undefined) return;
+  const tabs = [...document.querySelectorAll('.htab')];
+  const from = Math.max(0, tabs.indexOf(e.target.closest('.htab')));
+  const to = step === 'first' ? 0
+    : step === 'last' ? tabs.length - 1
+      : (from + step + tabs.length) % tabs.length; // wraps, per the pattern
+  e.preventDefault();
+  switchView(tabs[to].dataset.v);
+  tabs[to].focus();
 }
 
 /** Jump from another view to a segment's itinerary card and flash it (issue #21). */
