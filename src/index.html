@@ -89,21 +89,26 @@
     <button onclick="hDownload()" style="font-size:11px"><i class="ti ti-download" aria-hidden="true"></i> Download</button>
     <button onclick="hStoreWarnClose()" style="font-size:11px" title="Dismiss"><i class="ti ti-x" aria-hidden="true"></i></button>
   </div>
-  <div class="htabs">
+  <!-- ARIA tabs pattern (issue #90): the strip is ONE tab stop, and Left/Right
+       (plus Home/End) move along it — the roving tabindex and aria-selected are
+       kept in step by switchView() in app.js, the keys by the .htabs listener in
+       main.js. Buttons rather than divs so Enter/Space work without a key
+       handler; .htab resets the UA button chrome to keep the look. -->
+  <div class="htabs" role="tablist" aria-label="Views">
     <!-- Labels are the user's words (issue #71); the data-v keys stay the
          internal view names (list, gantt) that the code and tests use. -->
-    <div class="htab on" data-v="list" onclick="hsw('list')"><i class="ti ti-list-details" aria-hidden="true"></i> Itinerary</div>
-    <div class="htab" data-v="map" onclick="hsw('map')"><i class="ti ti-map-2" aria-hidden="true"></i> Map</div>
-    <div class="htab" data-v="gantt" onclick="hsw('gantt')"><i class="ti ti-calendar-time" aria-hidden="true"></i> Schedule</div>
-    <div class="htab" data-v="lists" onclick="hsw('lists')"><i class="ti ti-checklist" aria-hidden="true"></i> Lists</div>
-    <div class="htab" data-v="phrases" onclick="hsw('phrases')"><i class="ti ti-message-language" aria-hidden="true"></i> Phrases</div>
-    <div class="htab" data-v="budget" onclick="hsw('budget')"><i class="ti ti-coins" aria-hidden="true"></i> Budget</div>
+    <button type="button" id="htab-list" class="htab on" role="tab" aria-selected="true" aria-controls="hvlist" tabindex="0" data-v="list" onclick="hsw('list')"><i class="ti ti-list-details" aria-hidden="true"></i> Itinerary</button>
+    <button type="button" id="htab-map" class="htab" role="tab" aria-selected="false" aria-controls="hvmap" tabindex="-1" data-v="map" onclick="hsw('map')"><i class="ti ti-map-2" aria-hidden="true"></i> Map</button>
+    <button type="button" id="htab-gantt" class="htab" role="tab" aria-selected="false" aria-controls="hvgantt" tabindex="-1" data-v="gantt" onclick="hsw('gantt')"><i class="ti ti-calendar-time" aria-hidden="true"></i> Schedule</button>
+    <button type="button" id="htab-lists" class="htab" role="tab" aria-selected="false" aria-controls="hvlists" tabindex="-1" data-v="lists" onclick="hsw('lists')"><i class="ti ti-checklist" aria-hidden="true"></i> Lists</button>
+    <button type="button" id="htab-phrases" class="htab" role="tab" aria-selected="false" aria-controls="hvphrases" tabindex="-1" data-v="phrases" onclick="hsw('phrases')"><i class="ti ti-message-language" aria-hidden="true"></i> Phrases</button>
+    <button type="button" id="htab-budget" class="htab" role="tab" aria-selected="false" aria-controls="hvbudget" tabindex="-1" data-v="budget" onclick="hsw('budget')"><i class="ti ti-coins" aria-hidden="true"></i> Budget</button>
   </div>
-  <div id="hvlist" class="hv on" style="padding:1.25rem;max-width:760px"></div>
-  <div id="hvbudget" class="hv" style="padding:1.25rem;max-width:760px"></div>
-  <div id="hvlists" class="hv" style="padding:1.25rem;max-width:760px"></div>
-  <div id="hvphrases" class="hv" style="padding:1.25rem;max-width:760px"></div>
-  <div id="hvmap" class="hv" style="padding:1.25rem">
+  <div id="hvlist" class="hv on" role="tabpanel" aria-labelledby="htab-list" tabindex="-1" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvbudget" class="hv" role="tabpanel" aria-labelledby="htab-budget" tabindex="-1" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvlists" class="hv" role="tabpanel" aria-labelledby="htab-lists" tabindex="-1" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvphrases" class="hv" role="tabpanel" aria-labelledby="htab-phrases" tabindex="-1" style="padding:1.25rem;max-width:760px"></div>
+  <div id="hvmap" class="hv" role="tabpanel" aria-labelledby="htab-map" tabindex="-1" style="padding:1.25rem">
     <div style="display:flex;gap:8px;font-size:11px;color:var(--color-text-secondary);margin-bottom:8px;align-items:center">
       <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;border:.5px solid var(--color-border-secondary);background:#4b5563;display:inline-block"></span>Station</span>
       <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;border:.5px solid var(--color-border-secondary);background:#b45309;display:inline-block"></span>Stay</span>
@@ -113,7 +118,7 @@
     <div id="hmap" style="width:100%;height:440px;border-radius:var(--border-radius-lg);border:.5px solid var(--color-border-tertiary)"></div>
     <div id="hmaplist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;margin-top:1rem"></div>
   </div>
-  <div id="hvgantt" class="hv" style="padding:0"></div>
+  <div id="hvgantt" class="hv" role="tabpanel" aria-labelledby="htab-gantt" tabindex="-1" style="padding:0"></div>
 </div>
 
 <div id="hedit-modal" onclick="if(event.target===this)hCloseEdit()">
