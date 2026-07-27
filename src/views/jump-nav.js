@@ -5,7 +5,9 @@
 // The contract a view opts into: render a `.hjump-nav` holding `.hjump-chip`
 // buttons, and give each anchor the `.hjump-a` class. Both carry a `data-k`
 // key, which rides in a data attribute rather than an inline JS string so an
-// itinerary-supplied key can't break out of the onclick (issue #9).
+// itinerary-supplied key can't break out of the onclick (issue #9). The strip
+// is a `<nav>` with its own aria-label ("Jump to day"/"Jump to list"/…), so a
+// screen reader can skip it and knows which strip it landed in (issue #92).
 
 const anchors = viewId => [...document.querySelectorAll(`#${viewId} .hjump-a`)];
 
@@ -25,7 +27,14 @@ export function updateActiveChip(viewId) {
   if (!nav) return;
   let cur = null;
   for (const a of anchors(viewId)) if (!cur || a.getBoundingClientRect().top <= 64) cur = a;
-  nav.querySelectorAll('.hjump-chip').forEach(c => c.classList.toggle('on', !!cur && c.dataset.k === cur.dataset.k));
+  // The `on` class is colour alone, which is invisible to assistive tech (and
+  // to anyone who cannot tell the two greys apart) — aria-current carries the
+  // same fact, and is settled here so the two can never disagree (issue #92).
+  nav.querySelectorAll('.hjump-chip').forEach(c => {
+    const on = !!cur && c.dataset.k === cur.dataset.k;
+    c.classList.toggle('on', on);
+    if (on) c.setAttribute('aria-current', 'true'); else c.removeAttribute('aria-current');
+  });
 }
 
 /** One passive scroll listener per view, bound on its first render. */

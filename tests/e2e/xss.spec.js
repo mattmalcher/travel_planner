@@ -60,7 +60,10 @@ const xssItinerary = {
       // itinerary-supplied strings like any other. The schema pins them to an
       // enum — but "Load anyway" waives the schema, which is how this whole
       // fixture gets in, so an off-enum status does reach the badge.
-      id: 'seg-4',
+      // The id is itinerary-supplied like everything else, and reaches the
+      // Lists view's link chip — in a data attribute and, since issue #92, in
+      // an aria-label too.
+      id: `seg-4" onmouseover="window.__xss=(window.__xss||0)+1`,
       type: 'event',
       name: 'Badge breakout',
       subtype: 'activity',
@@ -88,6 +91,14 @@ const xssItinerary = {
           name: 'Break the chip',
           // Rides in an onclick-adjacent data attribute — must not escape it.
           segment_id: `seg-1'); window.__xss=(window.__xss||0)+1;('`
+        },
+        {
+          // A *live* promotion, so the chip takes the aria-label branch: the
+          // id is itinerary-supplied and reaches an attribute there too
+          // (issue #92).
+          id: 'li-3',
+          name: 'Break the label',
+          segment_id: `seg-4" onmouseover="window.__xss=(window.__xss||0)+1`
         }
       ]
     }
@@ -178,6 +189,22 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
     await expect(page.locator('#hvlists img[src="x"]')).toHaveCount(0);
     await expect(page.locator('#hvlists a[href^="javascript:"]')).toHaveCount(0);
     await page.locator('#hvlists .hli', { hasText: 'Break the chip' }).locator('.hli-chip').click();
+
+    // The live promotion chip's aria-label holds the same hostile id: it must
+    // land as the literal string in one attribute, not close it and open an
+    // event handler (issue #92).
+    const labelled = page.locator('#hvlists .hli', { hasText: 'Break the label' }).locator('.hli-chip');
+    await expect(labelled).toHaveAttribute('aria-label',
+      `Open seg-4" onmouseover="window.__xss=(window.__xss||0)+1 in itinerary`);
+    expect(await labelled.getAttribute('onmouseover')).toBeNull();
+    await labelled.hover();
+
+    // Same sink on the Itinerary view's pencil, which names its segment.
+    await page.click('.htab[data-v="list"]');
+    await page.click('#hedit-toggle');
+    await expect(page.locator('#hvlist .hpencil').first())
+      .toHaveAttribute('aria-label', `Edit Eurostar ${IMG}`);
+    await page.click('#hedit-toggle');
 
     // Phrases view (issue #75): every field on the card is itinerary-supplied,
     // including the language subtitle and the pronunciation line.
