@@ -68,7 +68,9 @@ test.describe('Holiday Itinerary Viewer', () => {
 
   test('should load the page with the upload screen visible and app hidden', async ({ page }) => {
     // Check page title / header
-    await expect(page.locator('h2.sr-only')).toHaveText('Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views');
+    // The opening screen's own h1 (issue #92) — sr-only, and swapped out for
+    // the trip name's h1 once a trip is open.
+    await expect(page.locator('#hupl h1.sr-only')).toHaveText('Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views');
     
     // Check upload view elements are visible
     const uploadDiv = page.locator('#hupl');

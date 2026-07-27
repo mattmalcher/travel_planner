@@ -131,9 +131,9 @@ const newGroupBtn = `<button onclick="hOpenAddPhraseGroup()" class="htool"><i cl
     views use, keyed by index so a group with no id still works. */
 function jumpNav(groups) {
   if (groups.length < 2) return '';
-  return `<div class="hjump-nav">${groups.map((group, gi) =>
+  return `<nav class="hjump-nav" aria-label="Jump to phrase group">${groups.map((group, gi) =>
     `<button class="hjump-chip" data-k="${gi}" onclick="hJumpPhraseGroup(this.dataset.k)"><i class="ti ${phraseIcon(group.kind)}" aria-hidden="true"></i> ${esc(group.name || 'Phrases')}</button>`
-  ).join('')}</div>`;
+  ).join('')}</nav>`;
 }
 
 export function renderPhrases() {

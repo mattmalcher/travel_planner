@@ -132,3 +132,152 @@ test.describe('keyboard access', () => {
     expect(parseFloat(style.width)).toBeGreaterThanOrEqual(2);
   });
 });
+
+// Issue #92: the Itinerary and Lists views used to be structurally flat div
+// soup, with every relationship carried by size, colour and position. These
+// assert the semantics a screen reader actually navigates by — the heading
+// outline, the list structure, and the computed accessible name of the
+// controls (via getByRole, which goes through the same name computation a
+// screen reader does, rather than reading the attribute back).
+const semanticItinerary = {
+  trip: {
+    name: 'Semantics Test Trip',
+    travellers: ['Judy Jetson'],
+    start: '2026-09-18',
+    end: '2026-09-19',
+    currency_primary: 'GBP'
+  },
+  segments: [
+    {
+      id: 'seg-1',
+      type: 'transport',
+      mode: 'train',
+      operator: 'Eurostar',
+      date: '2026-09-18',
+      departs: { place: 'London St Pancras', time: '16:31' },
+      arrives: { place: 'Paris Gare du Nord', time: '19:49' },
+      duration_min: 138,
+      warnings: ['Check in 60 minutes before departure.'],
+      cost: { amount: 100, currency: 'GBP', status: 'paid', paid_by: 'Judy Jetson' }
+    },
+    {
+      id: 'seg-2',
+      type: 'accommodation',
+      name: 'Studio near the Canal',
+      address: '42 Rue Exemple',
+      phone: '+33 1 23 45 67 89',
+      checkin: { date: '2026-09-18', from: '15:00' },
+      checkout: { date: '2026-09-19', by: '11:00' },
+      cost: { amount: 90, currency: 'GBP', status: 'pending', due: '2026-09-01' }
+    },
+    {
+      id: 'seg-3',
+      type: 'event',
+      subtype: 'gig',
+      name: 'Jazz at Le Petit Exemple',
+      date: '2026-09-19',
+      time: '20:30',
+      cost: { amount: 40, currency: 'GBP', status: 'paid', paid_by: 'Judy Jetson' }
+    }
+  ],
+  lists: [
+    {
+      id: 'list-food',
+      name: 'Foods to try',
+      kind: 'food',
+      items: [
+        { id: 'li-1', name: 'Custard tart' },
+        { id: 'li-2', name: 'Jazz-club cocktail', segment_id: 'seg-3' },
+        { id: 'li-3', name: 'Packed lunch', done: true }
+      ]
+    }
+  ]
+};
+
+test.describe('semantics and accessible names (issue #92)', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.setInputFiles('#hfile', {
+      name: 'semantics.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(semanticItinerary))
+    });
+    await expect(page.locator('#hvlist')).toBeVisible();
+  });
+
+  test('the trip name is the page h1, and the opening screen has its own', async ({ page }) => {
+    // Only one <h1> is ever rendered: the other screen is display:none, which
+    // takes its heading out of the accessibility tree with it. (The opening
+    // screen's is sr-only — clipped to 1px, so it counts as rendered.)
+    await expect(page.locator('h1:visible')).toHaveText(['Semantics Test Trip']);
+
+    await page.click('.htool[title^="Close this trip"]');
+    await expect(page.locator('#hupl')).toBeVisible();
+    await expect(page.locator('h1:visible')).toHaveText([/^Holiday itinerary viewer/]);
+  });
+
+  test('the Itinerary view has one h2 per day and one h3 per segment', async ({ page }) => {
+    // Two days: 18 September (train + stay) and 19 September (the gig).
+    await expect(page.locator('#hvlist h2')).toHaveCount(2);
+    await expect(page.locator('#hvlist h2').first()).toContainText('18');
+    await expect(page.locator('#hvlist h3')).toHaveCount(3);
+    await expect(page.locator('#hvlist h3').first()).toHaveText('Eurostar');
+
+    // Each day's segments are a real list, so a reader is told how many.
+    const days = page.locator('#hvlist ul.hplain-list');
+    await expect(days).toHaveCount(2);
+    await expect(days.first().getByRole('listitem')).toHaveCount(2);
+    await expect(days.nth(1).getByRole('listitem')).toHaveCount(1);
+  });
+
+  test('the Lists view names each list with an h2 and exposes a real list', async ({ page }) => {
+    await page.click('.htab[data-v="lists"]');
+    await expect(page.locator('#hvlists h2')).toHaveText(['Foods to try']);
+    // The role is implicit on <ul>, but it is the whole point of the markup —
+    // getByRole is what checks the browser really exposes it.
+    const items = page.locator('#hvlists').getByRole('list');
+    await expect(items).toHaveCount(1);
+    await expect(items.getByRole('listitem')).toHaveCount(3);
+  });
+
+  test('the aria-hidden arrow does not take the relationship with it', async ({ page }) => {
+    // The transport row is four values in a row; only the sr-only word says
+    // which place is the origin and which the destination.
+    await expect(page.locator('#hvlist .hseg').first())
+      .toContainText('16:31 London St Pancras to Paris Gare du Nord 19:49');
+  });
+
+  test('a warning says it is a warning, and a phone number says it is one', async ({ page }) => {
+    const warn = page.locator('#hvlist .hwarn');
+    await expect(warn).toHaveAttribute('role', 'note');
+    await expect(warn).toContainText('Warning: Check in 60 minutes before departure.');
+    await expect(page.locator('#hvlist .hseg').nth(1)).toContainText('Phone: +33 1 23 45 67 89');
+  });
+
+  test('icon-only controls have accessible names that say which thing', async ({ page }) => {
+    await page.click('#hedit-toggle'); // the pencils live behind edit mode
+    // Three pencils on the page, each naming its own segment rather than all
+    // three announcing "Edit segment".
+    await expect(page.locator('#hvlist').getByRole('button', { name: 'Edit Eurostar' })).toHaveCount(1);
+    await expect(page.locator('#hvlist').getByRole('button', { name: 'Edit Jazz at Le Petit Exemple' })).toHaveCount(1);
+
+    await page.click('.htab[data-v="lists"]');
+    await expect(page.locator('#hvlists').getByRole('button', { name: 'Edit list Foods to try' })).toHaveCount(1);
+    // The promoted-segment chip announced as its bare id before this.
+    await expect(page.locator('#hvlists').getByRole('button', { name: 'Open seg-3 in itinerary' })).toHaveCount(1);
+    // The progress badge reads as "1 of 3 done", not "one slash three".
+    await expect(page.locator('#hvlists').getByRole('img', { name: '1 of 3 done' })).toHaveCount(1);
+    await expect(page.locator('#hvlists .hli-progress')).toHaveText('1/3'); // and looks unchanged
+  });
+
+  test('the jump strip is a labelled landmark and marks the current chip', async ({ page }) => {
+    const nav = page.locator('#hvlist nav.hjump-nav');
+    await expect(nav).toHaveAttribute('aria-label', 'Jump to day');
+    // The scroll spy settles aria-current alongside the .on class, so state is
+    // not conveyed by colour alone.
+    await expect(nav.locator('.hjump-chip.on')).toHaveCount(1);
+    await expect(nav.locator('.hjump-chip[aria-current="true"]')).toHaveCount(1);
+    await expect(nav.locator('.hjump-chip.on')).toHaveAttribute('aria-current', 'true');
+  });
+});

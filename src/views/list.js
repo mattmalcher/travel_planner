@@ -24,7 +24,11 @@ function renderTransport(s, trip) {
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <span style="font-weight:500">${esc(s.departs.time)}</span>
       <span style="color:var(--color-text-secondary)">${esc(s.departs.place)}</span>
-      <i class="ti ti-arrow-right" style="color:var(--color-text-secondary);font-size:12px" aria-hidden="true"></i>
+      <!-- The arrow is the only thing relating the two places, and it is
+           aria-hidden (correctly — it is decoration to a reader). Without the
+           sr-only word the row is announced as four unrelated values in a row
+           (issue #92). -->
+      <i class="ti ti-arrow-right" style="color:var(--color-text-secondary);font-size:12px" aria-hidden="true"></i><span class="sr-only">to</span>
       <span style="color:var(--color-text-secondary)">${esc(s.arrives.place)}</span>
       <span style="font-weight:500">${esc(s.arrives.time)}</span>
       <span style="color:var(--color-text-secondary);font-size:12px">${fmtMinutes(s.duration_min)}</span>
@@ -44,7 +48,7 @@ function renderAccom(s) {
     <span><i class="ti ti-door-exit" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Out by ${esc(s.checkout.by || DEFAULT_CHECKOUT_BY)} · ${fmtDayLong(s.checkout.date)}</span>
     <span>${nights} night${nights !== 1 ? 's' : ''}${s.host ? ` · Host: ${esc(s.host)}` : ''}</span>
     ${s.self_checkin ? '<span><i class="ti ti-key" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Self check-in</span>' : ''}
-    ${s.phone ? `<span><i class="ti ti-phone" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.phone)}</span>` : ''}
+    ${s.phone ? `<span><i class="ti ti-phone" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> <span class="sr-only">Phone:</span> ${esc(s.phone)}</span>` : ''}
     ${s.ref ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">Ref: <code>${esc(s.ref)}</code></div>` : ''}
   </div>`;
 }
@@ -74,10 +78,15 @@ function renderEvent(s, primaryCurrency) {
 
 // Alert banners come from the structured warnings[] field; notes are plain
 // prose. The old "***warning***" notes convention is retired (issue #14).
+//
+// The banner reads as bare prose without the sr-only prefix — the triangle and
+// the amber fill are the only thing marking it as a warning, and neither
+// reaches a screen reader (issue #92). role="alert" would be wrong: these are
+// static content rendered with the card, not live announcements.
 function renderWarnings(s) {
   if (!s.warnings || !s.warnings.length) return '';
   return s.warnings.map(w =>
-    `<div class="hwarn" style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(w)}</div>`
+    `<div class="hwarn" role="note" style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> <span class="sr-only">Warning:</span> ${esc(w)}</div>`
   ).join('');
 }
 
@@ -115,35 +124,44 @@ export function renderList() {
   // and the first render lands on the current day (issue #35).
   const today = currentDayChip(days, HD.trip, Date.now());
   const todayBtn = today ? `<button class="hjump-chip hday-today" data-k="${esc(today)}" onclick="hJumpDay(this.dataset.k)"><i class="ti ti-calendar-pin" aria-hidden="true"></i> Today</button>` : '';
-  const nav = days.length > 1 ? `<div class="hjump-nav">${todayBtn}${days.map(d =>
-    `<button class="hjump-chip${d === today ? ' is-today' : ''}" data-k="${esc(d)}" onclick="hJumpDay(this.dataset.k)">${fmtDayShort(d)}</button>`).join('')}</div>` : '';
+  const nav = days.length > 1 ? `<nav class="hjump-nav" aria-label="Jump to day">${todayBtn}${days.map(d =>
+    `<button class="hjump-chip${d === today ? ' is-today' : ''}" data-k="${esc(d)}" onclick="hJumpDay(this.dataset.k)">${fmtDayShort(d)}</button>`).join('')}</nav>` : '';
+  // Each day is a section headed by an <h2>, holding a <ul> of segment cards
+  // whose titles are <h3>s (issue #92): the outline is what a screen reader
+  // skims by, and "list, 8 items… item 3 of 8" is most of what makes a long
+  // day navigable without seeing it. The heading carries the text only — the
+  // rule that fills the rest of the row stays a sibling span.
   document.getElementById('hvlist').innerHTML = nav + (days.length ? '' : emptyState) + Object.entries(grp).map(([date, segs]) => `
-    <div class="hjump-a" data-k="${esc(date)}" style="margin-bottom:1.75rem">
-      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;display:flex;align-items:center;gap:8px">
-        ${fmtDayLong(date)}<span style="flex:1;height:.5px;background:var(--color-border-tertiary);display:block"></span>
+    <section class="hjump-a" data-k="${esc(date)}" style="margin-bottom:1.75rem">
+      <div style="margin-bottom:.625rem;display:flex;align-items:center;gap:8px">
+        <h2 style="margin:0;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em">${fmtDayLong(date)}</h2>
+        <span style="flex:1;height:.5px;background:var(--color-border-tertiary);display:block"></span>
       </div>
-      ${segs.map(s => {
+      <ul class="hplain-list">${segs.map(s => {
         const ci = costInfo(s, HD.trip.currency_primary), ic = segIcon(s);
         const title = esc(s.name || s.operator || 'Segment');
         const sub = s.type === 'transport' ? `${esc(s.departs.place)} → ${esc(s.arrives.place)}` : s.type === 'accommodation' ? esc(s.address) : (s.subtype ? esc(s.subtype.charAt(0).toUpperCase() + s.subtype.slice(1)) : '');
         const costStr = ci && ci.t === 'amt' ? esc(fmtCurrency(ci.tot, ci.cur)) : '';
         const detail = s.type === 'transport' ? renderTransport(s, HD.trip) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s, HD.trip.currency_primary);
-        return `<div class="hseg" data-seg="${HD.segments.indexOf(s)}">
+        // There is one pencil per card, so a bare "Edit segment" would give a
+        // day full of identically named buttons — the name says which one
+        // (issue #92). `title` is already esc()d above.
+        return `<li class="hseg" data-seg="${HD.segments.indexOf(s)}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0">
               <i class="ti ${ic}" style="font-size:17px;color:var(--color-text-secondary);flex-shrink:0;margin-top:2px" aria-hidden="true"></i>
-              <div><div style="font-size:14px;font-weight:500">${title}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${sub}</div></div>
+              <div><h3 style="margin:0;font-size:14px;font-weight:500">${title}</h3><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${sub}</div></div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-              <button class="hpencil hedit-btn" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+              <button class="hpencil hedit-btn" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment" aria-label="Edit ${title}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
               ${costStr ? `<span style="font-size:13px;font-weight:500">${costStr}</span>` : ''}
               ${costBadge(ci)}${proposalBadge(s)}
             </div>
           </div>
           ${detail}${renderWarnings(s)}${renderNotes(s)}
-        </div>`;
-      }).join('')}
-    </div>`).join('') + addBar;
+        </li>`;
+      }).join('')}</ul>
+    </section>`).join('') + addBar;
   bindJumpSpy('hvlist');
   updateActiveChip('hvlist');
   // Open at the current day once per page load; later re-renders (edits, AI
