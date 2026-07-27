@@ -2,7 +2,7 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, tabKey, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { libOpen, libClose, libSwitch, libRevs, libDelete, libRestore, libDownloadRev, libSaveName, libForgetAll } from './views/library.js';
 import { boot, shareTrip, shareRevision, shareToastClose } from './share.js';
 import { dismissStoreWarning } from './store.js';
@@ -110,6 +110,11 @@ dz.addEventListener('drop', e => {
   e.preventDefault(); dz.classList.remove('over');
   loadFile(e.dataTransfer.files[0]);
 });
+
+/* Tab strip: Left/Right/Home/End move along it (issue #90). One listener on the
+   tablist rather than an inline onkeydown per tab — the tabs' onclick already
+   carries the activation, and this is the only key handling they need. */
+document.querySelector('.htabs').addEventListener('keydown', tabKey);
 
 /* chat input UX: Enter to send, Shift+Enter for newline, auto-grow */
 {

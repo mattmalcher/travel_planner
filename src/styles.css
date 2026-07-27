@@ -16,12 +16,27 @@
 body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--color-background-page);color:var(--color-text-primary)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .hv{display:none}.hv.on{display:block}
+/* One visible focus indicator for the whole app (issue #90). The text inputs
+   used to kill the outline and signal focus with a .5px border colour change
+   alone — under the 3:1 WCAG 2.4.11 asks of a focus indicator, and thin enough
+   to miss — so their `outline:none` is gone and the border change stays as a
+   secondary cue; the chips restyle their background enough to lose the UA ring.
+   :where() keeps this at zero specificity so the per-control rules still win on
+   everything else, and :focus-visible so a pointer click draws no ring. Note
+   this is the only outline rule in the file: a new `outline:none` anywhere
+   below would silently take a control back out of reach. */
+:where(button,a,input,textarea,select,[tabindex]):focus-visible{outline:2px solid var(--color-text-info);outline-offset:2px}
+/* The tab strip scrolls in its own box, which clips an outset ring. */
+.htab:focus-visible,.hjump-chip:focus-visible{outline-offset:-2px}
 /* The tab strip scrolls within itself rather than pushing the page wide:
    five tabs overflow a narrow phone, and the day jump strip already uses this
    same contained horizontal scroll (issue #66). */
 .htabs{display:flex;border-bottom:.5px solid var(--color-border-tertiary);padding:0 1.25rem;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .htabs::-webkit-scrollbar{display:none}
-.htab{flex-shrink:0;white-space:nowrap;padding:.55rem .9rem;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:5px;transition:color .15s;user-select:none}
+/* Tabs are <button>s (issue #90), so the UA chrome is reset back to the
+   look the divs had — the border-bottom is the selected indicator and has to
+   survive the reset, hence `border:none` before it. */
+.htab{flex-shrink:0;white-space:nowrap;padding:.55rem .9rem;font:inherit;font-size:13px;cursor:pointer;background:none;border:none;color:var(--color-text-secondary);border-bottom:2px solid transparent;display:inline-flex;align-items:center;gap:5px;transition:color .15s;user-select:none}
 .htab:hover{color:var(--color-text-primary)}.htab.on{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
 /* Six tabs (Phrases arrived with issue #75) no longer fit a phone at the full
    padding, and the strip's horizontal scroll would leave Budget off the edge
@@ -58,7 +73,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--co
 #hedit-modal.on{display:flex}
 #hedit-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:540px;display:flex;flex-direction:column;max-height:90vh}
 #hedit-hd{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:.5px solid var(--color-border-tertiary)}
-#hedit-ta{border:none;outline:none;background:var(--color-background-primary);color:var(--color-text-primary);padding:.75rem 1rem;font-family:ui-monospace,monospace;font-size:12px;resize:none;min-height:220px;flex:1;overflow-y:auto}
+#hedit-ta{border:none;background:var(--color-background-primary);color:var(--color-text-primary);padding:.75rem 1rem;font-family:ui-monospace,monospace;font-size:12px;resize:none;min-height:220px;flex:1;overflow-y:auto}
 #hedit-ft{display:flex;align-items:center;gap:8px;padding:.75rem 1rem;border-top:.5px solid var(--color-border-tertiary)}
 #hedit-err{flex:1;font-size:11px;color:var(--color-text-danger)}
 .hedit-btn{display:none}
@@ -83,7 +98,7 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--co
 .hef-lbl{font-size:11px;font-weight:500;color:var(--color-text-secondary)}
 .hef-req{color:var(--color-text-danger);margin-left:2px}
 /* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25). */
-.hef-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.4rem .5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
+.hef-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.4rem .5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary)}
 .hef-in:focus{border-color:var(--color-text-info)}
 textarea.hef-in{resize:vertical;line-height:1.4}
 /* Wrapping single-line fields (long names, addresses, links): they grow to
@@ -139,7 +154,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 .hpv-warn{background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:.4rem .55rem;margin-top:.5rem;font-size:11px;white-space:pre-wrap;max-height:160px;overflow-y:auto}
 #hchat-ft{display:flex;gap:8px;align-items:flex-end;padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom));border-top:.5px solid var(--color-border-tertiary);flex-shrink:0}
 /* 16px keeps iOS Safari from auto-zooming to the field on focus (issue #25). */
-#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);min-height:38px;max-height:120px;outline:none}
+#hchat-input{flex:1;resize:none;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);min-height:38px;max-height:120px}
 /* On small screens the open chat is genuinely fullscreen and the page behind
    it is taken out of play, so no touch gesture can scroll the itinerary
    (issue #48). visibility rather than display so showApp()'s inline
@@ -153,7 +168,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 #hset-modal.on{display:flex}
 #hset-inner{background:var(--color-background-primary);border-radius:var(--border-radius-lg);width:100%;max-width:440px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.7rem}
 .hset-lbl{font-size:12px;font-weight:500;display:block;margin-bottom:3px}
-.hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
+.hset-in{width:100%;box-sizing:border-box;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.45rem .55rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary)}
 /* Lists view (issue #40): item rows with a tick-off checkbox and chips for
    the link / schedule / promoted-segment actions. */
 .hli{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:.5px solid var(--color-border-tertiary);font-size:13px}
@@ -184,7 +199,7 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 /* Quick-add is not gated on edit mode (issue #72): adding an intention is the
    point of the Lists view, so the box is always there. */
 .hli-add{display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:.5px solid var(--color-border-tertiary)}
-.hli-add-in{flex:1;min-width:0;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.3rem .5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none}
+.hli-add-in{flex:1;min-width:0;border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:.3rem .5rem;font:inherit;font-size:16px;background:var(--color-background-primary);color:var(--color-text-primary)}
 .hli-add-in:focus{border-color:var(--color-text-info)}
 /* Add-a-segment row at the foot of the itinerary (issue #76). Same chips as
    the Lists view's actions, and like its quick-add not gated on edit mode. */
