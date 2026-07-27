@@ -245,6 +245,22 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   the next arrow press dead. Five of the six views were pointer-only before
   this, so a new view means a tab, a panel and their `aria-controls` /
   `aria-labelledby` pair — `tests/e2e/a11y.spec.js` checks all six.
+- **Meaning lives in the markup, not in the size and colour** (issue #92): the
+  views carry a real heading outline — each screen's own `<h1>` (the opening
+  screen's is `sr-only`, the open trip's is `#htname`, and only one is ever
+  displayed), `<h2>` per day / list / group, `<h3>` per segment — and any
+  sequence that is a list is a `<ul class="hplain-list">` of `<li>`s, which is
+  what buys "list, 8 items… item 3 of 8". None of it may change the rendering:
+  headings carry `margin:0` and the same inline font rules the `div`s had, and
+  `.hplain-list` sets no `display` because the `<li>` is already a `.hseg` card
+  or a `.hli` flex row. An `aria-hidden` icon that carried a *relationship* —
+  the transport arrow, the phone, the warning triangle — needs the word back as
+  `sr-only` text; an icon-only control needs an `aria-label` naming *which*
+  thing it acts on ("Edit Eurostar", "Open seg-a1b2 in itinerary"), which makes
+  the label another untrusted sink that goes through `esc()`. State signalled
+  by a class alone is invisible to assistive tech, so `updateActiveChip` sets
+  `aria-current` in the same line as `.on`. `tests/e2e/a11y.spec.js` asserts
+  names through `getByRole`, the same computation a screen reader runs.
 - **There is exactly one focus-outline rule** (`styles.css`, issue #90), and
   nothing else in the file may write `outline`. It is `:where(…):focus-visible`
   at near-zero specificity so per-control rules keep winning on everything
