@@ -59,7 +59,7 @@ test('every icon the app renders is one Tabler ships', () => {
 
 test('the tabs each carry an icon, so none renders as a bare label', () => {
   const html = readFileSync(join(root, 'src/index.html'), 'utf8');
-  const tabs = [...html.matchAll(/<div class="htab[^"]*" data-v="([a-z]+)"[^>]*>(.*?)<\/div>/g)];
+  const tabs = [...html.matchAll(/<button[^>]*\bclass="htab[^"]*"[^>]*\bdata-v="([a-z]+)"[^>]*>(.*?)<\/button>/g)];
   assert.ok(tabs.length >= 6, `found ${tabs.length} tabs`);
   const icons = tabs.map(([, view, body]) => {
     const icon = body.match(/\bti ti-([a-z0-9-]+)/);

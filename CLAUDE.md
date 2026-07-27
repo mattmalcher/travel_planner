@@ -235,6 +235,22 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   colours. The chart-ish colours that are not themed — gantt block fills, map
   pins — are deliberate: they carry meaning, sit under white text, and read on
   either background.
+- **The tab strip is an ARIA tablist, and one tab stop** (issue #90): the tabs
+  are `<button role="tab">`s, the panels `role="tabpanel"`, and `switchView()`
+  in `app.js` is the single place `aria-selected` and the roving `tabindex`
+  are settled — same fact as the `on` class, so a view switched from anywhere
+  (a list chip, `revealSegment`, `closeTrip`) leaves exactly one tab in the tab
+  order. `tabKey()` handles Left/Right/Home/End with automatic activation and
+  leaves focus on the strip; a tab that moved focus into its panel would make
+  the next arrow press dead. Five of the six views were pointer-only before
+  this, so a new view means a tab, a panel and their `aria-controls` /
+  `aria-labelledby` pair — `tests/e2e/a11y.spec.js` checks all six.
+- **There is exactly one focus-outline rule** (`styles.css`, issue #90), and
+  nothing else in the file may write `outline`. It is `:where(…):focus-visible`
+  at near-zero specificity so per-control rules keep winning on everything
+  else; a control that sets `outline:none` to style its own focus is how five
+  inputs ended up signalling focus with a .5px border alone, under the 3:1
+  WCAG 2.4.11 asks. Style focus *in addition* to the ring, never instead of it.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add
