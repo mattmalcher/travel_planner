@@ -49,7 +49,7 @@ test.describe('keyboard access', () => {
     // Tab until the strip is reached — the roving tabindex means only the
     // selected tab is in the tab order, so this lands on Itinerary.
     for (let i = 0; i < 20; i++) {
-      if (await page.locator('.htab[data-v="list"]').evaluate(el => el === document.activeElement)) break;
+      if (await page.locator('.htab[data-v="list"]').evaluate(el => el === globalThis.document.activeElement)) break;
       await page.keyboard.press('Tab');
     }
     await expect(page.locator('.htab[data-v="list"]')).toBeFocused();
@@ -98,7 +98,7 @@ test.describe('keyboard access', () => {
     const input = page.locator('#hvlists .hli-add-in').first();
     await input.evaluate(el => el.focus());
     const style = await input.evaluate(el => {
-      const s = getComputedStyle(el);
+      const s = globalThis.getComputedStyle(el);
       return { style: s.outlineStyle, width: s.outlineWidth };
     });
     expect(style.style).not.toBe('none');
