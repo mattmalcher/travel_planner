@@ -115,13 +115,17 @@ function itemRow(item, li, ii, segIds) {
   if (item.segment_id && segIds.has(item.segment_id)) {
     // The id rides in a data attribute rather than an inline JS string so a
     // hostile id can't break out of the onclick (issue #9).
-    chip = `<button class="hli-chip" data-sid="${esc(item.segment_id)}" onclick="hListSeg(this.dataset.sid)" title="Open in itinerary"><i class="ti ti-calendar-check" aria-hidden="true"></i> ${esc(item.segment_id)}</button>`;
+    // The visible text is the bare id, which announces as "seg-a1b2, button"
+    // and says nothing about what pressing it does — hence the fuller name
+    // (issue #92). The id is itinerary-supplied, so it goes through esc() in
+    // the label exactly as it does in the body (issue #9).
+    chip = `<button class="hli-chip" data-sid="${esc(item.segment_id)}" onclick="hListSeg(this.dataset.sid)" title="Open in itinerary" aria-label="Open ${esc(item.segment_id)} in itinerary"><i class="ti ti-calendar-check" aria-hidden="true"></i> ${esc(item.segment_id)}</button>`;
   } else if (item.segment_id) {
     chip = `<span class="hli-chip broken" title="The scheduled segment no longer exists"><i class="ti ti-unlink" aria-hidden="true"></i> ${esc(item.segment_id)}</span>`;
   } else {
     chip = `<button class="hli-chip" onclick="hListSchedule(${li},${ii})" title="Create a segment from this item"><i class="ti ti-calendar-plus" aria-hidden="true"></i> Schedule</button>`;
   }
-  return `<div class="hli${item.done ? ' done' : ''}">
+  return `<li class="hli${item.done ? ' done' : ''}">
     <label class="hli-main">
       <input type="checkbox" ${item.done ? 'checked' : ''} onchange="hListToggle(${li},${ii})">
       <span class="hli-name">${esc(item.name)}${item.local_name ? ` <span class="hli-local">${esc(item.local_name)}</span>` : ''}</span>
@@ -131,7 +135,7 @@ function itemRow(item, li, ii, segIds) {
     <button class="hli-edit hedit-btn" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
     <button class="hli-del hedit-btn" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
     ${item.note ? `<div class="hli-note">${esc(item.note)}</div>` : ''}
-  </div>`;
+  </li>`;
 }
 
 /** The undo offer, shown in the list the deleted item came from. */
@@ -159,9 +163,9 @@ const newListBtn = `<button onclick="hOpenAddList()" class="htool"><i class="ti 
     Keyed by index, like the cards below, so a list with no id still works. */
 function jumpNav(lists) {
   if (lists.length < 2) return '';
-  return `<div class="hjump-nav">${lists.map((list, li) =>
+  return `<nav class="hjump-nav" aria-label="Jump to list">${lists.map((list, li) =>
     `<button class="hjump-chip" data-k="${li}" onclick="hJumpList(this.dataset.k)"><i class="ti ${listIcon(list.kind)}" aria-hidden="true"></i> ${esc(list.name || 'List')}</button>`
-  ).join('')}</div>`;
+  ).join('')}</nav>`;
 }
 
 export function renderLists() {
@@ -182,17 +186,23 @@ export function renderLists() {
     const p = listProgress(list);
     const { open, done } = partitionItems(list);
     const row = item => itemRow(item, li, HD.lists[li].items.indexOf(item), segIds);
-    return `<div class="hseg hjump-a" data-k="${li}">
+    const items = [...open, ...done].map(row).join('');
+    return `<section class="hseg hjump-a" data-k="${li}">
       <div style="display:flex;align-items:center;gap:10px">
         <i class="ti ${listIcon(list.kind)}" style="font-size:17px;color:var(--color-text-secondary)" aria-hidden="true"></i>
-        <div style="font-size:14px;font-weight:500;flex:1">${esc(list.name)}</div>
-        <span class="hli-progress">${p.done}/${p.total}</span>
-        <button class="hpencil hedit-btn" onclick="hOpenEditList(${li})" title="Edit list"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+        <h2 style="margin:0;font-size:14px;font-weight:500;flex:1">${esc(list.name)}</h2>
+        <!-- "3/8" announces as "three slash eight". role="img" is what lets the
+             badge take an author-supplied name at all — aria-label on a bare
+             span (role=generic) is ignored by most screen readers, and the
+             visible glyphs stay exactly as they were (issue #92). -->
+        <span class="hli-progress" role="img" aria-label="${p.done} of ${p.total} done">${p.done}/${p.total}</span>
+        <button class="hpencil hedit-btn" onclick="hOpenEditList(${li})" title="Edit list" aria-label="Edit list ${esc(list.name || '')}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       </div>
-      <div style="margin-top:8px">${[...open, ...done].map(row).join('') ||
-        '<div style="font-size:12px;color:var(--color-text-tertiary)">No items yet.</div>'}</div>
+      ${items
+        ? `<ul class="hplain-list" style="margin-top:8px">${items}</ul>`
+        : '<div style="margin-top:8px;font-size:12px;color:var(--color-text-tertiary)">No items yet.</div>'}
       ${undoRow(li)}${addRow(li)}
-    </div>`;
+    </section>`;
   }).join('') + `<div style="margin-top:.9rem">${newListBtn}</div>`;
   bindJumpSpy('hvlists');
   updateActiveChip('hvlists');

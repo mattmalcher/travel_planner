@@ -54,6 +54,12 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--co
    with nothing to hint it is there. Tightening the gaps fits them all. */
 @media (max-width:520px){.htabs{padding:0 .6rem}.htab{padding:.55rem .55rem;gap:4px}}
 .hseg{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:.8rem 1rem;margin-bottom:.5rem;scroll-margin-top:56px}
+/* Sequences that really are lists are marked up as <ul>/<li> so a reader gets
+   "list, 8 items… item 3 of 8" (issue #92) — this strips the bullets and the
+   indent the semantics would otherwise drag in. It carries no display of its
+   own: the itinerary's <li> is a .hseg card and the Lists view's is the .hli
+   flex row, and both already set theirs. */
+.hplain-list{list-style:none;margin:0;padding:0}
 .hseg.hl{animation:hseg-flash 1.6s ease-out}
 @keyframes hseg-flash{0%,55%{box-shadow:0 0 0 2.5px var(--color-text-info)}100%{box-shadow:0 0 0 2.5px transparent}}
 /* Sticky jump strip, shared by the Itinerary view's day chips (issue #21) and

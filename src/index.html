@@ -20,7 +20,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="Itinerary"/>
-<h2 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views</h2>
 <!-- The only subresources the page does not carry itself. Each is pinned to an
      exact version AND to an SRI hash, so a tampered or swapped CDN response is
      rejected by the browser before it runs — which matters here because a
@@ -41,7 +40,12 @@
         integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <!-- build:styles -->
 
+<!-- Each screen owns its own <h1> (issue #92), and only one of the two is ever
+     displayed: the opening screen's is sr-only prose describing the app, the
+     open trip's is its name in the header. A single page-level <h1> sitting
+     above both would put an h1 after the day headings once a trip is open. -->
 <div id="hupl" style="padding:2.5rem 1.5rem">
+  <h1 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views</h1>
   <div style="text-align:center;margin-bottom:1.75rem">
     <div style="font-size:17px;font-weight:500;margin-bottom:4px">Itinerary viewer</div>
     <div style="font-size:13px;color:var(--color-text-secondary)">Load any <code>HolidayItinerary</code> JSON file to view the itinerary, schedule, budget and map — or start one from scratch</div>
@@ -68,7 +72,7 @@
 
 <div id="happ" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:.75rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)">
-    <div id="htname" style="font-size:15px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <h1 id="htname" style="margin:0;font-size:15px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></h1>
     <div style="display:flex;gap:8px;flex-shrink:0">
       <!-- The trip switcher (issue #80): several trips live here, and this is
            where you flip between them, wind one back, or forget one. -->
