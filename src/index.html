@@ -220,6 +220,13 @@
   </div>
 </div>
 
+<!-- The app's one polite live region (issue #93). Views that mutate themselves
+     in place say what changed here, since the change of state is otherwise
+     visual only. It is in the markup rather than created on demand on purpose:
+     a live region created and written in the same frame does not announce
+     reliably. Outside #happ so it survives closing a trip. -->
+<div id="hlive" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
 <!-- Shown by sw-register.js only when this page load was served from the
      service worker's offline cache. -->
 <div id="hswbadge" title="Loaded from the offline cache"><i class="ti ti-cloud-check" aria-hidden="true"></i> Offline ready</div>

@@ -92,6 +92,9 @@ src/
     jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
                     the Lists view's list chips and the Phrases view's group
                     chips (issues #21, #69, #75)
+    live.js         announce() — the app's one polite live region (issue #93),
+                    which lives in index.html so it is never created and written
+                    in the same frame
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
@@ -261,6 +264,25 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   by a class alone is invisible to assistive tech, so `updateActiveChip` sets
   `aria-current` in the same line as `.on`. `tests/e2e/a11y.spec.js` asserts
   names through `getByRole`, the same computation a screen reader runs.
+- **A mutation inside a view patches the row it is about** (issue #93): the
+  Lists view's tick, inline delete, undo and quick-add each mutate the document
+  and then patch that row, its list's progress badge and the Undo offer — they
+  must never rebuild the view with `innerHTML`, which destroyed the control the
+  user had just operated and dropped focus to `<body>`, restarting the next Tab
+  at the top of the document (a 3.2.2 On Input failure, on the one view whose
+  whole point is working down it). `renderLists()` is still the full redraw —
+  for a loaded trip, and for structural changes through the modal — and every
+  patch path falls back to it when the row or section it expects is not there.
+  Rows are keyed by an opaque per-item key (`data-ik`, minted in the view and
+  resolved through `locateItem` by object *identity*): never by index, which
+  shifts under a delete while the rows around it stay put, and never by
+  `item.id`, which "Load anyway" can put two of on the page. What changed also
+  gets a sentence through `announce()` (`views/live.js`), since a ticked item
+  sinking below the open ones and an Undo offer appearing are visual-only
+  events — and because the Undo is the only recovery from a delete, focus moves
+  onto it. The counts in those sentences come from `listProgress`, the same call
+  the badge uses, so the spoken and visible numbers cannot drift. The Phrases
+  view still redraws wholesale: the same problem, not yet done.
 - **There is exactly one focus-outline rule** (`styles.css`, issue #90), and
   nothing else in the file may write `outline`. It is `:where(…):focus-visible`
   at near-zero specificity so per-control rules keep winning on everything

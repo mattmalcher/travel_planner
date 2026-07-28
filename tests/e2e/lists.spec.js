@@ -416,3 +416,123 @@ test.describe('Editing lists by hand', () => {
     expect(list.items[0].name).toBe('Miradouro');
   });
 });
+
+// Issue #93: every mutation used to rebuild the whole view with innerHTML, so
+// the control just operated no longer existed — focus fell to <body> and the
+// next Tab restarted from the top of the document (a 3.2.2 failure), and
+// nothing said what had changed. Rows are patched in place now, and each
+// mutation writes a sentence into the shared live region.
+test.describe('Lists mutate in place (issue #93)', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.setInputFiles('#hfile', {
+      name: 'lists.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(listItinerary))
+    });
+    await page.click('.htab[data-v="lists"]');
+  });
+
+  // A region created and populated in the same frame does not announce
+  // reliably, so its existence before any write is the property that matters —
+  // Playwright can check that, where it cannot check that anything was spoken.
+  test('the live region is polite and in the DOM before anything is written', async ({ page }) => {
+    const live = page.locator('#hlive');
+    await expect(live).toHaveCount(1);
+    await expect(live).toHaveAttribute('role', 'status');
+    await expect(live).toHaveAttribute('aria-live', 'polite');
+    await expect(live).toBeEmpty();
+  });
+
+  test('ticking an item keeps focus on the checkbox that was ticked', async ({ page }) => {
+    const food = page.locator('#hvlists .hseg').first();
+    const row = food.locator('.hli', { hasText: 'Lost dinner' }); // the third item
+    const cb = row.locator('input[type=checkbox]');
+    await cb.focus();
+    await page.keyboard.press('Space');
+
+    // The item sinks below the open ones, so this asserts on the row's identity
+    // rather than its position: same element, still focused, now last.
+    await expect(row).toHaveClass(/done/);
+    await expect(cb).toBeChecked();
+    await expect(cb).toBeFocused();
+    await expect(food.locator('.hli').last()).toContainText('Lost dinner');
+    await expect(food.locator('.hli-progress')).toHaveText('1/3');
+    await expect(page.locator('#hlive')).toHaveText('Lost dinner ticked off. 1 of 3 done.');
+
+    // And back up again — a keyboard user can carry straight on from here.
+    await page.keyboard.press('Space');
+    await expect(cb).toBeFocused();
+    await expect(page.locator('#hlive')).toHaveText('Lost dinner unticked. 0 of 3 done.');
+  });
+
+  test('a tick leaves the rest of the view alone', async ({ page }) => {
+    const food = page.locator('#hvlists .hseg').first();
+    const packing = page.locator('#hvlists .hseg').nth(1);
+    // Half-typed input in another list is the sharpest evidence of a redraw:
+    // rebuilding the view threw it away.
+    await packing.locator('.hli-add-in').fill('Adapter');
+    await food.locator('.hli', { hasText: 'Custard tart' }).locator('input[type=checkbox]').check();
+    await expect(food.locator('.hli-progress')).toHaveText('1/3');
+    await expect(packing.locator('.hli-add-in')).toHaveValue('Adapter');
+  });
+
+  test('deleting an item hands focus to the Undo that replaced it', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    const food = page.locator('#hvlists .hseg').first();
+    await food.locator('.hli', { hasText: 'Custard tart' })
+      .getByRole('button', { name: 'Delete item' }).click();
+
+    // The × is gone with its row; the Undo is the only way back and it expires
+    // on the next change, so that is where focus goes.
+    const undoBtn = food.locator('.hli-undo').getByRole('button', { name: 'Undo' });
+    await expect(undoBtn).toBeFocused();
+    await expect(page.locator('#hlive')).toHaveText('Deleted Custard tart. Undo available.');
+
+    await undoBtn.click();
+    const cb = food.locator('.hli', { hasText: 'Custard tart' }).locator('input[type=checkbox]');
+    await expect(cb).toBeFocused();
+    await expect(page.locator('#hlive')).toHaveText('Custard tart restored. 3 items.');
+  });
+
+  test('a row still acts on its own item after another row was deleted', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    const food = page.locator('#hvlists .hseg').first();
+    await food.locator('.hli', { hasText: 'Custard tart' })
+      .getByRole('button', { name: 'Delete item' }).click();
+
+    // Every item below the deleted one moved down an index in the document
+    // while its row stayed on the page — a row keyed by index would now open
+    // the wrong item.
+    await food.locator('.hli', { hasText: 'Lost dinner' })
+      .getByRole('button', { name: 'Edit item' }).click();
+    await expect(page.locator('#hedit-title')).toHaveText('Edit: Lost dinner');
+  });
+
+  test('the quick-add announces the item and keeps the box ready', async ({ page }) => {
+    const food = page.locator('#hvlists .hseg').first();
+    const box = food.locator('.hli-add-in');
+    await box.fill('Croissant');
+    await box.press('Enter');
+    await expect(page.locator('#hlive')).toHaveText('Croissant added. 4 items.');
+    await expect(box).toHaveValue('');
+    await expect(box).toBeFocused();
+  });
+
+  test('deleting the last item leaves the empty note a redraw would have left', async ({ page }) => {
+    await page.click('#hedit-toggle');
+    const packing = page.locator('#hvlists .hseg').nth(1); // one item, already done
+    await packing.locator('.hli', { hasText: 'Passports' })
+      .getByRole('button', { name: 'Delete item' }).click();
+    await expect(packing).toContainText('No items yet.');
+    await expect(packing.locator('.hplain-list')).toHaveCount(0);
+    await expect(packing.locator('.hli-progress')).toHaveText('0/0');
+
+    // …and the note gives way again when an item arrives, in a real <ul>.
+    await packing.locator('.hli-add-in').fill('Adapter');
+    await packing.locator('.hli-add-in').press('Enter');
+    await expect(packing.locator('.hplain-list .hli')).toHaveCount(1);
+    await expect(packing).not.toContainText('No items yet.');
+  });
+});
