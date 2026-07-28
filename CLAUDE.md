@@ -92,6 +92,8 @@ src/
     jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
                     the Lists view's list chips and the Phrases view's group
                     chips (issues #21, #69, #75)
+    focus.js        keepFocus/focusTo across a wholesale re-render, and
+                    announce() into the one #hlive region (issue #93)
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
@@ -267,6 +269,26 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   else; a control that sets `outline:none` to style its own focus is how five
   inputs ended up signalling focus with a .5px border alone, under the 3:1
   WCAG 2.4.11 asks. Style focus *in addition* to the ring, never instead of it.
+- **A re-render may not drop focus, and a mutation says what it did**
+  (issue #93): the Lists, Phrases and Itinerary views redraw wholesale with
+  `box.innerHTML = …`, which destroys the control the user was on — focus falls
+  back to `<body>` and the next Tab restarts at the top of the document (3.2.2).
+  Every control worth returning to therefore carries a `data-focus="role:key"`
+  identity, and mutations go through `keepFocus()` in `views/focus.js` rather
+  than calling the renderer directly; the key is an identity, not a position,
+  because the Lists view re-sorts done items below open ones on every tick. Its
+  extra arguments are where focus should land when the mutation deliberately
+  moves it — a delete hands over to the Undo button, which is also the only
+  recovery from it. `openModal`/`closeEdit` do the same across the modal, which
+  is why `saveEdit`/`deleteEdit` re-render *before* closing. The counterpart is
+  `announce()` and the single `#hlive` `role="status"` region (4.1.3): it lives
+  in `src/index.html` because a region created and written in the same frame
+  does not announce reliably, it is polite because none of this should
+  interrupt, and a message identical to the one already there gets an invisible
+  suffix — an unchanged region announces nothing. If the helper starts
+  accreting special cases, that is the signal to stop rebuilding wholesale and
+  mutate the affected row in place. `tests/e2e/focus.spec.js` drives all of it
+  from the keyboard, the case that was broken.
 - **The text tokens are the AA contrast contract** (issue #91): every
   `--color-text-*` in `styles.css` clears WCAG 1.4.3's 4.5:1 against every
   `--color-background-*` it is rendered on, in *both* themes, and

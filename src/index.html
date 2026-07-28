@@ -220,6 +220,14 @@
   </div>
 </div>
 
+<!-- The one polite live region (issue #93), written by views/focus.js when a
+     view mutates: "Bordeaux ticked off. 4 of 8 done.", "Deleted Bordeaux. Undo
+     available.". It lives in the static markup because a region created and
+     populated in the same frame does not announce reliably — it has to be in
+     the DOM before anything writes to it. role="status" is implicitly polite
+     and atomic; nothing said here is worth interrupting for. -->
+<div id="hlive" role="status" aria-live="polite" class="sr-only"></div>
+
 <!-- Shown by sw-register.js only when this page load was served from the
      service worker's offline cache. -->
 <div id="hswbadge" title="Loaded from the offline cache"><i class="ti ti-cloud-check" aria-hidden="true"></i> Offline ready</div>

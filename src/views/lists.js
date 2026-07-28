@@ -16,6 +16,7 @@ import { newId } from '../lib/ids.js';
 import { listProgress, partitionItems, takenItemIds } from '../lib/lists.js';
 import { revealSegment } from '../app.js';
 import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
+import { keepFocus, announce } from './focus.js';
 
 /** Tabler icon class for a list's kind. */
 export function listIcon(kind) {
@@ -34,39 +35,51 @@ export function listIcon(kind) {
 let undo = null; // { hd, li, ii, item }
 
 /** Toggle an item's done flag in place and persist; only this view changes,
-    so no full refreshAfterChange. */
+    so no full refreshAfterChange. The whole view is redrawn and the item
+    generally moves (open items sort above done ones), so the checkbox that was
+    pressed is put back under the cursor by identity rather than position, and
+    the new count is said out loud (issue #93). */
 export function toggleListItem(li, ii) {
   const item = state.HD.lists[li].items[ii];
   item.done = !item.done;
   undo = null;
   persist();
-  renderLists();
+  keepFocus(renderLists);
+  const p = listProgress(state.HD.lists[li]);
+  announce(`${item.name || 'Item'} ${item.done ? 'ticked off' : 'unticked'}. ${p.done} of ${p.total} done.`);
 }
 
 /** Delete an item outright — no confirm, because the Undo chip below the
     list costs one click and keeps everything the item held (issue #69). Any
     segment it was promoted into is a segment now and stays on the itinerary,
-    exactly as it does when the item is deleted from the modal. */
+    exactly as it does when the item is deleted from the modal.
+    The row focus was on is gone, so focus hands over to the Undo button — which
+    is also the only recovery from the delete, and was previously visual-only
+    (issue #93). */
 export function deleteListItem(li, ii) {
   const list = state.HD.lists[li];
   if (!list || !Array.isArray(list.items)) return;
   const [item] = list.items.splice(ii, 1);
   undo = item ? { hd: state.HD, li, ii, item } : null;
   persist();
-  renderLists();
+  keepFocus(renderLists, `li-undo:${li}`, `li-add:${li}`);
+  if (item) announce(`Deleted ${item.name || 'item'}. Undo available.`);
 }
 
-/** Put the last deleted item back where it was. */
+/** Put the last deleted item back where it was, and focus lands back on the
+    restored item — the Undo button it was on is gone by then. */
 export function undoDeleteListItem() {
   if (!undo) return;
-  const list = state.HD.lists[undo.li];
+  const { li, ii, item } = undo;
+  const list = state.HD.lists[li];
   if (list) {
     if (!Array.isArray(list.items)) list.items = [];
-    list.items.splice(Math.min(undo.ii, list.items.length), 0, undo.item);
+    list.items.splice(Math.min(ii, list.items.length), 0, item);
     persist();
   }
   undo = null;
-  renderLists();
+  keepFocus(renderLists, `li-check:${li}:${ii}`, `li-add:${li}`);
+  announce(`${item.name || 'Item'} restored.`);
 }
 
 /** Scroll to a list from the jump strip (issue #69), keyed by list index. */
@@ -96,9 +109,11 @@ export function addListItem(li) {
   list.items.push({ id: newId('li-', takenItemIds(state.HD)), name });
   undo = null;
   persist();
-  renderLists();
-  const next = addInput(li);
-  if (next) next.focus();
+  // The hand-rolled re-focus this used to do is now the shared helper's job
+  // (issue #93) — same behaviour, and the add box is named like every other
+  // control worth returning to.
+  keepFocus(renderLists, `li-add:${li}`);
+  announce(`${name} added.`);
 }
 
 /** Enter in the quick-add box adds the item (a lone input has no form to
@@ -125,15 +140,20 @@ function itemRow(item, li, ii, segIds) {
   } else {
     chip = `<button class="hli-chip" onclick="hListSchedule(${li},${ii})" title="Create a segment from this item"><i class="ti ti-calendar-plus" aria-hidden="true"></i> Schedule</button>`;
   }
+  // data-focus is the identity that survives the innerHTML rewrite (issue #93):
+  // the row is destroyed and rebuilt on every tick, and the item moves as well
+  // (open sorts above done), so focus is restored by this key rather than by
+  // where the control was. The indices are the view's own, never itinerary
+  // data, so they need no escaping.
   return `<li class="hli${item.done ? ' done' : ''}">
     <label class="hli-main">
-      <input type="checkbox" ${item.done ? 'checked' : ''} onchange="hListToggle(${li},${ii})">
+      <input type="checkbox" data-focus="li-check:${li}:${ii}" ${item.done ? 'checked' : ''} onchange="hListToggle(${li},${ii})">
       <span class="hli-name">${esc(item.name)}${item.local_name ? ` <span class="hli-local">${esc(item.local_name)}</span>` : ''}</span>
     </label>
     ${url ? `<a class="hli-chip" href="${esc(url)}" target="_blank" rel="noopener">Link <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a>` : ''}
     ${chip}
-    <button class="hli-edit hedit-btn" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
-    <button class="hli-del hedit-btn" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
+    <button class="hli-edit hedit-btn" data-focus="li-edit:${li}:${ii}" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+    <button class="hli-del hedit-btn" data-focus="li-del:${li}:${ii}" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
     ${item.note ? `<div class="hli-note">${esc(item.note)}</div>` : ''}
   </li>`;
 }
@@ -143,14 +163,14 @@ function undoRow(li) {
   if (!undo || undo.li !== li) return '';
   return `<div class="hli-undo">
     <span>Deleted “${esc(undo.item.name || 'item')}”</span>
-    <button class="hli-chip" onclick="hListUndo()"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> Undo</button>
+    <button class="hli-chip" data-focus="li-undo:${li}" onclick="hListUndo()"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> Undo</button>
   </div>`;
 }
 
 /** The quick-add row under each list — always shown, no edit mode needed. */
 function addRow(li) {
   return `<div class="hli-add">
-    <input class="hli-add-in" type="text" data-li="${li}" placeholder="Add an item…"
+    <input class="hli-add-in" type="text" data-li="${li}" data-focus="li-add:${li}" placeholder="Add an item…"
       aria-label="Add an item" onkeydown="hListAddKey(event,${li})">
     <button class="hli-chip" onclick="hListAdd(${li})"><i class="ti ti-plus" aria-hidden="true"></i> Add</button>
   </div>`;
@@ -196,7 +216,7 @@ export function renderLists() {
              span (role=generic) is ignored by most screen readers, and the
              visible glyphs stay exactly as they were (issue #92). -->
         <span class="hli-progress" role="img" aria-label="${p.done} of ${p.total} done">${p.done}/${p.total}</span>
-        <button class="hpencil hedit-btn" onclick="hOpenEditList(${li})" title="Edit list" aria-label="Edit list ${esc(list.name || '')}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+        <button class="hpencil hedit-btn" data-focus="list-edit:${li}" onclick="hOpenEditList(${li})" title="Edit list" aria-label="Edit list ${esc(list.name || '')}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       </div>
       ${items
         ? `<ul class="hplain-list" style="margin-top:8px">${items}</ul>`
