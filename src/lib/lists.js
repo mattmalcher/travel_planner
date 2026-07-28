@@ -19,6 +19,41 @@ export function partitionItems(list) {
   };
 }
 
+/** Items in the order the views draw them — open above done, original order
+    within each half. The one definition of where a row belongs, and the reason
+    a focus key cannot be a rendered position (issue #93): this ordering moves
+    a row the moment it is ticked. */
+export function displayOrder(list) {
+  const { open, done } = partitionItems(list);
+  return [...open, ...done];
+}
+
+/* What the live region says after each mutation (issue #93). The counts come
+   from listProgress, the same call the visible progress badge uses, so the
+   spoken and the shown number cannot drift — which is why these are here and
+   not spelled out inline in the view. The count is the useful half of the
+   sentence: it is the thing a non-visual user cannot see. */
+
+const itemName = item => (item && item.name) || 'Item';
+const items = n => `${n} item${n === 1 ? '' : 's'}`;
+
+export function toggleMessage(item, list) {
+  const p = listProgress(list);
+  return `${itemName(item)} ${item && item.done ? 'ticked off' : 'unticked'}. ${p.done} of ${p.total} done.`;
+}
+
+export function deleteMessage(item) {
+  return `Deleted ${itemName(item)}. Undo available.`;
+}
+
+export function restoreMessage(item, list) {
+  return `${itemName(item)} restored. ${items(listProgress(list).total)}.`;
+}
+
+export function addMessage(item, list) {
+  return `${itemName(item)} added. ${items(listProgress(list).total)}.`;
+}
+
 /** Every list id in the document — the taken set for newId('list-', …). */
 export function takenListIds(doc) {
   const lists = (doc && Array.isArray(doc.lists)) ? doc.lists : [];

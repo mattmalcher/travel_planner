@@ -145,7 +145,10 @@ export function renderList() {
         const detail = s.type === 'transport' ? renderTransport(s, HD.trip) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s, HD.trip.currency_primary);
         // There is one pencil per card, so a bare "Edit segment" would give a
         // day full of identically named buttons — the name says which one
-        // (issue #92). `title` is already esc()d above.
+        // (issue #92). `title` is already esc()d above. data-focus is the
+        // identity that survives this view's innerHTML rewrite: saving an edit
+        // redraws the whole itinerary, and closeEdit puts focus back on this
+        // pencil by that key rather than by position (issue #93).
         return `<li class="hseg" data-seg="${HD.segments.indexOf(s)}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0">
@@ -153,7 +156,7 @@ export function renderList() {
               <div><h3 style="margin:0;font-size:14px;font-weight:500">${title}</h3><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${sub}</div></div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-              <button class="hpencil hedit-btn" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment" aria-label="Edit ${title}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+              <button class="hpencil hedit-btn" data-focus="seg-edit:${HD.segments.indexOf(s)}" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment" aria-label="Edit ${title}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
               ${costStr ? `<span style="font-size:13px;font-weight:500">${costStr}</span>` : ''}
               ${costBadge(ci)}${proposalBadge(s)}
             </div>
