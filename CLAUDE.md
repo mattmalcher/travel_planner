@@ -92,6 +92,8 @@ src/
     jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
                     the Lists view's list chips and the Phrases view's group
                     chips (issues #21, #69, #75)
+    focus.js        keepFocus/focusTo across a wholesale re-render, and
+                    announce() into the one #hlive region (issue #93)
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
@@ -267,6 +269,48 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   else; a control that sets `outline:none` to style its own focus is how five
   inputs ended up signalling focus with a .5px border alone, under the 3:1
   WCAG 2.4.11 asks. Style focus *in addition* to the ring, never instead of it.
+- **A re-render may not drop focus, and a mutation says what it did**
+  (issue #93): the Lists, Phrases and Itinerary views redraw wholesale with
+  `box.innerHTML = …`, which destroys the control the user was on — focus falls
+  back to `<body>` and the next Tab restarts at the top of the document (3.2.2).
+  Every control worth returning to therefore carries a `data-focus="role:key"`,
+  and mutations go through `keepFocus()` in `views/focus.js` rather than calling
+  the renderer directly. The key is the control's position in the *document*,
+  which is not its position on screen: the Lists view sinks done items below the
+  open ones (`displayOrder` in `lib/lists.js`), so the checkbox that was pressed
+  has moved by the time it is restored, and that is the case that was broken.
+  It is deliberately *not* an identity — a mutation that shifts the indices
+  themselves leaves the key on whatever moved up into the slot, which is
+  survivable only because the mutation that does that (a delete) destroys the
+  focused control anyway and hands focus somewhere explicit. A view that gains a
+  mutation which re-indexes rows without removing the focused one needs a real
+  identity key (a WeakMap from the item object to a minted key), not another
+  fallback. `keepFocus`'s extra arguments are where focus should land when the
+  mutation deliberately moves it — a delete hands over to the Undo button, which
+  is also the only recovery from it. `openModal`/`closeEdit` do the same across
+  the modal, which is why `saveEdit`/`deleteEdit` re-render *before* closing.
+  The counterpart is `announce()` and the single `#hlive` `role="status"` region
+  (4.1.3): it lives in `src/index.html` because a region created and written in
+  the same frame does not announce reliably, it is polite because none of this
+  should interrupt, `aria-atomic` is spelled out so the whole sentence is read
+  rather than the text node that changed, and a message identical to the one
+  already there gets an invisible suffix — an unchanged region announces
+  nothing. The sentences themselves are built in `lib/lists.js` and
+  `lib/phrases.js`, not in the views, so the spoken count and the visible
+  progress badge are one `listProgress`/`phraseCount` call and cannot drift.
+  `tests/e2e/focus.spec.js` drives all of it from the keyboard, the case that
+  was broken.
+  Restoring focus around the redraw is not the same as not redrawing: the
+  wholesale rewrite still throws away scroll position and any half-typed text in
+  *another* section's quick-add box, and those two are the accepted cost of
+  keeping the redraw here. Either of them turning up as a complaint, or the
+  helper starting to accrete special cases, is the signal to stop rebuilding
+  wholesale and mutate the affected row in place instead. That follow-up is
+  scoped to **Lists and Phrases only**: the itinerary's pencils and the modal go
+  through `refreshAfterChange()` → `renderAll()` (`src/render.js`), and that
+  redraw is correct — a modal save can change a segment's date and move it
+  across day headings, the Schedule, the map and the budget — so those two
+  surfaces depend on `keepFocus` whatever happens to the other two.
 - **The text tokens are the AA contrast contract** (issue #91): every
   `--color-text-*` in `styles.css` clears WCAG 1.4.3's 4.5:1 against every
   `--color-background-*` it is rendered on, in *both* themes, and

@@ -19,6 +19,7 @@ import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.j
 import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
 import { updateActiveChip } from './views/jump-nav.js';
+import { focusKey, focusTo } from './views/focus.js';
 import { renderChat } from './ai/chat.js';
 import { hidePreview } from './ai/preview.js';
 
@@ -293,7 +294,13 @@ export function editTab(mode) {
   setEditMode(mode);
 }
 
+// Where focus goes when the modal closes (issue #93). The pencil that opened it
+// is destroyed by the re-render that follows a save, so this is its `data-focus`
+// key rather than the element — closeEdit looks it up again on the redrawn page.
+let returnFocus = null;
+
 function openModal(target, value, title, deletable) {
+  returnFocus = focusKey();
   state.editTarget = target;
   state.editValue = value;
   state.editFields = editFieldsFor(target, value);
@@ -401,11 +408,21 @@ export function openEditPhrase(gi, pi) {
   openModal({ type: 'phrase', gi, pi }, phrase, 'Edit: ' + (phrase.text || 'Phrase'), true);
 }
 
+/** Close the modal and put focus back where it came from (issue #93). Callers
+    that re-render do so *before* this, so the control is on the page by the
+    time it is looked up. When it is gone — the modal's Delete just removed the
+    thing it belonged to — focus lands on the open view rather than falling back
+    to <body>, which would restart the next Tab at the top of the document. */
 export function closeEdit() {
   document.getElementById('hedit-modal').classList.remove('on');
   state.editTarget = null;
   state.editValue = null;
   state.editFields = null;
+  if (returnFocus && !focusTo(returnFocus)) {
+    const view = document.querySelector('.hv.on');
+    if (view) view.focus();
+  }
+  returnFocus = null;
 }
 
 /** One-line summary of schema errors for the modal's error slot. */
@@ -500,8 +517,10 @@ export function saveEdit() {
     updateHeader();
   }
   persist();
-  closeEdit();
+  // Re-render first, then close: closeEdit restores focus to the control that
+  // opened the modal, which only exists once the view has been redrawn.
   refreshAfterChange();
+  closeEdit();
 }
 
 /** The modal's Delete button, for whichever kind of thing it is open on. Only
@@ -537,8 +556,8 @@ export function deleteEdit() {
     state.HD.phrases[t.gi].items.splice(t.pi, 1);
   } else return;
   persist();
+  refreshAfterChange(); // before closeEdit, which restores focus — see saveEdit
   closeEdit();
-  refreshAfterChange();
 }
 
 /* --- saved-data guard: don't auto-load data written by an incompatible

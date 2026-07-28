@@ -30,6 +30,27 @@ export function phraseCount(group) {
   return items.filter(Boolean).length;
 }
 
+/* What the live region says after a phrase is deleted, restored or added
+   (issue #93) — the lists view's builders, in the phrasebook's words. Same
+   reason they live here rather than in the view: the count comes from
+   phraseCount, the call the group's count badge already makes, so the spoken
+   and the shown number are one computation. */
+
+const phraseText = phrase => (phrase && phrase.text) || 'Phrase';
+const phrases = n => `${n} phrase${n === 1 ? '' : 's'}`;
+
+export function deleteMessage(phrase) {
+  return `Deleted ${phraseText(phrase)}. Undo available.`;
+}
+
+export function restoreMessage(phrase, group) {
+  return `${phraseText(phrase)} restored. ${phrases(phraseCount(group))}.`;
+}
+
+export function addMessage(phrase, group) {
+  return `${phraseText(phrase)} added. ${phrases(phraseCount(group))}.`;
+}
+
 /** Phrases with no local wording yet: jotted down but not translated. The view
     counts them into the "n to translate" hint, which is the phrasebook's
     equivalent of a list's done/total progress. */

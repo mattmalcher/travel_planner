@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listProgress, partitionItems, danglingListRefs, takenListIds, takenItemIds } from '../../src/lib/lists.js';
+import {
+  listProgress, partitionItems, danglingListRefs, takenListIds, takenItemIds,
+  displayOrder, toggleMessage, deleteMessage, restoreMessage, addMessage,
+} from '../../src/lib/lists.js';
 import { newId } from '../../src/lib/ids.js';
 
 const item = (over = {}) => ({ id: 'li-1', name: 'Custard tart', ...over });
@@ -71,4 +74,32 @@ test('a quick-added item id collides with nothing already in the document', () =
     assert.match(id, /^li-.{5}$/);
     taken.add(id);
   }
+});
+
+/* --- the rendered order, and what a mutation says out loud (issue #93) --- */
+
+test('displayOrder is the rendered order: open items above done ones', () => {
+  const a = item({ id: 'li-a' }), b = item({ id: 'li-b', done: true }), c = item({ id: 'li-c' });
+  assert.deepEqual(displayOrder({ items: [a, b, c] }).map(i => i.id), ['li-a', 'li-c', 'li-b']);
+  assert.deepEqual(displayOrder({ items: [null, a] }).map(i => i.id), ['li-a']);
+  assert.deepEqual(displayOrder(null), []);
+});
+
+test('announcements name the thing and carry the counts the badge shows', () => {
+  const a = item({ id: 'li-a', name: 'Custard tart' }), b = item({ id: 'li-b', name: 'Croissant' });
+  const list = { id: 'list-1', name: 'Foods', items: [a, b] };
+  a.done = true;
+  assert.equal(toggleMessage(a, list), 'Custard tart ticked off. 1 of 2 done.');
+  a.done = false;
+  assert.equal(toggleMessage(a, list), 'Custard tart unticked. 0 of 2 done.');
+  assert.equal(deleteMessage(a), 'Deleted Custard tart. Undo available.');
+  assert.equal(restoreMessage(a, list), 'Custard tart restored. 2 items.');
+  assert.equal(addMessage(b, list), 'Croissant added. 2 items.');
+  assert.equal(addMessage(b, { items: [b] }), 'Croissant added. 1 item.');
+});
+
+test('an unnamed item still announces as something', () => {
+  const bare = { id: 'li-x' };
+  assert.equal(deleteMessage(bare), 'Deleted Item. Undo available.');
+  assert.equal(toggleMessage(bare, { items: [bare] }), 'Item unticked. 0 of 1 done.');
 });

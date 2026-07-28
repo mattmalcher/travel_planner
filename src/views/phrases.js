@@ -13,8 +13,12 @@ import { state } from '../state.js';
 import { persist } from '../store.js';
 import { esc } from '../lib/escape.js';
 import { newId } from '../lib/ids.js';
-import { phraseCount, untranslated, takenPhraseIds } from '../lib/phrases.js';
+import {
+  phraseCount, untranslated, takenPhraseIds,
+  deleteMessage, restoreMessage, addMessage,
+} from '../lib/phrases.js';
 import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
+import { keepFocus, announce } from './focus.js';
 
 /** Tabler icon class for a phrase group's kind. */
 export function phraseIcon(kind) {
@@ -33,27 +37,34 @@ export function phraseIcon(kind) {
 let undo = null; // { hd, gi, pi, phrase }
 
 /** Delete a phrase outright — no confirm, because the Undo chip below the
-    group costs one click and keeps everything the phrase held. */
+    group costs one click and keeps everything the phrase held. The row focus
+    was on is gone with it, so focus hands over to that Undo button and the
+    live region says it is there (issue #93) — it was visual-only before, and
+    it is the only recovery from the delete. */
 export function deletePhrase(gi, pi) {
   const group = state.HD.phrases[gi];
   if (!group || !Array.isArray(group.items)) return;
   const [phrase] = group.items.splice(pi, 1);
   undo = phrase ? { hd: state.HD, gi, pi, phrase } : null;
   persist();
-  renderPhrases();
+  keepFocus(renderPhrases, `ph-undo:${gi}`, `ph-add:${gi}`);
+  if (phrase) announce(deleteMessage(phrase));
 }
 
-/** Put the last deleted phrase back where it was. */
+/** Put the last deleted phrase back where it was, with focus following it —
+    the Undo button it was on does not survive the redraw. */
 export function undoDeletePhrase() {
   if (!undo) return;
-  const group = state.HD.phrases[undo.gi];
+  const { gi, pi, phrase } = undo;
+  const group = state.HD.phrases[gi];
   if (group) {
     if (!Array.isArray(group.items)) group.items = [];
-    group.items.splice(Math.min(undo.pi, group.items.length), 0, undo.phrase);
+    group.items.splice(Math.min(pi, group.items.length), 0, phrase);
     persist();
   }
   undo = null;
-  renderPhrases();
+  keepFocus(renderPhrases, `ph-edit:${gi}:${pi}`, `ph-add:${gi}`);
+  announce(restoreMessage(phrase, group));
 }
 
 /** Scroll to a group from the jump strip, keyed by group index. */
@@ -74,12 +85,12 @@ export function addPhrase(gi) {
   if (!text) { el.focus(); return; }
   const group = state.HD.phrases[gi];
   if (!Array.isArray(group.items)) group.items = [];
-  group.items.push({ id: newId('ph-', takenPhraseIds(state.HD)), text });
+  const phrase = { id: newId('ph-', takenPhraseIds(state.HD)), text };
+  group.items.push(phrase);
   undo = null;
   persist();
-  renderPhrases();
-  const next = addInput(gi);
-  if (next) next.focus();
+  keepFocus(renderPhrases, `ph-add:${gi}`); // shared helper since issue #93
+  announce(addMessage(phrase, group));
 }
 
 /** Enter in the quick-add box adds the phrase (a lone input has no form). */
@@ -101,8 +112,8 @@ function phraseRow(phrase, gi, pi) {
       ${phrase.note ? `<div class="hph-note">${esc(phrase.note)}</div>` : ''}
     </div>
     <div class="hph-acts">
-      <button class="hph-edit hedit-btn" onclick="hOpenEditPhrase(${gi},${pi})" title="Edit phrase" aria-label="Edit phrase"><i class="ti ti-pencil" aria-hidden="true"></i></button>
-      <button class="hph-del hedit-btn" onclick="hPhraseDel(${gi},${pi})" title="Delete phrase" aria-label="Delete phrase"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <button class="hph-edit hedit-btn" data-focus="ph-edit:${gi}:${pi}" onclick="hOpenEditPhrase(${gi},${pi})" title="Edit phrase" aria-label="Edit phrase"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+      <button class="hph-del hedit-btn" data-focus="ph-del:${gi}:${pi}" onclick="hPhraseDel(${gi},${pi})" title="Delete phrase" aria-label="Delete phrase"><i class="ti ti-x" aria-hidden="true"></i></button>
     </div>
   </div>`;
 }
@@ -112,14 +123,14 @@ function undoRow(gi) {
   if (!undo || undo.gi !== gi) return '';
   return `<div class="hli-undo">
     <span>Deleted “${esc(undo.phrase.text || 'phrase')}”</span>
-    <button class="hli-chip" onclick="hPhraseUndo()"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> Undo</button>
+    <button class="hli-chip" data-focus="ph-undo:${gi}" onclick="hPhraseUndo()"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> Undo</button>
   </div>`;
 }
 
 /** The quick-add row under each group — always shown, no edit mode needed. */
 function addRow(gi) {
   return `<div class="hli-add">
-    <input class="hph-add-in hli-add-in" type="text" data-gi="${gi}" placeholder="Something to be able to say…"
+    <input class="hph-add-in hli-add-in" type="text" data-gi="${gi}" data-focus="ph-add:${gi}" placeholder="Something to be able to say…"
       aria-label="Add a phrase" onkeydown="hPhraseAddKey(event,${gi})">
     <button class="hli-chip" onclick="hPhraseAdd(${gi})"><i class="ti ti-plus" aria-hidden="true"></i> Add</button>
   </div>`;
@@ -161,7 +172,7 @@ export function renderPhrases() {
         </div>
         ${todo ? `<span class="hli-progress hph-todo-count" title="Phrases with no translation yet">${todo} to translate</span>` : ''}
         <span class="hli-progress">${phraseCount(group)}</span>
-        <button class="hpencil hedit-btn" onclick="hOpenEditPhraseGroup(${gi})" title="Edit group"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+        <button class="hpencil hedit-btn" data-focus="group-edit:${gi}" onclick="hOpenEditPhraseGroup(${gi})" title="Edit group"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       </div>
       <div style="margin-top:8px">${items.map(p => phraseRow(p, gi, group.items.indexOf(p))).join('') ||
         '<div style="font-size:12px;color:var(--color-text-tertiary)">No phrases yet.</div>'}</div>
