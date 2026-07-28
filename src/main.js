@@ -2,13 +2,13 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, tabKey, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, tabKey, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openEditList, openAddList, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { libOpen, libClose, libSwitch, libRevs, libDelete, libRestore, libDownloadRev, libSaveName, libForgetAll } from './views/library.js';
 import { boot, shareTrip, shareRevision, shareToastClose } from './share.js';
 import { dismissStoreWarning } from './store.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
-import { toggleListItem, revealListSegment, addListItem, addListItemKey, deleteListItem, undoDeleteListItem, jumpToList } from './views/lists.js';
+import { toggleListItem, revealListSegment, addListItem, addListItemKey, deleteListItem, undoDeleteListItem, scheduleListItem, editListItem, jumpToList } from './views/lists.js';
 import { addPhrase, addPhraseKey, deletePhrase, undoDeletePhrase, jumpToPhraseGroup } from './views/phrases.js';
 import { chatOpen, chatClose, chatClear, chatSubmit, renderChat, syncChatViewport } from './ai/chat.js';
 import { discardDraft, applyDraft } from './ai/preview.js';
@@ -55,7 +55,7 @@ Object.assign(window, {
   hGanttToggle: toggleGanttMode,
   hJumpDay: jumpToDay,
   hListToggle: toggleListItem,
-  hListSchedule: openScheduleItem,
+  hListSchedule: scheduleListItem,
   hListSeg: revealListSegment,
   hListAdd: addListItem,
   hListAddKey: addListItemKey,
@@ -64,7 +64,7 @@ Object.assign(window, {
   hJumpList: jumpToList,
   hOpenEditList: openEditList,
   hOpenAddList: openAddList,
-  hOpenEditListItem: openEditListItem,
+  hOpenEditListItem: editListItem,
   hPhraseAdd: addPhrase,
   hPhraseAddKey: addPhraseKey,
   hPhraseDel: deletePhrase,
