@@ -9,11 +9,23 @@
 //
 // The fix stays with the redraw rather than replacing it — mutating the one
 // affected row in place is the better end state, but a much larger change, and
-// these views are cheap to redraw. What is needed is a stable identity that
-// survives innerHTML: every control that is worth returning to carries
+// these views are cheap to redraw. What is needed is a name that survives
+// innerHTML: every control that is worth returning to carries
 // `data-focus="<role>:<key>"`, this module reads it off the active element
 // before the write and re-focuses the match after. If the helper starts
 // accreting special cases, that is the signal to go and mutate in place.
+//
+// What the key actually is, in the views that use indices for it: the control's
+// position in the *document*, which is not the same as its position on screen —
+// the Lists view re-sorts done items below open ones, so the checkbox that was
+// pressed is somewhere else by the time it is restored, and that is the case
+// that was broken. It is not an identity: a mutation that shifts the indices
+// themselves (deleting from the middle of a list) leaves the key pointing at
+// whatever moved up into the slot. That is survivable only because the same
+// mutation destroys the control focus was on anyway, and hands focus somewhere
+// explicit. A view that gains a mutation which re-indexes rows *without*
+// removing the focused one needs a real identity key — a WeakMap from the item
+// object to a minted key — not another special case here.
 //
 // This cannot live in src/lib/ — it touches the DOM, and lib/ stays pure.
 //
@@ -43,11 +55,12 @@ export function focusTo(...keys) {
   return null;
 }
 
-/** Run a re-render with the focused control put back afterwards. The identity
-    is the `data-focus` key, not a position: the Lists view re-sorts open items
-    above done ones on every toggle, so the checkbox you pressed generally moves.
-    `to` names where focus should land instead when the mutation deliberately
-    moves it (a delete, whose row is gone, hands over to the Undo button). */
+/** Run a re-render with the focused control put back afterwards, matched on its
+    `data-focus` key rather than on where it was drawn: the Lists view re-sorts
+    open items above done ones on every toggle, so the checkbox you pressed
+    generally moves. `to` names where focus should land instead when the
+    mutation deliberately moves it (a delete, whose row is gone, hands over to
+    the Undo button). */
 export function keepFocus(render, ...to) {
   const key = focusKey();
   render();

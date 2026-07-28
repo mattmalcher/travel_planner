@@ -224,9 +224,11 @@
      view mutates: "Bordeaux ticked off. 4 of 8 done.", "Deleted Bordeaux. Undo
      available.". It lives in the static markup because a region created and
      populated in the same frame does not announce reliably — it has to be in
-     the DOM before anything writes to it. role="status" is implicitly polite
-     and atomic; nothing said here is worth interrupting for. -->
-<div id="hlive" role="status" aria-live="polite" class="sr-only"></div>
+     the DOM before anything writes to it. Polite, because nothing said here is
+     worth interrupting for. aria-atomic is spelled out rather than left to
+     role="status"'s implicit value: without it a reader may announce only the
+     text node that changed instead of the whole sentence. -->
+<div id="hlive" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 
 <!-- Shown by sw-register.js only when this page load was served from the
      service worker's offline cache. -->

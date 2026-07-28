@@ -86,6 +86,10 @@ test.describe('Focus and announcements in the Lists view', () => {
     const live = page.locator('#hlive');
     await expect(live).toBeAttached();
     await expect(live).toHaveAttribute('role', 'status');
+    await expect(live).toHaveAttribute('aria-live', 'polite');
+    // Without aria-atomic a reader may announce only the text node that
+    // changed rather than the whole sentence.
+    await expect(live).toHaveAttribute('aria-atomic', 'true');
     await expect(live).toHaveText('');
     // Announced, not shown: sr-only clips it to a 1px box out of the layout.
     expect(await live.boundingBox()).toMatchObject({ width: 1, height: 1 });
@@ -133,7 +137,9 @@ test.describe('Focus and announcements in the Lists view', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('#hvlists .hli')).toHaveCount(3);
     expect(await focused(page)).toBe('li-check:0:2');
-    await expect(page.locator('#hlive')).toHaveText(/Bordeaux restored\./);
+    // The count is the half a non-visual user cannot see, so every message
+    // that changes one carries it (lib/lists.js builds them from listProgress).
+    await expect(page.locator('#hlive')).toHaveText(/Bordeaux restored\. 3 items\./);
   });
 
   test('the quick-add keeps the cursor in the box and announces the item', async ({ page }) => {
@@ -143,22 +149,30 @@ test.describe('Focus and announcements in the Lists view', () => {
 
     expect(await focused(page)).toBe('li-add:0');
     await expect(box).toHaveValue('');
-    await expect(page.locator('#hlive')).toHaveText(/Croissant added\./);
+    await expect(page.locator('#hlive')).toHaveText(/Croissant added\. 4 items\./);
   });
 
   test('the same announcement twice in a row still changes the region', async ({ page }) => {
     // A live region announces when its text *changes*, so a message identical
-    // to the one already sitting there is silent. Adding two items of the same
-    // name is the easy way to produce that, and it must still be heard.
+    // to the one already sitting there is silent. The counts in the add and
+    // tick messages make consecutive sentences differ most of the time, but
+    // not always: a delete carries no count, so deleting two items of the same
+    // name produces exactly this, and it must still be heard.
     const box = page.locator('#hvlists input[data-focus="li-add:0"]');
     await box.fill('Croissant');
     await box.press('Enter');
-    const first = await page.locator('#hlive').textContent();
     await box.fill('Croissant');
     await box.press('Enter');
+
+    await page.click('#hedit-toggle');
+    const del = page.locator('#hvlists button[data-focus="li-del:0:3"]');
+    await del.click();
+    const first = await page.locator('#hlive').textContent();
+    // The second Croissant has shifted up into index 3 behind the first.
+    await del.click();
     const second = await page.locator('#hlive').textContent();
 
-    expect(first.trim()).toBe('Croissant added.');
+    expect(first.trim()).toBe('Deleted Croissant. Undo available.');
     expect(second.trim()).toBe(first.trim()); // the same sentence…
     expect(second).not.toBe(first);           // …but not the identical string
   });
@@ -182,7 +196,7 @@ test.describe('Focus and announcements in the Phrases view', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('#hvphrases .hph')).toHaveCount(2);
     expect(await focused(page)).toBe('ph-edit:0:1');
-    await expect(page.locator('#hlive')).toHaveText(/Thank you restored\./);
+    await expect(page.locator('#hlive')).toHaveText(/Thank you restored\. 2 phrases\./);
   });
 
   test('the quick-add keeps the cursor in the box', async ({ page }) => {
@@ -190,7 +204,7 @@ test.describe('Focus and announcements in the Phrases view', () => {
     await box.fill('Where is the station?');
     await box.press('Enter');
     expect(await focused(page)).toBe('ph-add:0');
-    await expect(page.locator('#hlive')).toHaveText(/Where is the station\? added\./);
+    await expect(page.locator('#hlive')).toHaveText(/Where is the station\? added\. 3 phrases\./);
   });
 });
 

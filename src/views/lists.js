@@ -13,7 +13,10 @@ import { state } from '../state.js';
 import { persist } from '../store.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { newId } from '../lib/ids.js';
-import { listProgress, partitionItems, takenItemIds } from '../lib/lists.js';
+import {
+  listProgress, displayOrder, takenItemIds,
+  toggleMessage, deleteMessage, restoreMessage, addMessage,
+} from '../lib/lists.js';
 import { revealSegment } from '../app.js';
 import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
 import { keepFocus, announce } from './focus.js';
@@ -35,18 +38,19 @@ export function listIcon(kind) {
 let undo = null; // { hd, li, ii, item }
 
 /** Toggle an item's done flag in place and persist; only this view changes,
-    so no full refreshAfterChange. The whole view is redrawn and the item
-    generally moves (open items sort above done ones), so the checkbox that was
-    pressed is put back under the cursor by identity rather than position, and
-    the new count is said out loud (issue #93). */
+    so no full refreshAfterChange. The whole view is redrawn and the row
+    generally moves (displayOrder sinks done items below the open ones), so the
+    checkbox that was pressed is put back under the cursor by its document
+    position rather than by where it was drawn, and the new count is said out
+    loud (issue #93). */
 export function toggleListItem(li, ii) {
-  const item = state.HD.lists[li].items[ii];
+  const list = state.HD.lists[li];
+  const item = list.items[ii];
   item.done = !item.done;
   undo = null;
   persist();
   keepFocus(renderLists);
-  const p = listProgress(state.HD.lists[li]);
-  announce(`${item.name || 'Item'} ${item.done ? 'ticked off' : 'unticked'}. ${p.done} of ${p.total} done.`);
+  announce(toggleMessage(item, list));
 }
 
 /** Delete an item outright — no confirm, because the Undo chip below the
@@ -63,7 +67,7 @@ export function deleteListItem(li, ii) {
   undo = item ? { hd: state.HD, li, ii, item } : null;
   persist();
   keepFocus(renderLists, `li-undo:${li}`, `li-add:${li}`);
-  if (item) announce(`Deleted ${item.name || 'item'}. Undo available.`);
+  if (item) announce(deleteMessage(item));
 }
 
 /** Put the last deleted item back where it was, and focus lands back on the
@@ -79,7 +83,7 @@ export function undoDeleteListItem() {
   }
   undo = null;
   keepFocus(renderLists, `li-check:${li}:${ii}`, `li-add:${li}`);
-  announce(`${item.name || 'Item'} restored.`);
+  announce(restoreMessage(item, list));
 }
 
 /** Scroll to a list from the jump strip (issue #69), keyed by list index. */
@@ -106,14 +110,15 @@ export function addListItem(li) {
   if (!name) { el.focus(); return; }
   const list = state.HD.lists[li];
   if (!Array.isArray(list.items)) list.items = [];
-  list.items.push({ id: newId('li-', takenItemIds(state.HD)), name });
+  const item = { id: newId('li-', takenItemIds(state.HD)), name };
+  list.items.push(item);
   undo = null;
   persist();
   // The hand-rolled re-focus this used to do is now the shared helper's job
   // (issue #93) — same behaviour, and the add box is named like every other
   // control worth returning to.
   keepFocus(renderLists, `li-add:${li}`);
-  announce(`${name} added.`);
+  announce(addMessage(item, list));
 }
 
 /** Enter in the quick-add box adds the item (a lone input has no form to
@@ -140,11 +145,18 @@ function itemRow(item, li, ii, segIds) {
   } else {
     chip = `<button class="hli-chip" onclick="hListSchedule(${li},${ii})" title="Create a segment from this item"><i class="ti ti-calendar-plus" aria-hidden="true"></i> Schedule</button>`;
   }
-  // data-focus is the identity that survives the innerHTML rewrite (issue #93):
-  // the row is destroyed and rebuilt on every tick, and the item moves as well
-  // (open sorts above done), so focus is restored by this key rather than by
-  // where the control was. The indices are the view's own, never itinerary
-  // data, so they need no escaping.
+  // data-focus is what survives the innerHTML rewrite (issue #93): the row is
+  // destroyed and rebuilt on every tick, and it moves as well (displayOrder
+  // sinks done items below the open ones), so focus is restored by this key
+  // rather than by where the control was drawn. The key is the item's position
+  // in the *document* — stable across the view's display re-ordering, which is
+  // the case that was broken, but not across an index shift: deleting from the
+  // middle leaves this key on the item that shifted up into the slot, and the
+  // modal-delete test asserts exactly that. An identity key (a WeakMap of item
+  // objects) would fix it and is what to reach for if this ever misfires; it
+  // buys nothing while the only mutation that shifts indices also destroys the
+  // control focus was on. The indices are the view's own, never itinerary data,
+  // so they need no escaping.
   return `<li class="hli${item.done ? ' done' : ''}">
     <label class="hli-main">
       <input type="checkbox" data-focus="li-check:${li}:${ii}" ${item.done ? 'checked' : ''} onchange="hListToggle(${li},${ii})">
@@ -204,9 +216,9 @@ export function renderLists() {
   const segIds = new Set((HD.segments || []).map(s => s && s.id).filter(Boolean));
   box.innerHTML = jumpNav(lists) + lists.map((list, li) => {
     const p = listProgress(list);
-    const { open, done } = partitionItems(list);
-    const row = item => itemRow(item, li, HD.lists[li].items.indexOf(item), segIds);
-    const items = [...open, ...done].map(row).join('');
+    const items = displayOrder(list)
+      .map(item => itemRow(item, li, list.items.indexOf(item), segIds))
+      .join('');
     return `<section class="hseg hjump-a" data-k="${li}">
       <div style="display:flex;align-items:center;gap:10px">
         <i class="ti ${listIcon(list.kind)}" style="font-size:17px;color:var(--color-text-secondary)" aria-hidden="true"></i>

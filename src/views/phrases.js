@@ -13,7 +13,10 @@ import { state } from '../state.js';
 import { persist } from '../store.js';
 import { esc } from '../lib/escape.js';
 import { newId } from '../lib/ids.js';
-import { phraseCount, untranslated, takenPhraseIds } from '../lib/phrases.js';
+import {
+  phraseCount, untranslated, takenPhraseIds,
+  deleteMessage, restoreMessage, addMessage,
+} from '../lib/phrases.js';
 import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
 import { keepFocus, announce } from './focus.js';
 
@@ -45,7 +48,7 @@ export function deletePhrase(gi, pi) {
   undo = phrase ? { hd: state.HD, gi, pi, phrase } : null;
   persist();
   keepFocus(renderPhrases, `ph-undo:${gi}`, `ph-add:${gi}`);
-  if (phrase) announce(`Deleted ${phrase.text || 'phrase'}. Undo available.`);
+  if (phrase) announce(deleteMessage(phrase));
 }
 
 /** Put the last deleted phrase back where it was, with focus following it —
@@ -61,7 +64,7 @@ export function undoDeletePhrase() {
   }
   undo = null;
   keepFocus(renderPhrases, `ph-edit:${gi}:${pi}`, `ph-add:${gi}`);
-  announce(`${phrase.text || 'Phrase'} restored.`);
+  announce(restoreMessage(phrase, group));
 }
 
 /** Scroll to a group from the jump strip, keyed by group index. */
@@ -82,11 +85,12 @@ export function addPhrase(gi) {
   if (!text) { el.focus(); return; }
   const group = state.HD.phrases[gi];
   if (!Array.isArray(group.items)) group.items = [];
-  group.items.push({ id: newId('ph-', takenPhraseIds(state.HD)), text });
+  const phrase = { id: newId('ph-', takenPhraseIds(state.HD)), text };
+  group.items.push(phrase);
   undo = null;
   persist();
   keepFocus(renderPhrases, `ph-add:${gi}`); // shared helper since issue #93
-  announce(`${text} added.`);
+  announce(addMessage(phrase, group));
 }
 
 /** Enter in the quick-add box adds the phrase (a lone input has no form). */
