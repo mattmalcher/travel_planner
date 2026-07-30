@@ -31,6 +31,27 @@ Maintaining a server and keeping it up to date and secure to enable your holiday
 
 Having no server to store state makes some things a bit harder. Another key feature for me is the ability to share the plans and work on them with someone else in a versioned way. The workaround is share links which contain the entire plan. That way people can use this, and all someone has to do to view someone else's plan is click on a link. This is also a neat workaround for any issues people might have with local storage getting cleared out - they can just click their link again.
 
+Share links turned out to solve a second problem too. The in-app AI editor is
+deliberately small — it sees a one-line summary of each segment, not the whole
+file, because that is what fits on a phone. The heavier tooling (`make
+validate`, the station database, the authoring rules in
+[`.claude/skills/`](.claude/skills)) needs a checkout and a shell, which used to
+mean a laptop. It doesn't any more: a **Claude Code cloud session** — the Code
+tab in the Claude app, or [claude.ai/code](https://claude.ai/code) — clones this
+repo into a container with all of it available. Share a trip from the viewer,
+paste the link into a session, and it comes back as a link you tap to import:
+
+```bash
+npm run itin -- link --decode '<share link>' --out data/trip.json
+# ... edit, make validate FILE=data/trip.json, npm run itin -- bump ...
+npm run itin -- link --encode data/trip.json
+```
+
+Real trips still never leave `data/`, which is gitignored. See
+[`.claude/skills/itinerary-authoring/SKILL.md`](.claude/skills/itinerary-authoring/SKILL.md)
+§1b for the full loop and what it can't do (the browser-driven research needs
+your own machine).
+
 
 # What is this thing? (techy version)
 A standalone HTML viewer for `HolidayItinerary` JSON files: itinerary, map,
@@ -69,6 +90,12 @@ npx playwright install chromium   # browser for the E2E suite
 | `make test` | Unit tests followed by E2E tests |
 | `make test-ui` | Playwright interactive UI runner |
 | `make demo` | Build, then record `demo/demo.gif` — the README animation (needs `ffmpeg`) |
+| `make validate FILE=…` | Schema-check and lint an itinerary file (defaults to `data/*.json`) |
+| `make itin ARGS="…"` | The itinerary CLI: `digest`, `ids`, `bump`, `link`, `schema-brief` |
+
+`make itin ARGS="--help"` lists what the CLI does. It is the same tool the
+authoring skill drives, and `link` is what moves a trip between the viewer and
+a session with no `data/` — see the note on cloud sessions above.
 
 The demo recording is build output, like `dist/`: CI records it and publishes
 it next to the deployed viewer, and neither is committed. Change what it shows

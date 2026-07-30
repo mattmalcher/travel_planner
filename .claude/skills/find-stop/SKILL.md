@@ -17,6 +17,16 @@ description: "Use this skill when an itinerary needs the coordinates of a place 
 Trainline holds no small bus stops at all, so a village bus stop goes straight
 to Overpass. Don't spend a query proving that.
 
+**Both sources are network.** Trainline is a ~16 MB download from
+`raw.githubusercontent.com`; Overpass is a second host again. In a Claude Code
+cloud session the environment's network policy may allow neither, and the
+download failing is the normal way that shows up. If both are unreachable:
+**say so and ask the user to run the geocoding leg on their desktop.** Leave
+the segment's `lat`/`lng` out and note what is missing. Never estimate
+coordinates, never reuse a nearby stop's, and never take a number from memory —
+a plausible-looking wrong pin is worse than an absent one, because nothing
+downstream will ever question it.
+
 ## Step 1 — search Trainline
 
 ```bash
