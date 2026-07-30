@@ -11,7 +11,8 @@
 // out of src/lib/: lib/ is the browser bundle's pure logic, and a node-only ajv
 // wrapper living there would be one careless import away from a second copy of
 // ajv in the single-file output.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
@@ -23,6 +24,9 @@ import { renderDoctrine } from '../src/lib/doctrine.js';
 import { newId } from '../src/lib/ids.js';
 import { takenListIds, takenItemIds } from '../src/lib/lists.js';
 import { takenGroupIds, takenPhraseIds } from '../src/lib/phrases.js';
+import {
+  decodeShare, shareDocument, shareUrl, isOverlong, SHARE_WARN_CHARS,
+} from '../src/lib/sharelink.js';
 
 const SCHEMA_URL = new URL('../schema/holiday_itinerary_schema.json', import.meta.url);
 const SKILL_URL = new URL('../.claude/skills/itinerary-authoring/SKILL.md', import.meta.url);
@@ -291,6 +295,92 @@ function cmdBump(args) {
   return 0;
 }
 
+/* --- share links: the way a trip reaches a machine with no data/ ---------- */
+
+/**
+ * Share links (issue #81) are how a document moves without a filesystem, and
+ * that makes them the way in and out of a session running somewhere other than
+ * the user's own machine — a Claude Code cloud session cloned from GitHub has
+ * no `data/` at all, because it is gitignored real personal data.
+ *
+ * The encoding is src/lib/sharelink.js and src/lib/codec.js, imported here
+ * rather than reimplemented: they are pure, and they lean on CompressionStream,
+ * TextEncoder, btoa/atob and Response, all of which are node globals from 18
+ * on. So the payload this writes is byte-identical to the one the browser
+ * writes, and a scheme added there works here for free.
+ */
+const DEFAULT_BASE = 'https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html';
+const DEFAULT_OUT = 'data/incoming.json';
+
+/** A flag's value, or null when it is absent or another flag followed it —
+    `--decode --out x` is a missing link, not a link named "--out". */
+function flagValue(args, name) {
+  const i = args.indexOf(name);
+  if (i === -1) return null;
+  const v = args[i + 1];
+  return (v === undefined || v.startsWith('--')) ? null : v;
+}
+
+/** Everything after the first `#`. Accepts a whole share URL or a bare
+    fragment: readShareFragment only understands the latter, and what the user
+    has on their phone is the former. */
+export function fragmentOf(input) {
+  const s = String(input || '').trim();
+  const cut = s.indexOf('#');
+  return cut === -1 ? s : s.slice(cut + 1);
+}
+
+/** The share link for a document, stamped with the repo schema's version —
+    the CLI's counterpart to what src/share.js does with the build's constant,
+    so a link made here meets the same version guard on the way back in. */
+export function linkFor(doc, base = DEFAULT_BASE) {
+  return shareUrl(base, shareDocument(doc, schema.version));
+}
+
+export async function linkDecode(link, out) {
+  // decodeShare throws the UI copy ("The link is damaged or incomplete") for a
+  // truncated link, which is exactly what should surface: a link that arrived
+  // short must say so rather than yield an empty trip.
+  const doc = await decodeShare(fragmentOf(link));
+  const dir = dirname(out);
+  if (dir && dir !== '.') mkdirSync(dir, { recursive: true });
+  writeFileSync(out, JSON.stringify(doc, null, 2) + '\n');
+  console.log(`Wrote ${out}`);
+
+  // Written even when it fails to validate — an incoming document you have to
+  // FIX has to land on disk first. Reported through the same checker `validate`
+  // uses, so there is one description of what is wrong with a file.
+  const report = checkFile(out);
+  console.log(formatReport([report]));
+  return exitCode([report], false);
+}
+
+export async function linkEncode(path, base = DEFAULT_BASE) {
+  const report = checkFile(path);
+  if (report.unreadable || report.schemaErrors.length) {
+    console.error(formatReport([report]));
+    console.error('\nRefusing to encode: fix the schema errors first — handing back a link is the "this file is finished" signal, same as bump.');
+    return 1;
+  }
+  // Identity rides along untouched: it is what lets the link land on the trip
+  // it came from. Bump first (§3 of the authoring skill) or it imports as a fork.
+  const url = await linkFor(report.doc, base);
+  console.error(formatReport([report]));
+  if (isOverlong(url))
+    console.error(`\n! ${url.length} characters, over ${SHARE_WARN_CHARS} — some messaging apps truncate a link this long silently.`);
+  console.log(url);
+  return 0;
+}
+
+async function cmdLink(args) {
+  const decode = flagValue(args, '--decode');
+  const encode = flagValue(args, '--encode');
+  if (decode && encode) return usage('link takes --decode or --encode, not both');
+  if (decode) return linkDecode(decode, flagValue(args, '--out') || DEFAULT_OUT);
+  if (encode) return linkEncode(encode, flagValue(args, '--base') || DEFAULT_BASE);
+  return usage('link needs --decode <url> or --encode <file>');
+}
+
 function cmdValidate(args) {
   const strict = args.includes('--strict');
   const paths = args.filter(a => !a.startsWith('--'));
@@ -321,6 +411,7 @@ const COMMANDS = {
   ids: cmdIds,
   doctrine: cmdDoctrine,
   bump: cmdBump,
+  link: cmdLink,
 };
 
 function usage(problem) {
@@ -338,17 +429,27 @@ function usage(problem) {
   doctrine [--write]              Print the desktop doctrine, or sync it into
                                   the authoring skill.
   bump <file> [--out <path>]      rev + 1 and a fresh updated_at, so an edited
-                                  file does not re-import as a fork.`);
+                                  file does not re-import as a fork.
+  link --decode <url> [--out <path>]
+                                  Write the document a share link carries to a
+                                  file (default ${DEFAULT_OUT}), then check it.
+  link --encode <file> [--base <url>]
+                                  A share link for the file — the way to hand a
+                                  trip back where there is no filesystem to
+                                  share. Bump first, or it imports as a fork.`);
   return problem ? 1 : 0;
 }
 
-function main(argv) {
+// Async because the share-link codec is: CompressionStream is a stream API, so
+// encodeShare/decodeShare return promises. Every other command stays
+// synchronous and simply resolves immediately.
+async function main(argv) {
   const [cmd, ...args] = argv;
   if (!cmd || cmd === '--help' || cmd === '-h') return usage();
   const run = COMMANDS[cmd];
   if (!run) return usage(`unknown command "${cmd}"`);
   try {
-    return run(args);
+    return await run(args);
   } catch (e) {
     console.error('Error: ' + e.message);
     return 1;
@@ -356,4 +457,4 @@ function main(argv) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
-  process.exit(main(process.argv.slice(2)));
+  process.exit(await main(process.argv.slice(2)));
