@@ -31,6 +31,17 @@ Do **not** open the browser to read something `WebFetch` would have returned.
 Do **not** retry a blocked fetch three times first — if the host is in the table
 below, go straight to rung 3.
 
+**Rung 3 does not exist in a cloud session.** The `mcp__claude-in-chrome__*`
+tools drive the *user's own* Chrome through an extension on their machine, so
+they are simply absent from a Claude Code cloud session (claude.ai/code, or the
+Code tab in the Claude app) — which is exactly where a phone-driven itinerary
+pass runs. Check whether the tools are there before promising a page; if they
+are not, the ladder ends at rung 2. Say which page is blocked and what you
+wanted off it, and either continue without it or ask the user to run that leg
+on their desktop. Do not fill the gap with a guess: an invented fare or
+departure time is worse than a gap, because the gap is the only thing that
+gets checked.
+
 ## Setup
 
 Invoke the `claude-in-chrome` skill before calling any `mcp__claude-in-chrome__*`

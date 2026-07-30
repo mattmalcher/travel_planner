@@ -1,6 +1,6 @@
 ---
 name: itinerary-authoring
-description: "Use this skill when editing, extending or researching into a HolidayItinerary JSON file (data/*.json, examples/*.json) on the desktop: adding segments, geocoding stops, filling in train times, promoting list items into plans, translating a phrase group, or preparing a file to upload back into the viewer. Covers the document-authoring rules the schema cannot enforce, how ids and rev work, validating with make validate, and handing a file back without it importing as a fork."
+description: "Use this skill when editing, extending or researching into a HolidayItinerary JSON file (data/*.json, examples/*.json) anywhere there is a checkout and a shell — a desktop terminal, or a Claude Code cloud session driven from the Claude app: adding segments, geocoding stops, filling in train times, promoting list items into plans, translating a phrase group, or preparing a file to hand back into the viewer. Also use it when a share link needs decoding into a file to work on, or encoding to hand back. Covers the document-authoring rules the schema cannot enforce, how ids and rev work, validating with make validate, and handing a trip back without it importing as a fork."
 ---
 
 # Authoring HolidayItinerary documents
@@ -76,7 +76,60 @@ npm run itin -- schema-brief             # condensed schema reference
 npm run itin -- ids <file> seg 3         # 3 fresh segment ids
 make validate                            # defaults to FILE=data/*.json
 npm run validate -- <file> --strict      # make lint warnings fatal too
+npm run itin -- link --decode '<url>'    # a share link → a file (§1b)
+npm run itin -- link --encode <file>     # a file → a share link (§1b)
 ```
+
+## 1b. The cloud-session loop (working from a phone)
+
+This skill also loads in a **Claude Code cloud session** — the Code tab in the
+Claude app, or claude.ai/code. It is the same repo, the same CLI and the same
+rules; two things about the container are different, and both matter.
+
+**There is no `data/`.** It is gitignored, so a fresh clone has no trip in it.
+The trip arrives as a **share link**, which the user gets from the viewer's
+share button on their phone.
+
+**The container is thrown away.** Nothing written here survives the session
+except what is committed — and `data/` must never be committed (§6). So the
+link handed back at the end is not a convenience: it is the *only* copy of the
+work. A session that ends without one has lost the pass.
+
+```bash
+# 1. In. Takes a whole share link or a bare fragment.
+npm run itin -- link --decode '<share link>' --out data/trip.json
+
+# 2. Orient, then read and edit data/trip.json IN PLACE — there is no _0.N
+#    chain here, because there was nothing on disk to snapshot.
+npm run itin -- digest data/trip.json
+
+# 3. Check it
+make validate FILE=data/trip.json
+
+# 4. Mark it finished (§3) — without this it imports as a fork
+npm run itin -- bump data/trip.json
+
+# 5. Out. Give the user this link and tell them to open it.
+npm run itin -- link --encode data/trip.json
+```
+
+`--decode` writes the file **even when it fails to validate**, and exits 1 —
+a document you have been asked to fix has to land on disk first. `--encode`
+does the opposite and refuses a file with schema errors, for the same reason
+`bump` does: producing a link is the "this is finished" signal. It warns when a
+link passes ~24 000 characters, which some messaging apps truncate silently.
+
+Two differences to be honest with the user about:
+
+- **The research ladder is shorter.** `browser-research` cannot run here at all
+  (it drives the user's own Chrome), and `find-stop` depends on the container's
+  network policy allowing the stations download or the Overpass API. Both
+  skills say what to do when they cannot; the answer is never to guess.
+- **The trip passes through the transcript.** Decoding a link puts real booking
+  references, addresses and names into the conversation. That is unavoidable
+  and worth saying once, not worth agonising over — but it makes §6 sharper: a
+  cloud session can open a pull request, so `data/` content must never reach a
+  commit message, a PR body, `examples/` or `tests/`.
 
 ## 2. Ids
 
@@ -176,10 +229,12 @@ a PR body. When you need a fixture, invent one.
 ## Quick reference
 
 - [ ] Edited the **highest** `data/<trip>_0.N.json`, written to `N+1`
+      (desktop) — or `data/trip.json` in place (cloud session, §1b)
 - [ ] Every new id came from `npm run itin -- ids`
 - [ ] Shortlists went in `lists`, not `segments`
 - [ ] No invented booking refs; unconfirmed things are `not_booked`
 - [ ] All-day things set `all_day`, not a made-up `time`
 - [ ] `make validate FILE=…` is clean, and any lint warnings were reported
 - [ ] `npm run itin -- bump` run (unless the phone has diverged)
-- [ ] Told the user which file to upload
+- [ ] Told the user which file to upload — or, in a cloud session, handed back
+      the `link --encode` URL, without which the work is lost with the container
