@@ -23,6 +23,7 @@
  */
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { SEG_DEFS, segRefs } from './lib/seg-defs.js';
 
 /* The schema itself, substituted for the identifier below by esbuild's define
    (scripts/build.mjs) as a JSON string literal — parsing one is cheaper than
@@ -109,10 +110,9 @@ export function setupValidation() {
        the oneOf, ajv reports every branch's failures, so a half-filled event
        comes back demanding "mode" and "departs" — the transport branch's
        requirements — which is worse than useless in the edit modal (#76). */
-    const segDefs = { transport: 'TransportSegment', accommodation: 'AccommodationSegment', event: 'EventSegment' };
     const segByType = {};
-    for (const [t, def] of Object.entries(segDefs)) segByType[t] = sub({ $ref: '#/definitions/' + def });
-    const segAny = sub({ oneOf: Object.values(segDefs).map(d => ({ $ref: '#/definitions/' + d })) });
+    for (const [t, def] of Object.entries(SEG_DEFS)) segByType[t] = sub({ $ref: '#/definitions/' + def });
+    const segAny = sub({ oneOf: segRefs() });
     window.hValidateSegment = seg => ((seg && segByType[seg.type]) || segAny)(seg);
 
     window.hValidateTrip = sub(schema.properties.trip);

@@ -5,7 +5,7 @@
 import { state } from '../state.js';
 import { revealSegment } from '../app.js';
 import { esc } from '../lib/escape.js';
-import { toMs, msToIso, fmtMinutes, eventInterval, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY } from '../lib/dates.js';
+import { toMs, msToIso, fmtMinutes, fmtDayMonth, endOfDayMs, eventInterval, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY } from '../lib/dates.js';
 import { PX_PER_MIN, MIN_BLOCK_PX, linearScale, compactPoints, compactScale, coverageGaps } from '../lib/gantt-layout.js';
 import { isDuringTrip } from '../lib/now.js';
 
@@ -46,7 +46,7 @@ export function renderGantt() {
   if (!HD) return;
   state.ganttBlocks = [];
   const tripStartMs = toMs(HD.trip.start, '00:00');
-  const tripEndMs = new Date(HD.trip.end + 'T23:59:59').getTime();
+  const tripEndMs = endOfDayMs(HD.trip.end);
   const tripStartDate = new Date(HD.trip.start + 'T00:00:00');
   const numDays = Math.round((toMs(HD.trip.end, '00:00') - tripStartDate.getTime()) / 86400000) + 1;
   const scale = state.ganttCompact
@@ -99,9 +99,9 @@ export function renderGantt() {
   let axisHtml = '', bodyLines = '';
   for (let d = 0; d < numDays; d++) {
     const dayDate = new Date(tripStartDate.getTime() + d * 86400000);
-    const dayIso = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, '0')}-${String(dayDate.getDate()).padStart(2, '0')}`;
+    const dayIso = msToIso(dayDate.getTime()).date;
     const dayPx = toPx(dayIso, '00:00');
-    const dayLabel = dayDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const dayLabel = fmtDayMonth(dayIso);
     bodyLines += `<div class="hgt-day" style="top:${dayPx.toFixed(1)}px"></div>`;
     axisHtml += `<div class="hgt-day-lbl" style="top:${(dayPx + 2).toFixed(1)}px">${dayLabel}</div>`;
     if (!state.ganttCompact) {

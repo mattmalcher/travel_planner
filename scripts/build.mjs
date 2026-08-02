@@ -5,8 +5,9 @@
 //
 //   dist/holiday_itinerary_viewer.html  — the deliverable (JS + CSS inlined)
 //   dist/index.html                     — copy, so the folder has a default page
-//   dist/holiday_itinerary_schema.json  — served next to the page (the app
-//                                         fetches it at runtime for validation)
+//   dist/holiday_itinerary_schema.json  — served next to the page, purely so
+//                                         the upload screen's "JSON Schema"
+//                                         link resolves; nothing fetches it
 //
 // The schema's "version" field is injected into the bundle, replacing the
 // __H_SCHEMA_VERSION__ placeholder in src/state.js, so the app's expected

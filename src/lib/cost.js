@@ -20,6 +20,26 @@ export function fmtCurrency(amount, cur) {
 }
 
 /**
+ * What a payments[] schedule totals to: the amount (an explicit `amount` wins
+ * over the sum of the instalments), and the status those instalments imply.
+ * Both costInfo and budgetSummary need exactly this, and a segment must not
+ * read as "paid" in the list and "partial" in the budget.
+ *
+ * Note this counts only `status: 'pending'` toward pending. budgetSummary's
+ * per-currency buckets deliberately bucket *everything not paid* as pending,
+ * which is a wider net — so it keeps its own loop and takes only the total and
+ * the status from here.
+ */
+function paymentTotals(c) {
+  const sum = st => c.payments.filter(p => p.status === st).reduce((a, p) => a + p.amount, 0);
+  const paid = sum('paid'), pending = sum('pending');
+  return {
+    tot: c.amount ?? c.payments.reduce((a, p) => a + p.amount, 0),
+    st: pending > 0 ? (paid > 0 ? 'partial' : 'pending') : 'paid',
+  };
+}
+
+/**
  * Summarise a segment's cost for display.
  * Returns null (no cost), {t:'inc'} (included in another segment),
  * {t:'nb'} (not booked), or {t:'amt', tot, cur, st, due?}.
@@ -31,10 +51,8 @@ export function costInfo(s, primaryCurrency) {
   if (c.status === 'not_booked') return { t: 'nb' };
   const cur = c.currency || primaryCurrency;
   if (c.payments) {
-    const tot = c.amount ?? c.payments.reduce((a, p) => a + p.amount, 0);
-    const pd = c.payments.filter(p => p.status === 'paid').reduce((a, p) => a + p.amount, 0);
-    const pn = c.payments.filter(p => p.status === 'pending').reduce((a, p) => a + p.amount, 0);
-    return { t: 'amt', tot, cur, st: pn > 0 ? (pd > 0 ? 'partial' : 'pending') : 'paid' };
+    const { tot, st } = paymentTotals(c);
+    return { t: 'amt', tot, cur, st };
   }
   return { t: 'amt', tot: c.amount || 0, cur, st: c.status, due: c.due };
 }
@@ -63,14 +81,12 @@ export function budgetSummary(segments, primaryCurrency) {
     if (c.status === 'free') { rows.push({ s, st: 'free', amt: 0, cur }); continue; }
     const b = bucket(cur);
     if (c.payments) {
-      const tot = c.amount ?? c.payments.reduce((a, p) => a + p.amount, 0);
+      const { tot, st } = paymentTotals(c);
       for (const p of c.payments) {
         if (p.status === 'paid') b.paid += p.amount;
         else { b.pending += p.amount; upcoming.push({ n: s.name || s.operator, amt: p.amount, cur, due: p.due }); }
       }
-      const pd = c.payments.filter(p => p.status === 'paid').reduce((a, p) => a + p.amount, 0);
-      const pn = c.payments.filter(p => p.status === 'pending').reduce((a, p) => a + p.amount, 0);
-      rows.push({ s, st: pn > 0 ? (pd > 0 ? 'partial' : 'pending') : 'paid', amt: tot, cur });
+      rows.push({ s, st, amt: tot, cur });
     } else {
       const amt = c.amount || 0;
       if (c.status === 'paid') b.paid += amt;

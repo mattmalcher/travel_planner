@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {
   entryFor, upsertIndex, removeFromIndex, sortIndex, readIndex, writeIndex,
   nextRevision, withIdentity, restoredFrom, copyIdentity, legacyTripId, newTripId,
-  contentHash, sameContent, classifyImport, forkOf,
+  sameContent, classifyImport, forkOf,
   writeDoc, readDoc, deleteTrip, clearLibrary, migrateLegacy,
   readHistory, writeHistory, nextHistory, historyMeta, safeSetItem,
   pruneOldestHistory, isQuotaError, currentTripId,
@@ -74,7 +74,7 @@ test('content comparison ignores the meta fields, not the itinerary', () => {
   assert.ok(sameContent(a, { ...a, rev: 9, updated_at: 'later', updated_by: 'Sarah', schema_version: '9.9.9' }));
   assert.ok(!sameContent(a, { ...a, segments: [{ id: 'seg-1' }] }));
   // Key order is not content.
-  assert.equal(contentHash({ trip: trip(), segments: [] }), contentHash({ segments: [], trip: trip() }));
+  assert.ok(sameContent({ trip: trip(), segments: [] }, { segments: [], trip: trip() }));
 });
 
 test('copyIdentity settles the loaded document in place, without replacing it', () => {

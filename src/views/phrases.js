@@ -17,7 +17,7 @@ import {
   phraseCount, untranslated, takenPhraseIds,
   deleteMessage, restoreMessage, addMessage,
 } from '../lib/phrases.js';
-import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
+import { jumpTo, bindJumpSpy, updateActiveChip, jumpChip, jumpStrip } from './jump-nav.js';
 import { keepFocus, announce } from './focus.js';
 
 /** Tabler icon class for a phrase group's kind. */
@@ -142,9 +142,8 @@ const newGroupBtn = `<button onclick="hOpenAddPhraseGroup()" class="htool"><i cl
     views use, keyed by index so a group with no id still works. */
 function jumpNav(groups) {
   if (groups.length < 2) return '';
-  return `<nav class="hjump-nav" aria-label="Jump to phrase group">${groups.map((group, gi) =>
-    `<button class="hjump-chip" data-k="${gi}" onclick="hJumpPhraseGroup(this.dataset.k)"><i class="ti ${phraseIcon(group.kind)}" aria-hidden="true"></i> ${esc(group.name || 'Phrases')}</button>`
-  ).join('')}</nav>`;
+  return jumpStrip('Jump to phrase group', groups.map((group, gi) =>
+    jumpChip(gi, 'hJumpPhraseGroup', esc(group.name || 'Phrases'), { icon: phraseIcon(group.kind) })));
 }
 
 export function renderPhrases() {
@@ -153,7 +152,7 @@ export function renderPhrases() {
   const box = document.getElementById('hvphrases');
   if (undo && undo.hd !== HD) undo = null; // a different itinerary was loaded
   if (!groups.length) {
-    box.innerHTML = `<div style="font-size:13px;color:var(--color-text-secondary);padding:1rem 0">
+    box.innerHTML = `<div class="hempty">
       No phrases yet. A phrasebook holds things you want to be able to say — greetings, ordering food,
       asking directions — grouped by situation, for looking up on the day. Add a group below, ask the
       AI assistant to build and translate one, or write them into the itinerary JSON (<code>phrases</code>).
@@ -165,7 +164,7 @@ export function renderPhrases() {
     const todo = untranslated(group).length;
     return `<div class="hseg hjump-a" data-k="${gi}">
       <div style="display:flex;align-items:center;gap:10px">
-        <i class="ti ${phraseIcon(group.kind)}" style="font-size:17px;color:var(--color-text-secondary)" aria-hidden="true"></i>
+        <i class="ti ${phraseIcon(group.kind)} hcard-ic" aria-hidden="true"></i>
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:500">${esc(group.name)}</div>
           ${group.language ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:1px">${esc(group.language)}</div>` : ''}

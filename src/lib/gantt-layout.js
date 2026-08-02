@@ -1,6 +1,6 @@
 // Pure geometry for the gantt view: time→pixel scales and accommodation
 // coverage gaps. No DOM — everything here is unit-testable.
-import { toMs, eventInterval, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY } from './dates.js';
+import { toMs, endOfDayMs, eventInterval, DEFAULT_CHECKIN_FROM, DEFAULT_CHECKOUT_BY } from './dates.js';
 
 export const PX_PER_MIN = 0.25; // proportional mode
 export const SLOT_PX = 36;      // compact mode: px between consecutive instants
@@ -21,7 +21,7 @@ export function linearScale(tripStartMs, tripEndMs, pxPerMin = PX_PER_MIN) {
     each day, and every segment start/end. Returns sorted unique ms values. */
 export function compactPoints(trip, segments) {
   const tripStartMs = toMs(trip.start, '00:00');
-  const tripEndMs = new Date(trip.end + 'T23:59:59').getTime();
+  const tripEndMs = endOfDayMs(trip.end);
   const numDays = Math.round((toMs(trip.end, '00:00') - tripStartMs) / 86400000) + 1;
   const pts = new Set([tripStartMs, tripEndMs]);
   for (let d = 0; d < numDays; d++) pts.add(tripStartMs + d * 86400000);

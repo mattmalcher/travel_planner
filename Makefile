@@ -4,49 +4,43 @@
 # recipe's shell expands the glob.
 FILE ?= data/*.json
 
+# Built from the `##` comments on each target below, so a target and its
+# description cannot drift apart — they used to be written twice, once as a
+# comment nothing parsed and once as a hard-coded echo here.
 help: ## Show this help message
 	@echo "Available commands:"
-	@echo "  make install    - Install node dependencies"
-	@echo "  make build      - Build dist/holiday_itinerary_viewer.html from src/"
-	@echo "  make host       - Build and host the viewer locally"
-	@echo "  make demo       - Build, then record demo/demo.gif (needs ffmpeg)"
-	@echo "  make lint       - Run ESLint over src/, scripts/ and tests/"
-	@echo "  make validate   - Schema-check and lint itinerary JSON (FILE=data/*.json)"
-	@echo "  make itin       - Run an itinerary CLI subcommand (ARGS=\"digest data/x.json\")"
-	@echo "  make test       - Run unit tests then headless Playwright E2E tests"
-	@echo "  make test-unit  - Run only the fast unit tests (node --test)"
-	@echo "  make test-e2e   - Build, then run only the Playwright E2E tests"
-	@echo "  make test-ui    - Open Playwright interactive test UI"
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-10s - %s\n", $$1, $$2}'
 
-install: ## Install package dependencies
+install: ## Install node dependencies
 	npm install
 
-build: ## Build the standalone viewer into dist/
+build: ## Build dist/holiday_itinerary_viewer.html from src/
 	npm run build
 
-host: ## Build and host the application locally on http://localhost:8345
+host: ## Build and host the viewer on http://localhost:8345
 	npm run host
 
-demo: ## Build, then record the README demo animation into demo/demo.gif
+demo: ## Build, then record demo/demo.gif (needs ffmpeg)
 	npm run demo
 
-lint: ## Run ESLint
+lint: ## Run ESLint over src/, scripts/ and tests/
 	npm run lint
 
-validate: ## Schema-check and lint an itinerary JSON file (FILE=data/*.json)
+validate: ## Schema-check and lint itinerary JSON (FILE=data/*.json)
 	npm run validate -- $(FILE)
 
 itin: ## Run an itinerary CLI subcommand (ARGS="digest data/trip.json")
 	npm run itin -- $(ARGS)
 
-test: ## Run unit tests then Playwright E2E tests headlessly
+test: ## Run unit tests then headless Playwright E2E tests
 	npm run test
 
-test-unit: ## Run unit tests only (milliseconds)
+test-unit: ## Run only the fast unit tests (node --test)
 	npm run test:unit
 
-test-e2e: ## Build and run Playwright E2E tests only
+test-e2e: ## Build, then run only the Playwright E2E tests
 	npm run test:e2e
 
-test-ui: ## Run Playwright tests in interactive UI mode
+test-ui: ## Open Playwright interactive test UI
 	npm run test:ui
