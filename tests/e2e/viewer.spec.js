@@ -487,6 +487,13 @@ test.describe('Holiday Itinerary Viewer', () => {
   });
 
   test('should show a sticky date strip that jumps to a day (issue #21)', async ({ page }) => {
+    // Freeze the clock before the trip. The fixture's dates are fixed, so once
+    // the real clock reached them this test saw a trip that was underway: the
+    // strip gained a Today chip (issue #35) and auto-jumped to the current day,
+    // breaking both the chip count and the scroll assertions below.
+    await page.clock.setFixedTime(new Date('2026-07-01T12:00:00'));
+    await page.goto('/holiday_itinerary_viewer.html');
+
     // A multi-day itinerary with enough cards that later days start off-screen.
     const days = ['2026-08-01', '2026-08-02', '2026-08-03'];
     const segments = days.flatMap((date, di) => [0, 1, 2, 3, 4, 5].map(i => ({

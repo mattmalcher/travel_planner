@@ -37,6 +37,11 @@ User wants train times for a French route
     └─ → SNCF Connect, Trainline, or Rail Europe  (date-based, fine for booking)
 ```
 
+**Buses and coaches are a different problem** — regional coach operators publish
+GTFS feeds that answer "does it run on this date" outright, where their PDFs are
+much worse organised than SNCF's. Use the `bus-timetables` skill for those,
+including the substitution buses in §1.
+
 ---
 
 ## §1 — Fiche horaire PDFs (best for full timetables)
