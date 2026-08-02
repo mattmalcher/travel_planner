@@ -28,6 +28,16 @@ export function fmtDayShort(iso) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
 }
 
+/** "2026-09-18" → "Fri 18 Sep" (the Schedule view's day labels) */
+export function fmtDayMonth(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** A saved revision's timestamp → "18 Sep 2026, 14:30" (the trip switcher). */
+export function fmtStamp(iso) {
+  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 /** 138 → "2h 18m", 120 → "2h" */
 export function fmtMinutes(m) {
   const h = Math.floor(m / 60), mn = m % 60;
@@ -82,6 +92,12 @@ export function eventInterval(s) {
 
 /** Whole nights between two "YYYY-MM-DD" dates (checkin → checkout). Noon
     anchors keep the difference DST-proof. Never below zero. */
+/** The last instant of a day: "2026-09-18" → ms at 23:59:59 local. The trip's
+    end date is inclusive, so this is where its final day stops. */
+export function endOfDayMs(iso) {
+  return new Date(iso + 'T23:59:59').getTime();
+}
+
 export function nightsBetween(fromIso, toIso) {
   return Math.max(0, Math.round((toMs(toIso, '12:00') - toMs(fromIso, '12:00')) / 86400000));
 }

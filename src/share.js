@@ -129,9 +129,9 @@ export function boot() {
     return true;
   }).catch(e => {
     clearFragment();
-    showUploadWarning(`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> That share link could not be opened</div>
-      ${esc(e.message || String(e))}. Ask whoever sent it for the link again — some apps shorten a long link, which breaks it.`,
-    ['<button onclick="hUploadCancel()" class="htool">Dismiss</button>']);
+    showUploadWarning('alert-triangle', 'That share link could not be opened',
+      `${esc(e.message || String(e))}. Ask whoever sent it for the link again — some apps shorten a long link, which breaks it.`,
+      ['<button onclick="hUploadCancel()" class="htool">Dismiss</button>']);
     return false;
   });
 }

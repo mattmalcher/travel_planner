@@ -8,6 +8,13 @@ import { danglingListRefs } from './lists.js';
 /** Two-decimal tolerance for comparing payment sums to a declared total. */
 const SUM_TOLERANCE = 0.005;
 
+/** How a segment is named in a warning: by id when it has one, else by its
+    1-based position. Exported because the desktop CLI's schema errors are
+    prefixed the same way, and the two must not drift. */
+export function segLabel(seg, i) {
+  return (seg && seg.id) ? `segment "${seg.id}"` : `segment ${i + 1}`;
+}
+
 export function lintItinerary(doc) {
   const warnings = [];
   if (!doc || !Array.isArray(doc.segments)) return warnings;
@@ -40,7 +47,7 @@ export function lintItinerary(doc) {
 
   segments.forEach((seg, i) => {
     if (!seg) return;
-    const label = seg.id ? `segment "${seg.id}"` : `segment ${i + 1}`;
+    const label = segLabel(seg, i);
 
     if (seg.pass_id && !passIds.has(seg.pass_id))
       warnings.push(`${label}: pass_id "${seg.pass_id}" does not match any pass in trip.passes`);

@@ -9,7 +9,7 @@
  */
 import { state } from '../state.js';
 import { esc } from '../lib/escape.js';
-import { fmtDate, timeAgo } from '../lib/dates.js';
+import { fmtDate, fmtStamp, timeAgo } from '../lib/dates.js';
 import {
   savedTrips, savedTrip, revisions, revisionDoc, restoreRevision,
   forget, forgetEverything, updatedBy, setUpdatedBy, persist,
@@ -42,7 +42,7 @@ function revisionRows(tripId) {
     return '<div class="hlib-rev hlib-none">No earlier revisions saved yet</div>';
   // Newest first, matching the trip rows above.
   return [...list].reverse().map(r => `<div class="hlib-rev">
-      <span class="hlib-rev-meta">rev ${r.rev}${r.updated_at ? ` · ${esc(new Date(r.updated_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}` : ''}${r.updated_by ? ` · ${esc(r.updated_by)}` : ''}</span>
+      <span class="hlib-rev-meta">rev ${r.rev}${r.updated_at ? ` · ${esc(fmtStamp(r.updated_at))}` : ''}${r.updated_by ? ` · ${esc(r.updated_by)}` : ''}</span>
       <button onclick="hLibRestore('${esc(tripId)}',${r.rev})" title="Restore this revision"><i class="ti ti-restore" aria-hidden="true"></i> Restore</button>
       <button onclick="hLibShareRev('${esc(tripId)}',${r.rev})" title="Share this revision as a link"><i class="ti ti-share" aria-hidden="true"></i></button>
       <button onclick="hLibDownloadRev('${esc(tripId)}',${r.rev})" title="Download this revision as JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
