@@ -1,6 +1,6 @@
 ---
 name: itinerary-authoring
-description: "Use this skill when editing, extending or researching into a HolidayItinerary JSON file (data/*.json, examples/*.json) on the desktop: adding segments, geocoding stops, filling in train times, promoting list items into plans, translating a phrase group, or preparing a file to upload back into the viewer. Covers the document-authoring rules the schema cannot enforce, how ids and rev work, validating with make validate, and handing a file back without it importing as a fork."
+description: "Use this skill when editing, extending or researching into a HolidayItinerary JSON file (data/*.json, examples/*.json) on the desktop: adding segments, geocoding stops, filling in train times, promoting list items into plans, translating a phrase group, or preparing a file to upload back into the viewer. Every other research skill hands off to this one for writing what it found."
 ---
 
 # Authoring HolidayItinerary documents
@@ -18,29 +18,14 @@ authoring mistake is putting something in the wrong one:
 
 | | what it is | has a date/cost? | where it shows up |
 |---|---|---|---|
-| `segments` | **plans** | yes | itinerary, schedule, budget, map |
+| `segments` | **plans**, at a specific time | yes | itinerary, schedule, budget, map |
 | `lists` | **intentions** you tick off or promote | no | Lists tab only |
 | `phrases` | **reference** you never tick off | no | Phrases tab only |
 
-Anything that gains a date or a cost becomes a segment. Nothing in `lists` or
-`phrases` is ever counted into the budget.
-
-## Where does this thing I researched go?
-
-```
-Is it a specific plan, at a specific time?
-├── yes → segment
-│         ├── booked and paid          → cost.status: paid
-│         ├── agreed but not booked    → cost.status: not_booked
-│         └── free                     → cost.status: free
-└── no
-    ├── one of several options I haven't chosen between  → a list item
-    ├── a thing to remember to do/buy/eat (no time)      → a list item
-    └── something to be able to SAY                      → a phrase group item
-```
-
-Competing options are **a list**, never competing segments — see the doctrine
-below.
+So: anything that gains a date or a cost becomes a segment, with a
+`cost.status` of `paid` / `not_booked` / `free`. Options you have not chosen
+between are **one list**, never competing segments. Something to be able to
+*say* is a phrase. Nothing outside `segments` is ever counted into the budget.
 
 ## 1. The desktop loop
 
@@ -125,16 +110,15 @@ Two more traps in the same area:
   once in the browser between passes. Never "fix" a gap — `rev` is a counter,
   not an index.
 
-## 4. Geocoding stops
+## 4. Research skills that feed this one
 
-Use the `find-stop` skill for coordinates — it searches the Trainline stations
-database before falling back to OpenStreetMap, and knows which same-named
-result is a real platform rather than a city centroid. Two translations to get
-right:
-
-- OpenStreetMap returns `lon` and Trainline `longitude`; the schema uses **`lng`**.
-- A `TransportStop`'s name field is **`place`** (it was `station` before schema
-  3.0).
+`find-stop` for a stop's coordinates, `sncf-timetables` for French train times,
+`bus-timetables` for bus and coach times, `browser-research` for a page that
+refuses a fetch. Each reports its findings with a source and a date read; keep
+that provenance in the conversation, not in the document (see the doctrine on
+notes below). Two field names they all trip over: the schema uses **`lng`**, not
+`lon`/`longitude`, and a stop's name field is **`place`** (it was `station`
+before schema 3.0).
 
 ## 5. The authoring rules
 
@@ -166,15 +150,6 @@ desktop cannot drift apart. Edit that file, not this block, then run
 - data/<trip>_<0.N>.json is a hand-kept chain of snapshots of one trip_id, not separate trips. Read the highest N, and write a research pass to N+1 so the previous pass stays readable as a diff. The highest N is the one to upload.
 - data/*.json is gitignored real personal data — real names, addresses and booking references. Never copy any of it into examples/, tests/, a commit message or a PR body; those stay fictional (the Jetsons pattern).
 <!-- doctrine:end -->
-
-## 6. Real data vs fixtures
-
-`data/*.json` is gitignored **real personal data** — real names, addresses and
-booking references. `examples/` and `tests/` are fictional (the Jetsons
-pattern: "Judy Jetson", invented refs, no real private addresses).
-
-Never move content from `data/` into `examples/`, `tests/`, a commit message or
-a PR body. When you need a fixture, invent one.
 
 ## Quick reference
 

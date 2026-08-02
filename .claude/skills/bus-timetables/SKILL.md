@@ -1,6 +1,6 @@
 ---
 name: bus-timetables
-description: "Use this skill when an itinerary needs bus or coach times — a regional/interurban coach, a village stop, a ski or valley shuttle — or when a bus time already in a file needs auditing. Reads the operator's own GTFS feed (a national access point where there is one — transport.data.gouv.fr for France, single national feeds for Switzerland, the Netherlands, Norway, Ireland and more — otherwise the MobilityData catalogue) to answer 'does this line run on THIS date, and at what time', which a timetable PDF and a journey planner both struggle with. Covers finding the feed, querying it offline, the seasonality / weekend / short-turn traps, and the four questions GTFS cannot answer."
+description: "Use this skill when an itinerary needs bus, coach, tram or shuttle times — a regional coach, a village stop, a ski or valley service — or when a bus time already in a file needs auditing. Reads the operator's own GTFS feed to answer 'does this line run on THIS date, and at what time', which a timetable PDF and a journey planner both struggle with. French *trains* go to sncf-timetables instead."
 ---
 
 # Bus and coach times, from the feed
@@ -20,10 +20,8 @@ are GTFS consumers; going to the feed directly gets the same data one step
 earlier, works offline, answers a whole week at once, and lets you see how fresh
 the data is, which the app hides.
 
-**Use this for buses, coaches, trams and shuttles.** For French *trains* use
-`sncf-timetables` — SNCF's fiches horaires are well organised and the rail feeds
-are enormous. For a stop's coordinates use `find-stop`. For writing what you
-find into a document use `itinerary-authoring`.
+For French *trains* use `sncf-timetables` — SNCF's fiches horaires are well
+organised, and it owns the mainline feed.
 
 ---
 
@@ -145,19 +143,8 @@ confidently. Re-fetch with `--refresh` whenever the operator has published since
 (the old extraction is deleted first, so nothing survives into the new edition).
 
 `shapes.txt` is dropped because it is road geometry and routinely 80–95% of the
-archive (110 MB of a 120 MB feed in one real case). Nothing here needs it.
-
-To unzip one by hand instead — the tool takes a directory just as happily:
-
-```bash
-curl -sL -o feed.zip "<resource url>"
-unzip -q feed.zip -x shapes.txt -d feed
-```
-
-The archive must come **before** `-x`: `unzip -x shapes.txt -d feed feed.zip`
-fails with "cannot find or open shapes.txt", because unzip takes the first
-non-option argument as the archive. Some feeds ship without `shapes.txt` and
-unzip says "excluded filename not matched"; that is fine.
+archive (110 MB of a 120 MB feed in one real case). Nothing here needs it. The
+tool takes an already-extracted directory just as happily, if you have one.
 
 A national feed is a different size of thing — Switzerland's is 207 MB zipped,
 2.5 GB of `stop_times.txt`, 1.8M trips. `gtfs_query.py` streams the large files
@@ -270,6 +257,8 @@ this same feed with the provenance stripped off.
 
 Give departures as a table with both directions and the day-types that matter,
 say **which feed and which `updated` date** each figure came from, and name
-anything the feed could not answer rather than leaving it silently absent. Then
-hand off to `itinerary-authoring` for writing the segment, and `find-stop` if
-the stop still needs coordinates.
+anything the feed could not answer rather than leaving it silently absent.
+
+A feed already downloaded for the times carries coordinates for every stop it
+serves, so take them from it rather than sending `find-stop` after them again.
+Writing any of it into a document is `itinerary-authoring`'s job.

@@ -1,207 +1,110 @@
 ---
 name: sncf-timetables
-description: "Use this skill when someone asks about French train times, schedules, or timetables — especially when they want a week-at-a-glance view rather than a single journey. Covers: finding SNCF TER, Intercités, and TGV timetables without using SNCF Connect's date picker; downloading official fiche horaire PDFs; understanding why SNCF Connect shows 'no trains'; distinguishing short-turn services; and resolving conflicting frequency figures from aggregators."
+description: "Use this skill for French train times — a TER, Intercités or TGV departure, a week-at-a-glance view of a line, or auditing a rail time already written into an itinerary. Buses and coaches go to bus-timetables instead."
 ---
 
 # Finding French Train Timetables (SNCF)
 
 ## Core insight
 
-SNCF Connect is a **booking engine**, not a timetable viewer. It requires a date and shows only matching journeys. For a full week-at-a-glance schedule, use the **fiche horaire PDF** instead — the official poster displayed at stations, free to download, showing every train, every stop, and all day-types (weekday / Saturday / Sunday / holiday) on one or two pages.
+SNCF Connect is a **booking engine**, not a timetable viewer: it wants a date and
+shows only matching journeys. For a line's full schedule use the **fiche horaire
+PDF** — the poster displayed at stations, free to download, every train, every
+stop, all day-types (weekday / Saturday / Sunday / holiday) on one or two pages.
 
-> **URLs verified July 2026.** SNCF reorganises these sites periodically; if a
-> URL below 404s, fall back to a web search rather than guessing path variants.
-> Note also that `ter.sncf.com` blocks non-browser clients (returns 403 to
-> programmatic fetches) — to locate a fiche horaire PDF from an agent, search
-> the web instead, e.g. `site:ter-fiches-horaires.sncf.fr <line>` or
-> `fiche horaire <origin> <destination> filetype:pdf`. The PDF host itself
-> serves files normally once you have the direct link.
+For a *derived* time — one you interpolated, remembered or computed rather than
+read off a page — go to the GTFS feed in §4 instead. That is the check that
+catches a departure past the end of service.
 
----
-
-## Decision tree
-
-```
-User wants train times for a French route
-│
-├─ Full weekly schedule / "what trains run on this line?"
-│   └─ → Fiche horaire PDF  (see §1)
-│
-├─ Next few departures from a specific station
-│   └─ → Station departure board  (see §2)
-│
-├─ "No trains showing on SNCF Connect"
-│   └─ → Booking horizon issue  (see §3)
-│
-└─ Need to book / pay
-    └─ → SNCF Connect, Trainline, or Rail Europe  (date-based, fine for booking)
-```
-
-**Buses and coaches are a different problem** — regional coach operators publish
-GTFS feeds that answer "does it run on this date" outright, where their PDFs are
-much worse organised than SNCF's. Use the `bus-timetables` skill for those,
-including the substitution buses in §1.
+> **URLs verified July 2026.** SNCF reorganises these sites periodically; if one
+> 404s, fall back to a web search rather than guessing path variants.
 
 ---
 
 ## §1 — Fiche horaire PDFs (best for full timetables)
 
-**Two official access points:**
+The national TER hub always works:
+`ter.sncf.com/<region>/se-deplacer/fiches-horaires`. The slug is the
+administrative region's full name, hyphenated and unaccented
+(`auvergne-rhone-alpes`, `bourgogne-franche-comte`) — with one that will not come
+out of a template: **PACA is `sud-provence-alpes-cote-d-azur`**. Île-de-France is
+not in the TER system at all; Transilien/RER fiches are at
+`transilien.com/fr/les-fiches-horaires`.
 
-| Portal | URL | Best for |
-|---|---|---|
-| SNCF TER national hub | `ter.sncf.com/<region>/se-deplacer/fiches-horaires` | Searching by line or commune |
-| Regional transport authority | Varies by region — no generic pattern (see note below) | Co-branded mirror; sometimes better search |
-| Raw PDF host | `ter-fiches-horaires.sncf.fr` | Direct URL if you know the line name |
+Some regions mirror the fiches on their own transport-authority site (Zou! in
+PACA, liO in Occitanie, Fluo in Grand Est), each on its own domain — don't
+construct those URLs, use the hub.
 
-Some regions mirror the fiches on their own transport-authority site, but each
-uses its own domain and branding: Nouvelle-Aquitaine has
-`transports.nouvelle-aquitaine.fr/se-deplacer/horaires-et-plans`, Sud/PACA uses
-Zou! (`zou.maregionsud.fr`), Occitanie uses liO, Grand Est uses Fluo. Don't
-construct these URLs from a template — the `ter.sncf.com` hub always works.
+**`ter.sncf.com` returns 403 to non-browser clients**, so locate the PDF by web
+search rather than by fetching the portal: `site:ter-fiches-horaires.sncf.fr
+<line>` or `fiche horaire <origin> <destination> filetype:pdf`. The PDF host
+itself serves files normally once you have the direct link.
 
-**Region slugs** (the URL uses the administrative region's full name — note
-PACA's long slug):
+Then: check the **validity dates** printed at the top — editions change roughly
+mid-December and early July — and read the **destination column and footnotes**,
+which is where short-turn, seasonal, Friday-only and school-holiday variants
+live. A train that calls at intermediate stations may terminate short of where
+the traveller is going.
 
-| Region | Slug |
-|---|---|
-| Auvergne-Rhône-Alpes | `auvergne-rhone-alpes` |
-| Bourgogne-Franche-Comté | `bourgogne-franche-comte` |
-| Bretagne | `bretagne` |
-| Centre-Val de Loire | `centre-val-de-loire` |
-| Grand Est | `grand-est` |
-| Hauts-de-France | `hauts-de-france` |
-| Normandie | `normandie` |
-| Nouvelle-Aquitaine | `nouvelle-aquitaine` |
-| Occitanie | `occitanie` |
-| Pays de la Loire | `pays-de-la-loire` |
-| PACA / Région Sud | `sud-provence-alpes-cote-d-azur` |
-
-Île-de-France is **not** in the TER system — Paris suburban trains
-(Transilien / RER) publish fiches horaires at
-`transilien.com/fr/les-fiches-horaires` instead.
-
-**How to find a specific line PDF:**
-1. Go to the TER fiches-horaires page for the correct region.
-2. Search by departure or arrival commune — the site returns the matching line(s).
-3. Download the PDF. Check the **validity dates** printed at the top; timetables change roughly mid-December and early July each year.
-
-**What the PDF contains:**
-- Every train number and its stops, in both directions
-- Columns for Lun–Ven (weekday), Samedi, Dimanche/fêtes
-- Footnotes for seasonal, Friday-only, or short-turn services
-- Planned engineering works / substitution buses
-- Connection notes (e.g. TGV at Bordeaux)
-
----
+The PDF also carries both directions, train numbers, connection notes, and
+planned engineering works with their substitution buses (those buses are a
+`bus-timetables` job).
 
 ## §2 — Station departure boards (next departures, no date needed)
-
-For real-time next-departures without a journey search:
 
 - **TER:** `ter.sncf.com/<region>/se-deplacer/prochains-departs/<station-slug-UIC>`
 - **All SNCF:** `garesetconnexions.sncf/en/stations-services/<station>/timetables`
 
-The station slug is usually the station name lowercased with hyphens; the UIC code (8-digit number) is also accepted. A quick web search for `"SNCF prochains departs" <station name>` resolves ambiguity fast.
-
----
+The slug is usually the name lowercased with hyphens; the 8-digit UIC code also
+works. A web search for `"SNCF prochains departs" <station name>` resolves
+ambiguity fast.
 
 ## §3 — "No trains" on SNCF Connect
 
-**Cause:** SNCF Connect opens booking roughly 3–5 months ahead; TER bookings open later than TGV. After the mid-December timetable change, new-season data loads gradually — trains exist but the booking system hasn't published them yet.
+SNCF Connect opens booking roughly 3–5 months ahead, TER later than TGV, and
+after the December timetable change new-season data loads gradually. **Trains
+exist that the booking system has not published yet** — this is a booking-horizon
+issue, not a cancellation. The fiche horaire covers the full validity window from
+day one; if it shows trains and SNCF Connect does not, the user books nearer the
+date or at the station.
 
-**Resolution:** Use the fiche horaire PDF, which covers the full validity window from day one. If the PDF shows trains but SNCF Connect shows none, advise the user to try again closer to the travel date or book at the station on the day.
+Aggregator "X trains per day" counts (Omio, Rome2Rio, Trainline) disagree with
+each other and with SNCF because they differ on whether short-turn and seasonal
+services count. Treat them as ballpark; the fiche is the definitive count.
 
----
+## §4 — The mainline GTFS feed: auditing a connection
 
-## §4 — Short-turn services and service codes
-
-Many TER lines have short-turn variants that don't run the full route.
-
-Always check the **destination column** in the fiche horaire — a train that stops at intermediate stations may terminate short of the user's destination. Footnotes mark seasonal, Friday-only, and school-holiday variants.
-
-**Regional letter codes** (Nouvelle-Aquitaine only, introduced December 2022 — other regions use their own branding or none):
-
-| Code | Meaning |
-|---|---|
-| L — Liné'R | Proximity service calling at all stations on the line |
-| F — Facilit'R | Frequent periurban service linking suburbs and city centre, all stops |
-| D — Direct'R | Fast service linking two major cities, limited stops |
-
-These codes describe stopping pattern and market, **not** whether a train runs the full line — a Facilit'R periurban shuttle typically terminates partway, so the destination column is still the thing to check.
-
----
-
-## §5 — Conflicting frequency figures from aggregators
-
-Omio, Rome2Rio, Trainline, and SNCF Connect itself often give different "X trains per day" counts for the same route. Causes:
-
-- Some count short-turn services as separate trains; others don't.
-- Seasonal / Friday-only trains may or may not be included.
-- Aggregators may cache old data.
-
-**Rule:** trust the official fiche horaire PDF for the definitive count. Treat aggregator figures as ballpark only.
-
----
-
-## §6 — Intercités and TGV (non-TER routes)
-
-TER timetables use the regional fiches-horaires system above. For mainline services:
-
-| Service type | Timetable source |
-|---|---|
-| TGV / Intercités | `sncf-voyageurs.com/fr/voyagez-avec-nous/horaires-et-itineraires/` or search for the route + "fiche horaire PDF" |
-| All SNCF (machine-readable) | GTFS/NeTEx on `transport.data.gouv.fr` — dataset "Horaires SNCF" |
-| Night trains (Intercités de Nuit) | Same regional/national portals; check "fiche horaire Intercités" |
-
-### The mainline GTFS feed — use it to AUDIT a connection
-
-The line above understates this. The data.gouv.fr dataset **"Réseau SNCF TGV,
-Intercités et TER"** (resource `9ae758ec-cd7a-40cd-a890-bb3963224942`, republished
-roughly daily) covers mainline SNCF, and `gtfs_query.py` from the
-`bus-timetables` skill reads it in seconds — this is a ~400k-row
-`stop_times.txt`, not a national monster:
+For TGV, Intercités and TER as data, the data.gouv.fr dataset **"Réseau SNCF TGV,
+Intercités et TER"** (resource `9ae758ec-cd7a-40cd-a890-bb3963224942`,
+republished roughly daily) is read in seconds by `gtfs_query.py` from the
+`bus-timetables` skill — a ~400k-row `stop_times.txt`, not a national monster:
 
 ```bash
 .claude/skills/bus-timetables/tools/gtfs_query.py <resource-url> --routes 'Grenoble'
 .claude/skills/bus-timetables/tools/gtfs_query.py <resource-url> 621A 2026-09-11 48.844888,2.37352 45.191493,5.714584
 ```
 
-Two things that are not obvious and are the reason to come here:
+Two things specific to this feed:
 
 - **`trips.txt` has no `trip_short_name` — the train number is in
-  `trip_headsign`** (e.g. `6920`). That is how you get a service number into a
+  `trip_headsign`** (e.g. `6920`). That is how a service number gets into a
   segment without a booking engine, and it matches what a booking engine or a
-  fiche horaire gives for the same service — which is what makes the numbers
-  trustworthy for legs you have no other source for.
+  fiche gives for the same train.
 - **There is no `calendar.txt`** — the feed is `calendar_dates.txt`-only, so
   "does it run on this date" is a single `exception_type=1` lookup.
 
-**The real use is auditing a connection you did not read off a page.** Any
-segment whose time was derived, interpolated or remembered is worth one query.
-The failure this catches is not a few minutes out: an evening Paris → Grenoble
-leg written as 20:13 → 23:13, when the last departure of the day is 18:14 —
-over an hour past the end of service, and it breaks everything downstream of
-it. Two habits that matter:
+**Audit any mainline time you did not read off a page.** The failure this catches
+is not a few minutes out: an evening Paris → Grenoble leg written as 20:13 →
+23:13, when the last departure of the day is 18:14 — over an hour past the end of
+service, breaking everything downstream. Two habits: **scan every route** for the
+origin/destination stop pair before concluding a journey does not exist, and
+**check a connecting hub** (Paris → Lyon → Grenoble) before calling it
+impossible, noting the last hub departure since that is the real cutoff.
 
-- **Scan every route for the origin/destination stop pair**, not just the
-  obvious `621A`-shaped one, before concluding a journey does not exist.
-- **Check a connecting hub too** (Paris → Lyon → Grenoble) before calling it
-  impossible — and note the last hub departure, since that is the real cutoff.
-
-Unlike some regional coach feeds this one is current rather than stale. But it
-contains **no Eurostar**, so cross-Channel legs need `browser-research` — where
-the Eurostar *timetable* pages turn out to fetch plainly and only the fare
-search is walled.
+Unlike some regional coach feeds this one is current rather than stale. It
+contains **no Eurostar**, so cross-Channel legs go to `browser-research`.
 
 ---
 
-## Quick-reference checklist
-
-- [ ] Identify the **region** (administrative, not département) and look up its **slug** in the §1 table
-- [ ] Find the line's fiche horaire under **`ter.sncf.com/<region>/se-deplacer/fiches-horaires`** — via web search if fetching the portal directly returns 403
-- [ ] Download the **PDF** and check the **validity dates** at the top (editions change mid-December and early July)
-- [ ] Check the **destination column and footnotes** for short-turn, seasonal, or Friday-only trains
-- [ ] For booking only, then use **SNCF Connect / Trainline**
-- [ ] If SNCF Connect shows nothing → **booking horizon issue**, not cancellation
-- [ ] **Audit any mainline time you did not read off a page** against the GTFS feed (§6) — a derived departure can be past the end of service
+Hand times to `itinerary-authoring` to write them into a document; that skill
+also owns provenance and the validate/bump handoff.
