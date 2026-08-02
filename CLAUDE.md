@@ -95,6 +95,8 @@ src/
     sw-cache.js     request classification for the service worker (issue #45)
     gantt-layout.js time→pixel scales, compact points, coverage gaps
     escape.js       esc() html escaping
+    linkify.js      urls inside free prose → anchors (issue #109); escapes the
+                    surrounding text itself, so it replaces esc() at that sink
   views/            DOM rendering only; maths belongs in lib/
     badges.js list.js budget.js map.js gantt.js lists.js edit-form.js
     phrases.js      the phrasebook tab (issue #75) — reference, not a
@@ -182,7 +184,15 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 - **Escape everything** interpolated into HTML that comes from an itinerary
   file or an AI reply — use `esc()` from `lib/escape.js` (issue #9). For any
   URL going into an `href`/`src`, gate it through `safeUrl()` first so only
-  absolute `http(s)` links survive.
+  absolute `http(s)` links survive. **Free prose is the one exception**, and it
+  is still an escaping sink: segment notes and warnings, list item notes and
+  phrase notes render through `linkify()` (issue #109), which escapes every
+  non-URL run itself and puts each link through `safeUrl()` — so it *replaces*
+  `esc()` at that call site and must never be wrapped in one. Only prose goes
+  through it: a value in an attribute, a `<code>` ref or anything that must stay
+  literal keeps using `esc()`. It links an explicit `http(s)://` only — a bare
+  `example.com` stays text, because guessing a scheme turns ordinary prose into
+  links.
 - **Edit-modal form fields are schema-derived**: add or reorder fields by
   editing `LAYOUT` in `lib/edit-form.js` (paths + labels only) — input type,
   enum options, required markers and bounds come from the schema, and a path

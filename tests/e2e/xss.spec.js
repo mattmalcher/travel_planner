@@ -39,7 +39,10 @@ const xssItinerary = {
       checkin: { date: '2026-09-18', from: '13:00' },
       checkout: { date: '2026-09-19', by: '13:00' },
       cost: { amount: 87.24, currency: 'GBP', status: 'pending', due: '2026-09-01' },
-      notes: `Careful ${SCRIPT}`
+      // Notes are rendered through linkify() since issue #109, which makes them
+      // an HTML sink of a second kind: a url-shaped payload must not close the
+      // anchor it is being put inside.
+      notes: `Careful ${SCRIPT} https://ok.test/x"><img src=x onerror="window.__xss=(window.__xss||0)+1">`
     },
     {
       id: 'seg-3',
@@ -163,6 +166,11 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
     await expect(page.locator('#hvlist')).toContainText(`Studio ${IMG}`);
     await expect(page.locator('#hvlist')).toContainText(`Careful ${SCRIPT}`);
 
+    // The note's url is linked as far as the quote and no further — the rest of
+    // the payload stays prose (issue #109).
+    await expect(page.locator('#hvlist a.hlink[href="https://ok.test/x"]')).toHaveCount(1);
+    await expect(page.locator('#hvlist a.hlink')).toHaveCount(1);
+
     // A javascript: url must be dropped; a valid https link is kept.
     await expect(page.locator('#hvlist a[href^="javascript:"]')).toHaveCount(0);
     await expect(page.locator('#hvlist a[href="https://tickets.example/ok"]')).toHaveCount(1);
@@ -222,7 +230,8 @@ test.describe('Itinerary XSS escaping (issue #9)', () => {
     await expect(page.locator('#hedit-form img[src="x"]')).toHaveCount(0);
     await expect(page.locator('#hedit-form [data-p="name"]')).toHaveValue(`Studio ${IMG}`);
     await expect(page.locator('#hedit-form [data-p="address"]')).toHaveValue(`42 Rue ${IMG}`);
-    await expect(page.locator('#hedit-form [data-p="notes"]')).toHaveValue(`Careful ${SCRIPT}`);
+    await expect(page.locator('#hedit-form [data-p="notes"]'))
+      .toHaveValue(xssItinerary.segments[1].notes);
     await page.evaluate(() => globalThis.hCloseEdit());
 
     // The payloads never ran.
