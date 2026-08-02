@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fmtDate, fmtDayLong, fmtDayShort, fmtMinutes, timeAgo, toMs, msToIso, eventInterval, nightsBetween, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../../src/lib/dates.js';
+import { fmtDate, fmtDayLong, fmtDayShort, fmtDayMonth, fmtStamp, fmtMinutes, timeAgo, toMs, msToIso, eventInterval, endOfDayMs, nightsBetween, DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN } from '../../src/lib/dates.js';
 
 test('fmtDate renders day, short month and year', () => {
   assert.equal(fmtDate('2026-09-18'), '18 Sept 2026');
@@ -12,6 +12,22 @@ test('fmtDayLong renders weekday, day and long month', () => {
 
 test('fmtDayShort renders weekday and day only', () => {
   assert.equal(fmtDayShort('2026-09-18'), 'Fri 18');
+});
+
+test('fmtDayMonth renders weekday, day and short month (Schedule day labels)', () => {
+  assert.equal(fmtDayMonth('2026-09-18'), 'Fri 18 Sept');
+});
+
+test('fmtStamp renders a saved revision timestamp', () => {
+  // Built from a local-time instant so the assertion does not depend on TZ.
+  const iso = new Date(2026, 8, 18, 14, 30).toISOString();
+  assert.equal(fmtStamp(iso), '18 Sept 2026, 14:30');
+});
+
+test('endOfDayMs is the last second of the day, so an inclusive end date lands', () => {
+  assert.equal(endOfDayMs('2026-09-18'), toMs('2026-09-18', '23:59') + 59000);
+  // A trip ending on the 18th covers everything on the 18th.
+  assert.ok(endOfDayMs('2026-09-18') > toMs('2026-09-18', '22:00'));
 });
 
 test('fmtMinutes renders hours and minutes, dropping zero minutes', () => {

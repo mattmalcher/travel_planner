@@ -28,14 +28,59 @@ export function buildTools() {
   return tools;
 }
 
-/* The system prompt only carries a one-line digest of each segment (issue
-   #31), so an edit composed without reading the full segment can silently
-   drop fields the model never saw (notes, warnings, seats, payments). Refuse
-   such edits until the segment has been fetched with get_segment this turn. */
-function readGuard(id) {
-  if (state.reads.has(id)) return null;
-  return 'ERROR: segment "' + id + '" has not been read this turn. Call get_segment first — it has fields the digest does not show, which an unread edit could lose — then retry.';
+/* --- the three entity families (segments, lists, phrase groups) need the same
+       four things: a read-before-edit guard, a wrong-id error, id assignment
+       and a schema check. Each is written once here and named per family
+       below, so a fourth family is four one-liners rather than four more
+       copies. --- */
+
+/* The system prompt only carries a one-line digest of each entity (issue #31),
+   so an edit composed without reading the full record can silently drop fields
+   the model never saw. Refuse such edits until it has been fetched this turn.
+   `loses` names what an unread edit would destroy — it is the half of the
+   message that actually helps the model correct itself. */
+function guardRead(reads, kind, tool, loses, id) {
+  if (reads.has(id)) return null;
+  return `ERROR: ${kind} "${id}" has not been read this turn. Call ${tool} first — ${loses} — then retry.`;
 }
+
+/* A wrong-id error the model can self-correct from: without the known-id
+   list a small model retries blind (issue #41). */
+function noSuchId(kind, knownLabel, known, id) {
+  return `ERROR: no ${kind} with id "${id}". ${knownLabel}: ${known.filter(Boolean).join(', ') || '(none)'}.`;
+}
+
+/* Give every item in `self` a document-unique id, replacing missing or
+   colliding ones — item ids are how later edits and the segment_id
+   back-reference find them. `self` is excluded from the taken-id scan so a
+   group's own unchanged items keep their ids. */
+function assignIds(self, groups, prefix) {
+  const taken = new Set();
+  for (const g of groups) if (g && g !== self) for (const it of g.items || []) if (it && it.id) taken.add(it.id);
+  for (const it of self.items || []) {
+    if (!it) continue;
+    if (!it.id || taken.has(it.id)) it.id = newId(prefix, taken);
+    taken.add(it.id);
+  }
+}
+
+/* Payloads are schema-checked at tool time (issue #43) so errors feed back
+   into the tool loop instead of only surfacing at the preview's whole-document
+   check, after the loop has finished. */
+function schemaError(validator, label, value) {
+  const check = window[validator];
+  if (!check) return null;
+  const v = check(value);
+  return v.ok ? null : `ERROR — ${label} failed schema validation. Fix and retry:\n` + JSON.stringify(v.errors, null, 2);
+}
+
+/* The branch of the draft an entity family lives on, created on first use. */
+function draftArray(key) {
+  return Array.isArray(state.draft[key]) ? state.draft[key] : (state.draft[key] = []);
+}
+
+const readGuard = id => guardRead(state.reads, 'segment', 'get_segment',
+  'it has fields the digest does not show, which an unread edit could lose', id);
 
 /* Interpreter-assigned segment ids (issue #41, see lib/ids.js): a random
    suffix means a hallucinated id misses and errors loudly instead of
@@ -46,87 +91,40 @@ function newSegId(segments) {
   return newId('seg-', new Set(segments.map(s => s && s.id)));
 }
 
-/* A wrong-id error the model can self-correct from: without the known-id
-   list a small model retries blind (issue #41). */
-function noSuchSegment(id) {
-  const known = state.draft.segments.map(s => s && s.id).filter(Boolean);
-  return 'ERROR: no segment with id "' + id + '". Known ids: ' + (known.join(', ') || '(none)') + '.';
-}
+const noSuchSegment = id => noSuchId('segment', 'Known ids',
+  state.draft.segments.map(s => s && s.id), id);
 
 /* --- lists (issue #40): same id-assignment and read-before-edit rules as
        segments, applied to the lists array and its items --- */
 
-function draftLists() {
-  return Array.isArray(state.draft.lists) ? state.draft.lists : (state.draft.lists = []);
-}
+const draftLists = () => draftArray('lists');
 
-function listReadGuard(id) {
-  if (state.listReads.has(id)) return null;
-  return 'ERROR: list "' + id + '" has not been read this turn. Call get_list first — items carry fields the digest does not show (note, url), which an unread edit could lose — then retry.';
-}
+const listReadGuard = id => guardRead(state.listReads, 'list', 'get_list',
+  'items carry fields the digest does not show (note, url), which an unread edit could lose', id);
 
-function noSuchList(id) {
-  const known = draftLists().map(l => l && l.id).filter(Boolean);
-  return 'ERROR: no list with id "' + id + '". Known list ids: ' + (known.join(', ') || '(none)') + '.';
-}
+const noSuchList = id => noSuchId('list', 'Known list ids', draftLists().map(l => l && l.id), id);
 
-/* Give every item a document-unique id ("li-" + random suffix), replacing
-   missing or colliding ones — item ids are how later edits and the
-   segment_id back-reference find them. `self` is excluded from the taken-id
-   scan so a list's own unchanged items keep their ids. */
-function assignItemIds(self, lists) {
-  const taken = new Set();
-  for (const l of lists) if (l && l !== self) for (const it of l.items || []) if (it && it.id) taken.add(it.id);
-  for (const it of self.items || []) {
-    if (!it) continue;
-    if (!it.id || taken.has(it.id)) it.id = newId('li-', taken);
-    taken.add(it.id);
-  }
-}
+/* List item ids are "li-" + a random suffix. */
+const assignItemIds = (self, lists) => assignIds(self, lists, 'li-');
 
-function listError(list) {
-  if (!window.hValidateList) return null;
-  const v = window.hValidateList(list);
-  return v.ok ? null : 'ERROR — list failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2);
-}
+const listError = list => schemaError('hValidateList', 'list', list);
 
 /* --- phrases (issue #75): the list rules again, over doc.phrases. A phrase
        group is a list of things to say and a phrase is its item, so the
        id-assignment, read-before-edit and validation machinery is the same
        shape — only the branch of the document differs. --- */
 
-function draftGroups() {
-  return Array.isArray(state.draft.phrases) ? state.draft.phrases : (state.draft.phrases = []);
-}
+const draftGroups = () => draftArray('phrases');
 
-function groupReadGuard(id) {
-  if (state.phraseReads.has(id)) return null;
-  return 'ERROR: phrase group "' + id + '" has not been read this turn. Call get_phrase_group first — its phrases carry a note field the digest does not show, which an unread edit could lose — then retry.';
-}
+const groupReadGuard = id => guardRead(state.phraseReads, 'phrase group', 'get_phrase_group',
+  'its phrases carry a note field the digest does not show, which an unread edit could lose', id);
 
-function noSuchGroup(id) {
-  const known = draftGroups().map(g => g && g.id).filter(Boolean);
-  return 'ERROR: no phrase group with id "' + id + '". Known phrase group ids: ' + (known.join(', ') || '(none)') + '.';
-}
+const noSuchGroup = id => noSuchId('phrase group', 'Known phrase group ids', draftGroups().map(g => g && g.id), id);
 
-/* Document-unique phrase ids, assigned exactly as list item ids are: `self` is
-   excluded from the taken-id scan so a group's own unchanged phrases keep
-   theirs. */
-function assignPhraseIds(self, groups) {
-  const taken = new Set();
-  for (const g of groups) if (g && g !== self) for (const p of g.items || []) if (p && p.id) taken.add(p.id);
-  for (const p of self.items || []) {
-    if (!p) continue;
-    if (!p.id || taken.has(p.id)) p.id = newId('ph-', taken);
-    taken.add(p.id);
-  }
-}
+/* Phrase ids are "ph-" + a random suffix, assigned exactly as item ids are. */
+const assignPhraseIds = (self, groups) => assignIds(self, groups, 'ph-');
 
-function groupError(group) {
-  if (!window.hValidatePhraseGroup) return null;
-  const v = window.hValidatePhraseGroup(group);
-  return v.ok ? null : 'ERROR — phrase group failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2);
-}
+const groupError = group => schemaError('hValidatePhraseGroup', 'phrase group', group);
 
 /* Payload params are typed objects in the tool schemas (issue #42), but some
    models stringify anyway, and pre-rollout transcripts used *_json string
@@ -139,14 +137,7 @@ function objArg(args, name) {
   return v;
 }
 
-/* Trip payloads are schema-checked at tool time (issue #43) so errors feed
-   back into the tool loop instead of only surfacing at the preview's
-   whole-document check, after the loop has finished. */
-function tripError(trip) {
-  if (!window.hValidateTrip) return null;
-  const v = window.hValidateTrip(trip);
-  return v.ok ? null : 'ERROR — trip failed schema validation. Fix and retry:\n' + JSON.stringify(v.errors, null, 2);
-}
+const tripError = trip => schemaError('hValidateTrip', 'trip', trip);
 
 /** Apply one tool call to state.draft. Returns a string result for the model
     ("OK" or an "ERROR: …" it can react to). Segment payloads are validated
