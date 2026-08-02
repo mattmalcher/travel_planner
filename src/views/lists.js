@@ -12,6 +12,7 @@
 import { state } from '../state.js';
 import { persist } from '../store.js';
 import { esc, safeUrl } from '../lib/escape.js';
+import { linkify } from '../lib/linkify.js';
 import { newId } from '../lib/ids.js';
 import {
   listProgress, displayOrder, takenItemIds,
@@ -166,7 +167,7 @@ function itemRow(item, li, ii, segIds) {
     ${chip}
     <button class="hli-edit hedit-btn" data-focus="li-edit:${li}:${ii}" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
     <button class="hli-del hedit-btn" data-focus="li-del:${li}:${ii}" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
-    ${item.note ? `<div class="hli-note">${esc(item.note)}</div>` : ''}
+    ${item.note ? `<div class="hli-note">${linkify(item.note)}</div>` : ''}
   </li>`;
 }
 
