@@ -36,27 +36,53 @@ export function load(data) {
        schema-validated before loading; both checks are advisory with a
        "load anyway" escape hatch, mirroring the localStorage guard --- */
 
-/** The warning slot on the opening screen. Exported because an incoming share
-    link (issue #81) reports its failures in the same place an upload does. */
-export function showUploadWarning(html, buttons) {
-  const w = document.getElementById('hverwarn');
+/** The warning slot on the opening screen. Every banner in the app — the two
+    upload guards, the import decision, the saved-data version guard and the
+    share-link failure — is this one element, so the queries live here rather
+    than being retyped at each site. */
+const warnEl = () => document.getElementById('hverwarn');
+
+/** Put the warning slot away. */
+export function hideWarning() { warnEl().style.display = 'none'; }
+
+/**
+ * Show a warning with an icon, a heading, a body and a row of buttons.
+ * Exported because an incoming share link (issue #81) reports its failures in
+ * the same place an upload does. `title` and `body` are HTML: everything
+ * interpolated from a document or an error must already be through `esc()`.
+ */
+export function showUploadWarning(icon, title, body, buttons) {
   const actions = buttons || [
     '<button onclick="hUploadAnyway()" class="htool">Load anyway</button>',
     '<button onclick="hUploadCancel()" class="htool">Cancel</button>',
   ];
-  w.innerHTML = html + `
+  const w = warnEl();
+  w.innerHTML = `<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-${icon}" aria-hidden="true"></i> ${title}</div>
+    ${body}
     <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">${actions.join('')}</div>`;
   w.style.display = 'block';
+}
+
+/**
+ * Settle a pending decision: take whatever the banner was asking about, clear
+ * the slot, put the banner away, and act on it. The five buttons across the
+ * upload guard and the import decision differ only in `fn`.
+ */
+function resolveWarning(slot, fn) {
+  const pending = state[slot];
+  state[slot] = null;
+  hideWarning();
+  if (pending && fn) fn(pending);
 }
 
 /** Upload/drag-drop entry point: version-check and validate before load(). */
 export function loadUpload(data) {
   const doc = typeof data === 'string' ? JSON.parse(data) : data;
-  document.getElementById('hverwarn').style.display = 'none';
+  hideWarning();
   if (doc && doc.schema_version && major(doc.schema_version) !== major(H_SCHEMA_VERSION)) {
     state.pendingUpload = doc;
-    showUploadWarning(`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> File is from a different schema version</div>
-      This file declares schema <code>${esc(doc.schema_version)}</code> but this viewer expects <code>${H_SCHEMA_VERSION}</code>, so it may not display correctly.`);
+    showUploadWarning('alert-triangle', 'File is from a different schema version',
+      `This file declares schema <code>${esc(doc.schema_version)}</code> but this viewer expects <code>${H_SCHEMA_VERSION}</code>, so it may not display correctly.`);
     return;
   }
   // ajv and the schema are compiled into the bundle (src/validate.js), so this
@@ -64,30 +90,22 @@ export function loadUpload(data) {
   // which is where an unvalidated share link used to slip through. The
   // fallback now only covers a schema ajv could not compile, which is a build
   // error; "Load anyway" below stays the deliberate, visible way past it.
-  const v = window.hValidate ? window.hValidate(doc) : { ok: true, errors: [] };
+  const v = window.hValidate ? window.hValidate(doc) : VALID_OK;
   if (!v.ok) {
     state.pendingUpload = doc;
     const items = v.errors.slice(0, 8).map(e => `<li><code>${esc(e.path)}</code> ${esc(e.message || '')}</li>`).join('');
     const more = v.errors.length > 8 ? `<div>…and ${v.errors.length - 8} more</div>` : '';
-    showUploadWarning(`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> File does not match the itinerary schema</div>
-      Some views may render incorrectly or stay blank.
+    showUploadWarning('alert-triangle', 'File does not match the itinerary schema',
+      `Some views may render incorrectly or stay blank.
       <ul style="margin:.4rem 0 0 1.1rem">${items}</ul>${more}`);
     return;
   }
   loadImport(doc);
 }
 
-export function uploadAnyway() {
-  const doc = state.pendingUpload;
-  state.pendingUpload = null;
-  document.getElementById('hverwarn').style.display = 'none';
-  if (doc) loadImport(doc);
-}
+export function uploadAnyway() { resolveWarning('pendingUpload', loadImport); }
 
-export function uploadCancel() {
-  state.pendingUpload = null;
-  document.getElementById('hverwarn').style.display = 'none';
-}
+export function uploadCancel() { resolveWarning('pendingUpload'); }
 
 /* --- importing into a library rather than into the one slot (issue #80):
        a file that names a trip already saved here is a decision, not a silent
@@ -114,28 +132,18 @@ export function loadImport(doc) {
     : d.kind === 'older'
       ? `This file is rev ${d.rev} of <b>${name}</b>, older than the rev ${d.mine} saved here. Replacing keeps rev ${d.mine} in the trip's history.`
       : `This file and the copy saved here are both rev ${d.rev} of <b>${name}</b>, with different contents — someone edited each of them from the same starting point. Keeping both saves this file as a separate trip.`;
-  showUploadWarning(`<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-${d.kind === 'fork' ? 'git-fork' : 'file-import'}" aria-hidden="true"></i> ${d.kind === 'fork' ? 'This trip has diverged' : 'You already have this trip'}</div>
-    ${body}`, d.kind === 'newer' ? [replace, both, cancel] : [both, replace, cancel]);
+  showUploadWarning(
+    d.kind === 'fork' ? 'git-fork' : 'file-import',
+    d.kind === 'fork' ? 'This trip has diverged' : 'You already have this trip',
+    body,
+    d.kind === 'newer' ? [replace, both, cancel] : [both, replace, cancel]);
 }
 
-export function importReplace() {
-  const d = state.pendingImport;
-  state.pendingImport = null;
-  document.getElementById('hverwarn').style.display = 'none';
-  if (d) load(d.doc);
-}
+export function importReplace() { resolveWarning('pendingImport', d => load(d.doc)); }
 
-export function importBoth() {
-  const d = state.pendingImport;
-  state.pendingImport = null;
-  document.getElementById('hverwarn').style.display = 'none';
-  if (d) load(asFork(d.doc));
-}
+export function importBoth() { resolveWarning('pendingImport', d => load(asFork(d.doc))); }
 
-export function importCancel() {
-  state.pendingImport = null;
-  document.getElementById('hverwarn').style.display = 'none';
-}
+export function importCancel() { resolveWarning('pendingImport'); }
 
 /**
  * Close the open trip and go back to the opening screen. This used to mean
@@ -152,7 +160,7 @@ export function closeTrip() {
   hidePreview(); renderChat();
   document.getElementById('hupl').style.display = 'block';
   document.getElementById('happ').style.display = 'none';
-  document.getElementById('hverwarn').style.display = 'none';
+  hideWarning();
   renderRecent();
   switchView('list');
 }
@@ -414,7 +422,7 @@ export function openEditPhrase(gi, pi) {
     thing it belonged to — focus lands on the open view rather than falling back
     to <body>, which would restart the next Tab at the top of the document. */
 export function closeEdit() {
-  document.getElementById('hedit-modal').classList.remove('on');
+  editEl('modal').classList.remove('on');
   state.editTarget = null;
   state.editValue = null;
   state.editFields = null;
@@ -437,30 +445,35 @@ function editErrorText(errors) {
    matching validateSafe in ai/chat.js. For the trip target the whole
    document is validated, but only /trip errors block the save: a
    pre-existing invalid segment elsewhere shouldn't lock trip edits. */
-function validateEdit(target, val) {
-  if (target.type === 'segment' || target.type === 'new-segment')
-    return window.hValidateSegment ? window.hValidateSegment(val) : { ok: true, errors: [] };
-  // A list being created has no id yet (saveEdit assigns it), so it is
-  // validated with a stand-in; every other target already carries its id, and
-  // a JSON-tab edit that drops it should fail here rather than be papered over.
-  if (target.type === 'new-list')
-    return window.hValidateList ? window.hValidateList({ id: 'list-draft', ...val }) : { ok: true, errors: [] };
-  if (target.type === 'list')
-    return window.hValidateList ? window.hValidateList(val) : { ok: true, errors: [] };
-  if (target.type === 'list-item')
-    return window.hValidateListItem ? window.hValidateListItem(val) : { ok: true, errors: [] };
-  // Same stand-in-id policy as lists: saveEdit assigns a new group's id.
-  if (target.type === 'new-phrase-group')
-    return window.hValidatePhraseGroup ? window.hValidatePhraseGroup({ id: 'phr-draft', ...val }) : { ok: true, errors: [] };
-  if (target.type === 'phrase-group')
-    return window.hValidatePhraseGroup ? window.hValidatePhraseGroup(val) : { ok: true, errors: [] };
-  if (target.type === 'phrase')
-    return window.hValidatePhrase ? window.hValidatePhrase(val) : { ok: true, errors: [] };
+const VALID_OK = { ok: true, errors: [] };
+
+/* Which subschema validates each modal target, and the stand-in id to lend it
+   first. A thing being *created* has no id yet (saveEdit assigns it), so it is
+   validated with a stand-in; every other target already carries its id, and a
+   JSON-tab edit that drops it should fail here rather than be papered over.
+   `trip` is absent on purpose — it is the whole-document case below. */
+const EDIT_VALIDATOR = {
+  'segment': ['hValidateSegment'],
+  'new-segment': ['hValidateSegment'],
+  'list': ['hValidateList'],
+  'new-list': ['hValidateList', 'list-draft'],
+  'list-item': ['hValidateListItem'],
+  'phrase-group': ['hValidatePhraseGroup'],
+  'new-phrase-group': ['hValidatePhraseGroup', 'phr-draft'],
+  'phrase': ['hValidatePhrase'],
   // A from-scratch trip has no document around it yet, so the trip subschema
   // is validated on its own rather than as part of one (issue #76).
-  if (target.type === 'new-trip')
-    return window.hValidateTrip ? window.hValidateTrip(val) : { ok: true, errors: [] };
-  if (!window.hValidate) return { ok: true, errors: [] };
+  'new-trip': ['hValidateTrip'],
+};
+
+function validateEdit(target, val) {
+  const entry = EDIT_VALIDATOR[target.type];
+  if (entry) {
+    const [validator, draftId] = entry;
+    const check = window[validator];
+    return check ? check(draftId ? { id: draftId, ...val } : val) : VALID_OK;
+  }
+  if (!window.hValidate) return VALID_OK;
   const v = window.hValidate({ ...state.HD, trip: val });
   const tripErrors = v.errors.filter(e => (e.path || '').startsWith('/trip'));
   return { ok: tripErrors.length === 0, errors: tripErrors };
@@ -582,14 +595,14 @@ export function downloadSaved() {
 export function forceLoadSaved() {
   const doc = savedDocs()[0];
   if (!doc) return;
-  document.getElementById('hverwarn').style.display = 'none';
+  hideWarning();
   try { load(doc); } catch (e) { alert('Could not load saved itinerary: ' + e.message); }
 }
 
 export function discardSaved() {
   forgetEverything();
   localStorage.removeItem('hSchemaVersion');
-  document.getElementById('hverwarn').style.display = 'none';
+  hideWarning();
   renderRecent();
 }
 
@@ -603,15 +616,14 @@ export function loadSaved() {
   const ver = localStorage.getItem('hSchemaVersion');
   if (ver && major(ver) !== major(H_SCHEMA_VERSION) && savedDocs().length) {
     const n = savedDocs().length;
-    const w = document.getElementById('hverwarn');
-    w.innerHTML = `<div style="font-weight:500;margin-bottom:4px"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Saved ${n === 1 ? 'itinerary is' : 'itineraries are'} from a different version</div>
-      ${n === 1 ? 'It was' : `${n} saved trips were`} saved for schema <code>${esc(ver)}</code> but this version expects <code>${H_SCHEMA_VERSION}</code>, so ${n === 1 ? 'it was' : 'they were'} not loaded automatically.
-      <div style="display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap">
-        <button onclick="hDownloadSaved()" class="htool">Download backup</button>
-        <button onclick="hForceLoadSaved()" class="htool">Load anyway</button>
-        <button onclick="hDiscardSaved()" class="htool">Discard</button>
-      </div>`;
-    w.style.display = 'block';
+    showUploadWarning('alert-triangle',
+      `Saved ${n === 1 ? 'itinerary is' : 'itineraries are'} from a different version`,
+      `${n === 1 ? 'It was' : `${n} saved trips were`} saved for schema <code>${esc(ver)}</code> but this version expects <code>${H_SCHEMA_VERSION}</code>, so ${n === 1 ? 'it was' : 'they were'} not loaded automatically.`,
+      [
+        '<button onclick="hDownloadSaved()" class="htool">Download backup</button>',
+        '<button onclick="hForceLoadSaved()" class="htool">Load anyway</button>',
+        '<button onclick="hDiscardSaved()" class="htool">Discard</button>',
+      ]);
     return;
   }
   migrate();

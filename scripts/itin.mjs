@@ -16,7 +16,8 @@ import { pathToFileURL } from 'node:url';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
-import { lintItinerary } from '../src/lib/lint.js';
+import { lintItinerary, segLabel } from '../src/lib/lint.js';
+import { SEG_DEFS, segRefs } from '../src/lib/seg-defs.js';
 import { itineraryDigest } from '../src/lib/digest.js';
 import { condenseSchema } from '../src/lib/schema-brief.js';
 import { renderDoctrine } from '../src/lib/doctrine.js';
@@ -36,7 +37,7 @@ export const schema = JSON.parse(readFileSync(SCHEMA_URL, 'utf8'));
     checked against the ONE subschema its type names, because under the oneOf
     ajv reports every branch's failures and a half-filled event comes back
     demanding transport's "mode" and "departs" (issue #76). */
-const SEG_DEFS = { transport: 'TransportSegment', accommodation: 'AccommodationSegment', event: 'EventSegment' };
+
 
 let compiled = null;
 function validators() {
@@ -51,7 +52,7 @@ function validators() {
     segByType: byType,
     // Fallback for a segment naming no known type — the oneOf is the only thing
     // that can say "this is not any kind of segment".
-    segAny: sub({ oneOf: Object.values(SEG_DEFS).map(d => ({ $ref: '#/definitions/' + d })) }),
+    segAny: sub({ oneOf: segRefs() }),
   };
   return compiled;
 }
@@ -64,10 +65,6 @@ const errLine = e => `${e.instancePath || '/'} ${e.message}`;
 function major(version) {
   const m = /^(\d+)\./.exec(String(version || ''));
   return m ? m[1] : null;
-}
-
-function segLabel(seg, i) {
-  return (seg && seg.id) ? `segment "${seg.id}"` : `segment ${i + 1}`;
 }
 
 /**

@@ -1,18 +1,20 @@
 // Pure helpers for lists — the shared checklist/option-pool concept (issue
 // #40): pools of intentions that aren't (yet) plans. Items are checked off
 // (done) or promoted into an ordinary segment (segment_id); everything the
-// views need beyond DOM wiring lives here.
+// views need beyond DOM wiring lives here. The array-of-groups shape lists
+// share with the phrasebook lives in lib/collection.js.
+import { arr, groupIds, itemIds, plural } from './collection.js';
 
 /** Done/total counts for one list. Tolerates a missing items array. */
 export function listProgress(list) {
-  const items = (list && Array.isArray(list.items)) ? list.items : [];
+  const items = arr(list && list.items);
   return { done: items.filter(i => i && i.done).length, total: items.length };
 }
 
 /** Partition a list's items into open (unticked) and done, preserving order
     within each half — the views sink done items below the open ones. */
 export function partitionItems(list) {
-  const items = (list && Array.isArray(list.items)) ? list.items : [];
+  const items = arr(list && list.items);
   return {
     open: items.filter(i => i && !i.done),
     done: items.filter(i => i && i.done),
@@ -35,7 +37,7 @@ export function displayOrder(list) {
    sentence: it is the thing a non-visual user cannot see. */
 
 const itemName = item => (item && item.name) || 'Item';
-const items = n => `${n} item${n === 1 ? '' : 's'}`;
+const items = n => plural(n, 'item');
 
 export function toggleMessage(item, list) {
   const p = listProgress(list);
@@ -55,22 +57,12 @@ export function addMessage(item, list) {
 }
 
 /** Every list id in the document — the taken set for newId('list-', …). */
-export function takenListIds(doc) {
-  const lists = (doc && Array.isArray(doc.lists)) ? doc.lists : [];
-  return new Set(lists.map(l => l && l.id).filter(Boolean));
-}
+export const takenListIds = doc => groupIds(doc, 'lists');
 
 /** Every item id in the document. Item ids are unique across all lists (the
     schema says so, and segment_id back-references assume it), so an id for a
     new item has to be checked against the whole document, not one list. */
-export function takenItemIds(doc) {
-  const lists = (doc && Array.isArray(doc.lists)) ? doc.lists : [];
-  const out = new Set();
-  for (const list of lists)
-    for (const item of (list && Array.isArray(list.items)) ? list.items : [])
-      if (item && item.id) out.add(item.id);
-  return out;
-}
+export const takenItemIds = doc => itemIds(doc, 'lists');
 
 /** Items whose segment_id points at no segment in the document (the promoted
     segment was deleted, or the id was mistyped). Returns
@@ -78,11 +70,11 @@ export function takenItemIds(doc) {
     #17) and the Lists view styles the link chip as broken. */
 export function danglingListRefs(doc) {
   if (!doc || !Array.isArray(doc.lists)) return [];
-  const segIds = new Set((Array.isArray(doc.segments) ? doc.segments : []).map(s => s && s.id).filter(Boolean));
+  const segIds = new Set(arr(doc.segments).map(s => s && s.id).filter(Boolean));
   const out = [];
   doc.lists.forEach((list, i) => {
     if (!list) return;
-    (Array.isArray(list.items) ? list.items : []).forEach((item, j) => {
+    arr(list.items).forEach((item, j) => {
       if (item && item.segment_id && !segIds.has(item.segment_id))
         out.push({ listId: list.id || `#${i + 1}`, itemId: item.id || `#${j + 1}`, segmentId: item.segment_id });
     });

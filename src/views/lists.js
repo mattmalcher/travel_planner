@@ -18,7 +18,7 @@ import {
   toggleMessage, deleteMessage, restoreMessage, addMessage,
 } from '../lib/lists.js';
 import { revealSegment } from '../app.js';
-import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
+import { jumpTo, bindJumpSpy, updateActiveChip, jumpChip, jumpStrip } from './jump-nav.js';
 import { keepFocus, announce } from './focus.js';
 
 /** Tabler icon class for a list's kind. */
@@ -162,7 +162,7 @@ function itemRow(item, li, ii, segIds) {
       <input type="checkbox" data-focus="li-check:${li}:${ii}" ${item.done ? 'checked' : ''} onchange="hListToggle(${li},${ii})">
       <span class="hli-name">${esc(item.name)}${item.local_name ? ` <span class="hli-local">${esc(item.local_name)}</span>` : ''}</span>
     </label>
-    ${url ? `<a class="hli-chip" href="${esc(url)}" target="_blank" rel="noopener">Link <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a>` : ''}
+    ${url ? `<a class="hli-chip" href="${esc(url)}" target="_blank" rel="noopener">Link <i class="ti ti-external-link hlink-ic" aria-hidden="true"></i></a>` : ''}
     ${chip}
     <button class="hli-edit hedit-btn" data-focus="li-edit:${li}:${ii}" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
     <button class="hli-del hedit-btn" data-focus="li-del:${li}:${ii}" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
@@ -195,9 +195,8 @@ const newListBtn = `<button onclick="hOpenAddList()" class="htool"><i class="ti 
     Keyed by index, like the cards below, so a list with no id still works. */
 function jumpNav(lists) {
   if (lists.length < 2) return '';
-  return `<nav class="hjump-nav" aria-label="Jump to list">${lists.map((list, li) =>
-    `<button class="hjump-chip" data-k="${li}" onclick="hJumpList(this.dataset.k)"><i class="ti ${listIcon(list.kind)}" aria-hidden="true"></i> ${esc(list.name || 'List')}</button>`
-  ).join('')}</nav>`;
+  return jumpStrip('Jump to list', lists.map((list, li) =>
+    jumpChip(li, 'hJumpList', esc(list.name || 'List'), { icon: listIcon(list.kind) })));
 }
 
 export function renderLists() {
@@ -206,7 +205,7 @@ export function renderLists() {
   const box = document.getElementById('hvlists');
   if (undo && undo.hd !== HD) undo = null; // a different itinerary was loaded
   if (!lists.length) {
-    box.innerHTML = `<div style="font-size:13px;color:var(--color-text-secondary);padding:1rem 0">
+    box.innerHTML = `<div class="hempty">
       No lists yet. Lists hold intentions that aren't plans — foods to try, packing, restaurant options.
       Add one below, with the AI assistant, or in the itinerary JSON (<code>lists</code>), then tick
       items off here or schedule them into the itinerary.
@@ -221,7 +220,7 @@ export function renderLists() {
       .join('');
     return `<section class="hseg hjump-a" data-k="${li}">
       <div style="display:flex;align-items:center;gap:10px">
-        <i class="ti ${listIcon(list.kind)}" style="font-size:17px;color:var(--color-text-secondary)" aria-hidden="true"></i>
+        <i class="ti ${listIcon(list.kind)} hcard-ic" aria-hidden="true"></i>
         <h2 style="margin:0;font-size:14px;font-weight:500;flex:1">${esc(list.name)}</h2>
         <!-- "3/8" announces as "three slash eight". role="img" is what lets the
              badge take an author-supplied name at all — aria-label on a bare

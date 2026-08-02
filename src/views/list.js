@@ -8,7 +8,7 @@ import { currentDayChip } from '../lib/now.js';
 import { SEGMENT_KINDS } from '../lib/drafts.js';
 import { esc, safeUrl } from '../lib/escape.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
-import { jumpTo, bindJumpSpy, updateActiveChip } from './jump-nav.js';
+import { jumpTo, bindJumpSpy, updateActiveChip, jumpChip, jumpStrip } from './jump-nav.js';
 
 function renderTransport(s, trip) {
   const seatsLine = s.seats && s.seats.length ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${s.seats.map(x => `${esc(x.traveller.split(' ')[0])}: Coach ${esc(x.coach)}${x.deck ? ' (' + esc(x.deck) + ')' : ''}, Seat ${esc(x.seat)}`).join(' · ')}</div>` : '';
@@ -44,11 +44,11 @@ function renderAccom(s) {
   // on has neither), so their lines are omitted rather than shown empty.
   const nights = nightsBetween(s.checkin.date, s.checkout.date);
   return `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;gap:8px">
-    <span><i class="ti ti-door-enter" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> In after ${esc(s.checkin.from || DEFAULT_CHECKIN_FROM)} · ${fmtDayLong(s.checkin.date)}</span>
-    <span><i class="ti ti-door-exit" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Out by ${esc(s.checkout.by || DEFAULT_CHECKOUT_BY)} · ${fmtDayLong(s.checkout.date)}</span>
+    <span><i class="ti ti-door-enter hmeta-ic" aria-hidden="true"></i> In after ${esc(s.checkin.from || DEFAULT_CHECKIN_FROM)} · ${fmtDayLong(s.checkin.date)}</span>
+    <span><i class="ti ti-door-exit hmeta-ic" aria-hidden="true"></i> Out by ${esc(s.checkout.by || DEFAULT_CHECKOUT_BY)} · ${fmtDayLong(s.checkout.date)}</span>
     <span>${nights} night${nights !== 1 ? 's' : ''}${s.host ? ` · Host: ${esc(s.host)}` : ''}</span>
-    ${s.self_checkin ? '<span><i class="ti ti-key" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Self check-in</span>' : ''}
-    ${s.phone ? `<span><i class="ti ti-phone" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> <span class="sr-only">Phone:</span> ${esc(s.phone)}</span>` : ''}
+    ${s.self_checkin ? '<span><i class="ti ti-key hmeta-ic" aria-hidden="true"></i> Self check-in</span>' : ''}
+    ${s.phone ? `<span><i class="ti ti-phone hmeta-ic" aria-hidden="true"></i> <span class="sr-only">Phone:</span> ${esc(s.phone)}</span>` : ''}
     ${s.ref ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;width:100%">Ref: <code>${esc(s.ref)}</code></div>` : ''}
   </div>`;
 }
@@ -66,13 +66,13 @@ function renderEvent(s, primaryCurrency) {
   }
   const url = safeUrl(s.url), ticketsUrl = safeUrl(s.tickets_url);
   return `<div style="margin-top:8px;font-size:12px;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;gap:8px">
-    ${s.venue ? `<span><i class="ti ti-map-pin" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.venue)}</span>` : ''}
-    ${s.all_day ? `<span><i class="ti ti-clock" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> All day</span>` : ''}
-    ${s.time ? `<span><i class="ti ti-clock" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> ${esc(s.time)}${s.end_time ? '–' + esc(s.end_time) : ''}</span>` : ''}
-    ${s.end_date ? `<span><i class="ti ti-calendar-due" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Until ${fmtDayLong(s.end_date)}</span>` : ''}
+    ${s.venue ? `<span><i class="ti ti-map-pin hmeta-ic" aria-hidden="true"></i> ${esc(s.venue)}</span>` : ''}
+    ${s.all_day ? `<span><i class="ti ti-clock hmeta-ic" aria-hidden="true"></i> All day</span>` : ''}
+    ${s.time ? `<span><i class="ti ti-clock hmeta-ic" aria-hidden="true"></i> ${esc(s.time)}${s.end_time ? '–' + esc(s.end_time) : ''}</span>` : ''}
+    ${s.end_date ? `<span><i class="ti ti-calendar-due hmeta-ic" aria-hidden="true"></i> Until ${fmtDayLong(s.end_date)}</span>` : ''}
     ${pr ? `<span>${pr}</span>` : ''}
-    ${url ? `<span><a href="${esc(url)}" style="color:var(--color-text-info)">Website <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a></span>` : ''}
-    ${ticketsUrl ? `<span><a href="${esc(ticketsUrl)}" style="color:var(--color-text-info)">Tickets <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i></a></span>` : ''}
+    ${url ? `<span><a href="${esc(url)}" style="color:var(--color-text-info)">Website <i class="ti ti-external-link hlink-ic" aria-hidden="true"></i></a></span>` : ''}
+    ${ticketsUrl ? `<span><a href="${esc(ticketsUrl)}" style="color:var(--color-text-info)">Tickets <i class="ti ti-external-link hlink-ic" aria-hidden="true"></i></a></span>` : ''}
   </div>`;
 }
 
@@ -86,7 +86,7 @@ function renderEvent(s, primaryCurrency) {
 function renderWarnings(s) {
   if (!s.warnings || !s.warnings.length) return '';
   return s.warnings.map(w =>
-    `<div class="hwarn" role="note" style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> <span class="sr-only">Warning:</span> ${esc(w)}</div>`
+    `<div class="hwarn" role="note" style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle hmeta-ic" aria-hidden="true"></i> <span class="sr-only">Warning:</span> ${esc(w)}</div>`
   ).join('');
 }
 
@@ -109,7 +109,7 @@ const addBar = `<div class="hadd">
   ${SEGMENT_KINDS.map(k => `<button class="hli-chip" onclick="hAddSegment('${k.type}')"><i class="ti ${segIcon({ type: k.type })}" aria-hidden="true"></i> ${k.label}</button>`).join('')}
 </div>`;
 
-const emptyState = `<div style="font-size:13px;color:var(--color-text-secondary);padding:1rem 0">
+const emptyState = `<div class="hempty">
   Nothing planned yet. Add travel, a stay or something to do below — or ask the AI assistant,
   or load a <code>HolidayItinerary</code> file. Ideas that aren't plans yet belong on the Lists tab.
 </div>`;
@@ -123,9 +123,11 @@ export function renderList() {
   // During the trip the strip gets a Today shortcut and today's chip a marker,
   // and the first render lands on the current day (issue #35).
   const today = currentDayChip(days, HD.trip, Date.now());
-  const todayBtn = today ? `<button class="hjump-chip hday-today" data-k="${esc(today)}" onclick="hJumpDay(this.dataset.k)"><i class="ti ti-calendar-pin" aria-hidden="true"></i> Today</button>` : '';
-  const nav = days.length > 1 ? `<nav class="hjump-nav" aria-label="Jump to day">${todayBtn}${days.map(d =>
-    `<button class="hjump-chip${d === today ? ' is-today' : ''}" data-k="${esc(d)}" onclick="hJumpDay(this.dataset.k)">${fmtDayShort(d)}</button>`).join('')}</nav>` : '';
+  const todayBtn = today ? [jumpChip(today, 'hJumpDay', 'Today', { icon: 'ti-calendar-pin', cls: 'hday-today' })] : [];
+  // Gated on the day count, not the chip count: the Today shortcut is an extra
+  // chip over the same single day, and a one-day trip needs no strip.
+  const nav = days.length > 1 ? jumpStrip('Jump to day', [...todayBtn,
+    ...days.map(d => jumpChip(d, 'hJumpDay', fmtDayShort(d), { cls: d === today ? 'is-today' : '' }))]) : '';
   // Each day is a section headed by an <h2>, holding a <ul> of segment cards
   // whose titles are <h3>s (issue #92): the outline is what a screen reader
   // skims by, and "list, 8 items… item 3 of 8" is most of what makes a long
@@ -152,7 +154,7 @@ export function renderList() {
         return `<li class="hseg" data-seg="${HD.segments.indexOf(s)}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0">
-              <i class="ti ${ic}" style="font-size:17px;color:var(--color-text-secondary);flex-shrink:0;margin-top:2px" aria-hidden="true"></i>
+              <i class="ti ${ic} hcard-ic" style="flex-shrink:0;margin-top:2px" aria-hidden="true"></i>
               <div><h3 style="margin:0;font-size:14px;font-weight:500">${title}</h3><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${sub}</div></div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">

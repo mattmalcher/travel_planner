@@ -84,8 +84,6 @@ export function contentOf(doc) {
   return stableStringify(rest);
 }
 
-export function contentHash(doc) { return hash64(contentOf(doc)); }
-
 export function sameContent(a, b) { return contentOf(a) === contentOf(b); }
 
 /** A fresh trip id. A uuid where the platform offers one; the fallback is
