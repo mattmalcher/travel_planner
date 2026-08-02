@@ -17,6 +17,11 @@ description: "Use this skill when an itinerary needs the coordinates of a place 
 Trainline holds no small bus stops at all, so a village bus stop goes straight
 to Overpass. Don't spend a query proving that.
 
+If you are also after that stop's bus *times*, the `bus-timetables` skill
+downloads the operator's GTFS feed — which carries coordinates for every stop it
+serves, under the operator's official stop name. When a feed is already in hand
+for the times, take the coordinates from it rather than querying Overpass again.
+
 ## Step 1 — search Trainline
 
 ```bash

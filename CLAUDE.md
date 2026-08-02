@@ -101,11 +101,22 @@ scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     doctrine / bump. Reuses src/lib/ for all interpretation and
                     owns only argv, file I/O and formatting; ajv stays here
                     rather than in lib/ so the bundle can never gain a second copy
-.claude/skills/itinerary-authoring/   the desktop editing skill (doctrine block
-                    generated — never hand-edit it, run `itin doctrine --write`)
-.claude/skills/browser-research/      driving the user's real Chrome (via the
-                    claude-in-chrome extension) for pages that refuse a fetch —
-                    last rung of the ladder, hands off to find-stop/authoring
+.claude/skills/     the desktop research + editing ladder, roughly in the order
+                    a trip needs them:
+  itinerary-authoring/  writing into a HolidayItinerary file — ids, rev, what
+                    the schema cannot enforce (doctrine block generated — never
+                    hand-edit it, run `itin doctrine --write`)
+  find-stop/        a stop's coordinates: Trainline's station database first,
+                    Overpass for bus stops and anything it misses
+  sncf-timetables/  French *train* times — fiche horaire PDFs rather than
+                    SNCF Connect's date picker
+  bus-timetables/   French *bus* times, from the operator's GTFS feed: the one
+                    source that answers "does this line run on THIS date"
+                    (tools/gtfs_query.py); seasonality, weekend and short-turn
+                    traps, and the four things GTFS cannot tell you
+  browser-research/ driving the user's real Chrome (via the claude-in-chrome
+                    extension) for pages that refuse a fetch — last rung of the
+                    ladder, hands off to find-stop/authoring
 examples/           anonymised fixture itineraries (fictional people/refs only)
 data/               gitignored real trips; hand-versioned _0.N snapshots of one
                     trip_id, round-tripped through the app's download/upload
