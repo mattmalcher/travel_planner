@@ -12,6 +12,7 @@
 import { state } from '../state.js';
 import { persist } from '../store.js';
 import { esc } from '../lib/escape.js';
+import { linkify } from '../lib/linkify.js';
 import { newId } from '../lib/ids.js';
 import {
   phraseCount, untranslated, takenPhraseIds,
@@ -109,7 +110,7 @@ function phraseRow(phrase, gi, pi) {
       <div class="hph-text">${esc(phrase.text)}</div>
       ${local}
       ${phrase.pronunciation ? `<div class="hph-say">${esc(phrase.pronunciation)}</div>` : ''}
-      ${phrase.note ? `<div class="hph-note">${esc(phrase.note)}</div>` : ''}
+      ${phrase.note ? `<div class="hph-note">${linkify(phrase.note)}</div>` : ''}
     </div>
     <div class="hph-acts">
       <button class="hph-edit hedit-btn" data-focus="ph-edit:${gi}:${pi}" onclick="hOpenEditPhrase(${gi},${pi})" title="Edit phrase" aria-label="Edit phrase"><i class="ti ti-pencil" aria-hidden="true"></i></button>
