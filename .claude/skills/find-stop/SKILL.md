@@ -1,6 +1,6 @@
 ---
 name: find-stop
-description: "Use this skill when an itinerary needs the coordinates of a place a journey starts or ends at — a train station, bus or tram stop, ferry pier or airport — or when a segment is missing lat/lng, or a stop name needs checking against a real station. Searches the Trainline European stations database first (fast, local, ~72k rail stations) and falls back to the OpenStreetMap Overpass API for bus stops and anything it does not cover. Covers picking between same-named stations, the city-group trap, and what to paste into the itinerary JSON."
+description: "Use this skill when an itinerary needs the coordinates of a place a journey starts or ends at — a train station, bus or tram stop, ferry pier or airport — or when a segment is missing lat/lng, or a stop name needs checking against a real station. Searches the local Trainline European stations database first and falls back to the OpenStreetMap Overpass API for bus stops and anything it does not cover."
 ---
 
 # Finding a stop's coordinates
@@ -15,12 +15,8 @@ description: "Use this skill when an itinerary needs the coordinates of a place 
   halts, and any station Trainline does not have. Rate limited (see below).
 
 Trainline holds no small bus stops at all, so a village bus stop goes straight
-to Overpass. Don't spend a query proving that.
-
-If you are also after that stop's bus *times*, the `bus-timetables` skill
-downloads the operator's GTFS feed — which carries coordinates for every stop it
-serves, under the operator's official stop name. When a feed is already in hand
-for the times, take the coordinates from it rather than querying Overpass again.
+to Overpass. Don't spend a query proving that — and if a `bus-timetables` GTFS
+feed is already downloaded for that stop's times, its coordinates are in there.
 
 ## Step 1 — search Trainline
 
@@ -55,37 +51,17 @@ If a stop is missing, or it is a bus/tram/ferry stop, go to step 2.
 
 ## Step 2 — Overpass fallback
 
-The Overpass API enforces per-IP concurrency limits and will return HTTP 429 if
-too many requests are in flight simultaneously. To avoid this:
+Overpass enforces per-IP concurrency limits and answers 429 when too many
+requests are in flight, so build **one** query covering every stop Trainline
+could not answer and fetch it with a **single** WebFetch — never parallel calls.
+Keep `[timeout:15]` or lower so you don't hold a server slot. If one combined
+query returns too much noise, split it into *sequential* requests.
 
-- **Always issue a single query** that covers all remaining stops, using a union
-  of bounding boxes or named areas. Never fire parallel WebFetch calls to Overpass.
-- If a single combined query returns too many irrelevant results, split into
-  sequential requests with a brief pause between them (fetch, process result,
-  then fetch next).
-- Keep `[timeout:15]` or lower to avoid holding a server slot too long.
+Scope it with a bounding box derived from coordinates already in the itinerary
+(including any you just got from Trainline), or with a union of
+`area["name"="TownA"]->.a;` … `node[…](area.a);` scopes where the places are
+named but far apart.
 
-Build **one** Overpass QL query covering the stops Trainline could not answer.
-Use a union of named-area scopes where places are given, or a single bounding
-box that encompasses all locations when they are geographically close. Derive
-an appropriate bounding box from the coordinates already present in the
-itinerary data — including any you just got from Trainline.
-
-Example — multiple stops in one query using named-area unions:
-```
-[out:json][timeout:20];
-(
-  area["name"="TownA"]->.a;
-  area["name"="TownB"]->.b;
-  node["highway"="bus_stop"](area.a);
-  node["public_transport"="platform"](area.a);
-  node["highway"="bus_stop"](area.b);
-  node["public_transport"="platform"](area.b);
-);
-out body;
-```
-
-Example — single bounding box with name filter (substitute real bbox and name terms):
 ```
 [out:json][timeout:15];
 (
@@ -95,9 +71,7 @@ Example — single bounding box with name filter (substitute real bbox and name 
 out body;
 ```
 
-URL-encode the query and fetch it with a **single** WebFetch call:
-`https://overpass-api.de/api/interpreter?data=<encoded-query>`
-
+URL-encode it onto `https://overpass-api.de/api/interpreter?data=<encoded-query>`.
 Each element has `lat`, `lon`, and `tags` (including `name`, and sometimes
 `ref` or `network`).
 
@@ -124,9 +98,8 @@ Three translations to get right:
 - The stop's name field is `place`. It was `station` before schema 3.0, and
   stale `station` keys are a recurring source of validation failures.
 
-For everything else about writing into an itinerary — ids, which fields are
-required, where a researched thing belongs — see the `itinerary-authoring`
-skill rather than guessing; `make validate FILE=<path>` confirms the result.
+Everything else about writing into a document — ids, required fields, where a
+researched thing belongs — is `itinerary-authoring`.
 
 ## Attribution
 

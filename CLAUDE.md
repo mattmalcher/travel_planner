@@ -131,7 +131,8 @@ scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     traps, and the four things GTFS cannot tell you
   browser-research/ driving the user's real Chrome (via the claude-in-chrome
                     extension) for pages that refuse a fetch — last rung of the
-                    ladder, hands off to find-stop/authoring
+                    ladder, hands off to find-stop/authoring; one host is deep
+                    enough to sit in references/eurostar.md rather than inline
 examples/           anonymised fixture itineraries (fictional people/refs only)
 data/               gitignored real trips; hand-versioned _0.N snapshots of one
                     trip_id, round-tripped through the app's download/upload
@@ -408,6 +409,19 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   needs new logic, put the calculation in `lib/` with a unit test.
 - **Examples/tests use fictional data only** (the Jetsons pattern): no real
   names, addresses, booking references or coordinates of private lodgings.
+- **A skill's frontmatter description is always in context; its body is not.**
+  So the description carries the *triggers* — when to reach for this rather than
+  its neighbour — and nothing else; a "Covers: x, y, z" table of contents is
+  body content parked in the always-on slot. In the body, keep what could not be
+  rederived on the spot (the traps, the real failures, the tool invocations) and
+  cut what restates it: a decision tree above the sections it indexes, a closing
+  checklist repeating the body, a lookup table whose entries are guessable. A
+  rule that belongs to another skill is *linked*, in one line, not restated —
+  the handoff paragraphs had drifted into five phrasings of the same thing. A
+  per-host or per-region deep-dive that is read once a trip goes in a
+  `references/` file beside the SKILL.md (`browser-research/references/`).
+  Authoring rules are the exception to all of this: they live in
+  `lib/doctrine.js` and are generated into the skill, never written by hand.
 
 ## Testing conventions
 
