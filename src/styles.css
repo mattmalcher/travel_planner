@@ -60,6 +60,13 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--co
    own: the itinerary's <li> is a .hseg card and the Lists view's is the .hli
    flex row, and both already set theirs. */
 .hplain-list{list-style:none;margin:0;padding:0}
+/* Icon and empty-state sizings that several views share. These were repeated
+   inline (the .hmeta-ic pair nine times in views/list.js alone), which is how
+   a literal colour eventually gets typed into one of them. */
+.hmeta-ic{font-size:12px;vertical-align:-1px}   /* icon inside a meta line */
+.hlink-ic{font-size:11px}                        /* the external-link arrow */
+.hcard-ic{font-size:17px;color:var(--color-text-secondary)} /* card heading icon */
+.hempty{font-size:13px;color:var(--color-text-secondary);padding:1rem 0}
 .hseg.hl{animation:hseg-flash 1.6s ease-out}
 @keyframes hseg-flash{0%,55%{box-shadow:0 0 0 2.5px var(--color-text-info)}100%{box-shadow:0 0 0 2.5px transparent}}
 /* Sticky jump strip, shared by the Itinerary view's day chips (issue #21) and

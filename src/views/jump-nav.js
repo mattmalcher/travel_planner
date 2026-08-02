@@ -9,7 +9,29 @@
 // is a `<nav>` with its own aria-label ("Jump to day"/"Jump to list"/…), so a
 // screen reader can skip it and knows which strip it landed in (issue #92).
 
+import { esc } from '../lib/escape.js';
+
 const anchors = viewId => [...document.querySelectorAll(`#${viewId} .hjump-a`)];
+
+/**
+ * One chip. `key` rides in `data-k` and is read back off the dataset by the
+ * handler, never interpolated into the onclick string — an itinerary-supplied
+ * key would otherwise break straight out of it (issue #9).
+ * `label` is HTML: a caller passing document text escapes it first.
+ */
+export function jumpChip(key, handler, label, { icon, cls } = {}) {
+  return `<button class="hjump-chip${cls ? ' ' + cls : ''}" data-k="${esc(key)}" onclick="${handler}(this.dataset.k)">${
+    icon ? `<i class="ti ${icon}" aria-hidden="true"></i> ` : ''}${label}</button>`;
+}
+
+/**
+ * The strip itself. Each view decides *whether* it has enough anchors to be
+ * worth showing one — the Itinerary counts days, not chips, because its Today
+ * shortcut is an extra chip over the same one day.
+ */
+export function jumpStrip(ariaLabel, chips) {
+  return `<nav class="hjump-nav" aria-label="${ariaLabel}">${chips.join('')}</nav>`;
+}
 
 /** Scroll the anchor keyed `key` in `viewId` to the top of the view. */
 export function jumpTo(viewId, key, behavior = 'smooth') {
