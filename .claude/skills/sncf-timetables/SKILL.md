@@ -154,6 +154,46 @@ TER timetables use the regional fiches-horaires system above. For mainline servi
 | All SNCF (machine-readable) | GTFS/NeTEx on `transport.data.gouv.fr` — dataset "Horaires SNCF" |
 | Night trains (Intercités de Nuit) | Same regional/national portals; check "fiche horaire Intercités" |
 
+### The mainline GTFS feed — use it to AUDIT a connection
+
+The line above understates this. The data.gouv.fr dataset **"Réseau SNCF TGV,
+Intercités et TER"** (resource `9ae758ec-cd7a-40cd-a890-bb3963224942`, republished
+roughly daily) covers mainline SNCF, and `gtfs_query.py` from the
+`bus-timetables` skill reads it in seconds — this is a ~400k-row
+`stop_times.txt`, not a national monster:
+
+```bash
+.claude/skills/bus-timetables/tools/gtfs_query.py <resource-url> --routes 'Grenoble'
+.claude/skills/bus-timetables/tools/gtfs_query.py <resource-url> 621A 2026-09-11 48.844888,2.37352 45.191493,5.714584
+```
+
+Two things that are not obvious and are the reason to come here:
+
+- **`trips.txt` has no `trip_short_name` — the train number is in
+  `trip_headsign`** (e.g. `6920`). That is how you get a service number into a
+  segment without a booking engine, and it matches what a booking engine or a
+  fiche horaire gives for the same service — which is what makes the numbers
+  trustworthy for legs you have no other source for.
+- **There is no `calendar.txt`** — the feed is `calendar_dates.txt`-only, so
+  "does it run on this date" is a single `exception_type=1` lookup.
+
+**The real use is auditing a connection you did not read off a page.** Any
+segment whose time was derived, interpolated or remembered is worth one query.
+The failure this catches is not a few minutes out: an evening Paris → Grenoble
+leg written as 20:13 → 23:13, when the last departure of the day is 18:14 —
+over an hour past the end of service, and it breaks everything downstream of
+it. Two habits that matter:
+
+- **Scan every route for the origin/destination stop pair**, not just the
+  obvious `621A`-shaped one, before concluding a journey does not exist.
+- **Check a connecting hub too** (Paris → Lyon → Grenoble) before calling it
+  impossible — and note the last hub departure, since that is the real cutoff.
+
+Unlike some regional coach feeds this one is current rather than stale. But it
+contains **no Eurostar**, so cross-Channel legs need `browser-research` — where
+the Eurostar *timetable* pages turn out to fetch plainly and only the fare
+search is walled.
+
 ---
 
 ## Quick-reference checklist
@@ -164,3 +204,4 @@ TER timetables use the regional fiches-horaires system above. For mainline servi
 - [ ] Check the **destination column and footnotes** for short-turn, seasonal, or Friday-only trains
 - [ ] For booking only, then use **SNCF Connect / Trainline**
 - [ ] If SNCF Connect shows nothing → **booking horizon issue**, not cancellation
+- [ ] **Audit any mainline time you did not read off a page** against the GTFS feed (§6) — a derived departure can be past the end of service
