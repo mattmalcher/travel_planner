@@ -33,9 +33,30 @@ below, go straight to rung 3.
 
 ## Setup
 
-Invoke the `claude-in-chrome` skill before calling any `mcp__claude-in-chrome__*`
-tool. It confirms the extension is connected and tells the user what is about to
-happen; the tools may be unavailable or deferred until it runs.
+**Chrome has to already be running.** The extension is a Chrome extension: if
+the browser is not open there is nothing for the tools to attach to, and
+`tabs_context_mcp` fails with "Browser extension is not connected. Please ensure
+the Claude browser extension is installed and running" — which reads like a
+missing or broken *install* and sends you off checking the extension, when the
+actual state is a closed browser. Check before concluding anything:
+
+```bash
+pgrep -a -f 'google-chrome|chromium' | grep -v -E 'playwright|crashpad|steamwebhelper'
+```
+
+The filtered-out names are the usual false positives: Playwright's bundled
+Chromium, an Electron app's `chrome_crashpad_handler`, and `steamwebhelper` —
+all Chromium processes, none of them a browser the extension lives in. Widen
+the filter if the hits are plainly something else embedding Chromium. An empty
+result after filtering means Chrome is closed. Confirm it is at least installed (`command -v google-chrome`, and
+`~/.config/google-chrome` for a profile), then **ask the user to start it** —
+suggest they type `! google-chrome` so it launches in the session. Do not launch
+it yourself unasked: it opens a window on their desktop.
+
+Only once Chrome is up, invoke the `claude-in-chrome` skill before calling any
+`mcp__claude-in-chrome__*` tool. It confirms the extension is connected and
+tells the user what is about to happen; the tools may be unavailable or deferred
+until it runs.
 
 Load the tools you need in **one** `ToolSearch` call, not one per tool:
 
@@ -114,6 +135,32 @@ rule that can be applied blind.
   — service numbers, individual leg times, the cross-Paris transfer window — is
   behind the "N change" button in a modal. Get it before writing segments; a
   through time alone cannot tell you whether the connection is 1 hr 15 or 2 hr 16.
+
+  Two more, both learned the hard way:
+
+  - **The timetable pages are NOT walled — only the fare search is.** A plain
+    `WebFetch` of `/us-en/travel-info/timetable/<originId>/<destId>/<slug>/<slug>`
+    returns the whole day's departures with train numbers (London St Pancras
+    `7015400`, Paris Gare du Nord `8727100`). That answers "which departures
+    exist and what connects" without touching the browser at all, so try it
+    *before* asking the user to start Chrome. It renders one day at a time and
+    defaults to today, so say which date the grid you read was for.
+
+    **But do not write segment times from it.** Its minutes disagree with the
+    booking engine by up to ten — the same ES service read 13:31→16:49 on the
+    timetable page and 13:31→16:59 in the search, and the search is what you are
+    actually buying. Use the timetable page to decide *which* departures to
+    investigate; take the times themselves from the journey-details modal.
+    Correcting a file's times from the timetable page introduced two errors that
+    the original had right.
+  - **A connection you computed is not a connection you can book.** Eurostar
+    will not sell a cross-Paris through booking below its own minimum connection
+    time (~1 hr 15 Gare du Nord → Gare de Lyon), regardless of how fast the RER
+    actually is. So a 55-minute transfer that looks fine on a map simply is not
+    on sale — and the through booking is what makes the operator responsible for
+    rebooking you if the first leg is late, which is usually worth more than the
+    half hour it costs. Check what the search really offers before writing a
+    self-transfer with less slack than the operator's own minimum.
 
 ## Boundaries — this is the user's real browser
 

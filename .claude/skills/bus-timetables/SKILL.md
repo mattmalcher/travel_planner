@@ -1,6 +1,6 @@
 ---
 name: bus-timetables
-description: "Use this skill when an itinerary needs bus or coach times — a regional/interurban coach, a village stop, a ski or valley shuttle — or when a bus time already in a file needs auditing. Reads the operator's own GTFS feed (transport.data.gouv.fr in France, mobilitydatabase.org elsewhere) to answer 'does this line run on THIS date, and at what time', which a timetable PDF and a journey planner both struggle with. Covers finding the feed, querying it offline, the seasonality / weekend / short-turn traps, and the four questions GTFS cannot answer."
+description: "Use this skill when an itinerary needs bus or coach times — a regional/interurban coach, a village stop, a ski or valley shuttle — or when a bus time already in a file needs auditing. Reads the operator's own GTFS feed (a national access point where there is one — transport.data.gouv.fr for France, single national feeds for Switzerland, the Netherlands, Norway, Ireland and more — otherwise the MobilityData catalogue) to answer 'does this line run on THIS date, and at what time', which a timetable PDF and a journey planner both struggle with. Covers finding the feed, querying it offline, the seasonality / weekend / short-turn traps, and the four questions GTFS cannot answer."
 ---
 
 # Bus and coach times, from the feed
@@ -29,9 +29,34 @@ find into a document use `itinerary-authoring`.
 
 ## Step 1 — find the feed
 
-France publishes every operator's GTFS at the national access point,
-`transport.data.gouv.fr`. The dataset list is one JSON file; filter it locally
-rather than browsing the site:
+**Try the national access point first, the global catalogue second.** Every EU
+state has an access point, but they differ in kind, and that changes the work:
+some hand you one feed for the whole country, some make you find the right
+operator among hundreds, and some are behind a registration wall.
+
+### 1a — countries with one official national feed
+
+The easiest case, and worth checking before assuming a France-shaped hunt.
+Download the URL and skip to Step 2:
+
+| Country | Feed |
+| --- | --- |
+| Switzerland | `https://data.opentransportdata.swiss/dataset/timetable-2026-gtfs2020/permalink` |
+| Netherlands | `https://gtfs.ovapi.nl/nl/gtfs-nl.zip` |
+| Norway (Entur) | `https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip` |
+| Ireland (TFI) | `https://www.transportforireland.ie/transitData/Data/GTFS_All.zip` |
+| Denmark | `https://www.rejseplanen.info/labs/GTFS.zip` |
+| Germany | `https://download.gtfs.de/germany/free/latest.zip` — an **unofficial** aggregate; the official Mobilithek needs an account |
+
+The Swiss permalink redirects to a dated filename
+(`gtfs_fp2026_20260729.zip`) — that date is the freshness signal, the
+equivalent of the `updated` field below, so note it from the redirect. Bump the
+year in the dataset slug for a later edition.
+
+### 1b — France, and other per-operator access points
+
+France publishes every operator's GTFS at `transport.data.gouv.fr`. The dataset
+list is one JSON file; filter it locally rather than browsing the site:
 
 ```bash
 curl -sL https://transport.data.gouv.fr/api/datasets -o /tmp/tdg.json
@@ -60,22 +85,88 @@ Reading the results:
 - Note the *département* number: interurban networks are organised by
   département, not by city.
 
+Luxembourg works the same way, with the same API shape:
+`https://data.public.lu/api/1/datasets/?q=gtfs`.
+
 An operator with **no feed on the access point** is a real outcome, not a search
 failure — some AOMs publish nothing. That is the point to fall back to the
-operator's own planner or PDF, and to record the gap. Outside France, the
-equivalent index is `mobilitydatabase.org`.
+operator's own planner or PDF, and to record the gap.
+
+### 1c — anywhere else: the MobilityData catalogue
+
+For a country not above, one CSV indexes the world's feeds and filters exactly
+like the France JSON:
+
+```bash
+curl -sL https://share.mobilitydata.org/catalogs-csv -o /tmp/mdb.csv
+python3 - <<'EOF'
+import csv
+for r in csv.DictReader(open('/tmp/mdb.csv', encoding='utf-8')):
+    if r['location.country_code'] == 'ES' and 'granada' in r['provider'].lower():
+        print(r['provider'], '|', r['is_official'], '|', r['urls.direct_download'])
+EOF
+```
+
+Treat it as a **discovery aid, never an authority**, for two reasons:
+
+- **It rots.** In a 50-entry European sample about 40% of `direct_download`
+  URLs were dead — including every `transitfeeds.com` link (that service is
+  retired) and all three French ones, which is why 1a and 1b come first.
+- **There is no `updated` column**, so the freshness check this skill turns on
+  is simply unavailable. Get the date from the operator's own page, or from the
+  downloaded feed's `feed_info.txt` and `calendar.txt` window.
+
+Note also `urls.authentication_type`: a non-empty value means the feed needs an
+API key, and this is worth reading *before* the download rather than after —
+Granada's entry is `is_official`, looks like a plain file URL, and answers
+`401 Api Key was not provided`. The `api.mobilitydatabase.org` v1 API likewise
+needs a token and returns empty without one; the CSV does not.
+
+**Registration-walled or absent, as of this writing**: Spain (`nap.mitma.es`),
+Finland (`finap.fi`), Belgium (`transportdata.be`) and Germany's official
+Mobilithek all want an account. **Italy has no national feed** — it is regional
+only, so search the region. **Great Britain is out of scope**: BODS publishes
+TransXChange, not GTFS.
 
 ## Step 2 — download it
 
+**Hand the URL straight to `gtfs_query.py`** — it downloads once, drops
+`shapes.txt`, and caches the feed under `~/.cache/gtfs-feeds`
+(`$GTFS_CACHE` to move it), so later queries and later sessions reuse it:
+
 ```bash
-curl -sL -o feed.zip "<resource url>"
-unzip -q -x shapes.txt -d feed feed.zip
+.claude/skills/bus-timetables/tools/gtfs_query.py "<resource url>" --routes 'T7|55'
 ```
 
-**Always exclude `shapes.txt`** — it is road geometry and is routinely 80–95% of
-the archive (110 MB of a 120 MB feed in one real case). Nothing here needs it.
+Every run prints which directory it used and **when it was fetched**, on stderr;
+past 30 days it says so. That date is not bookkeeping — a cached feed is a
+frozen edition, and this skill's whole failure mode is a stale feed answering
+confidently. Re-fetch with `--refresh` whenever the operator has published since
+(the old extraction is deleted first, so nothing survives into the new edition).
 
-Sanity-check what you got before trusting a single time:
+`shapes.txt` is dropped because it is road geometry and routinely 80–95% of the
+archive (110 MB of a 120 MB feed in one real case). Nothing here needs it.
+
+To unzip one by hand instead — the tool takes a directory just as happily:
+
+```bash
+curl -sL -o feed.zip "<resource url>"
+unzip -q feed.zip -x shapes.txt -d feed
+```
+
+The archive must come **before** `-x`: `unzip -x shapes.txt -d feed feed.zip`
+fails with "cannot find or open shapes.txt", because unzip takes the first
+non-option argument as the archive. Some feeds ship without `shapes.txt` and
+unzip says "excluded filename not matched"; that is fine.
+
+A national feed is a different size of thing — Switzerland's is 207 MB zipped,
+2.5 GB of `stop_times.txt`, 1.8M trips. `gtfs_query.py` streams the large files
+rather than loading them, so this costs ~200 MB of RAM, but expect about
+40 seconds per *invocation* against a département feed's instant — which is why
+Step 3 asks everything at once.
+
+Sanity-check what you got before trusting a single time (the path is the one
+printed on stderr):
 
 ```bash
 cat feed/feed_info.txt      # publisher and the feed's own validity window
@@ -87,11 +178,22 @@ cut -d, -f1,2 feed/agency.txt   # which operators are actually in here
 ```bash
 .claude/skills/bus-timetables/tools/gtfs_query.py feed --routes 'T7|55'
 .claude/skills/bus-timetables/tools/gtfs_query.py feed T75 2026-09-11 45.1917,5.7145 45.0553,6.0300
+.claude/skills/bus-timetables/tools/gtfs_query.py feed T75 2026-09-11..2026-09-13 45.1917,5.7145 45.0553,6.0300
 ```
 
 `--routes` takes a regex over the short and long names and is how you find what
-a line is called in this feed. The main form takes a line, an ISO date, and
+a line is called in this feed. The main form takes a line, dates, and
 origin/destination as `lat,lng`, and prints the departures that really run.
+
+**Ask everything in one invocation.** The date accepts a comma-separated list
+and `from..to` ranges (31 days max), and **both directions are reported by
+default** (`--one-way` to suppress the return). This is not a convenience: the
+cost is one pass over `stop_times.txt`, so a whole week in both directions costs
+the same 40 seconds on a national feed that a single Tuesday does — asking
+fourteen questions separately costs ten minutes for the same answers.
+A line is matched on **either** name, because feeds really do leave one blank:
+every `route_long_name` is empty in both the Swiss and Luxembourg feeds, which
+makes `--routes` search only the numbers there.
 
 Origin and destination are **coordinates, not names**, because interurban feeds
 name stops locally with no commune: a feed will contain a dozen stops called
@@ -100,9 +202,16 @@ name stops locally with no commune: a feed will contain a dozen stops called
 sits outside the centre, and check the stop names in the output are the ones you
 meant.
 
-Ask the *actual travel dates*, and ask both directions. Asking a Saturday and a
-Sunday separately is worth doing even when you only travel one of them — the
-difference tells you how much slack the plan has.
+In a **national** feed the coordinates are doing even more work, because the
+line number is only unique locally: 34 different routes are called `1` in the
+Swiss feed. The origin/destination pair is the whole disambiguation, so check
+the stop names in the output before believing the times. Note too that national
+feeds tend to use GTFS's *extended* route types — bus is `700`, not `3` — if
+you go reading `routes.txt` by hand.
+
+Ask the *actual travel dates*, and put a Saturday and a Sunday in the list even
+when you only travel one of them — the difference tells you how much slack the
+plan has, and it is free.
 
 ---
 
@@ -110,8 +219,8 @@ difference tells you how much slack the plan has.
 
 1. **Seasonality.** A line that exists all year is not a line that *runs* all
    year. Ski shuttles, summer valley services and school lines are invisible on
-   the operator's line page and obvious in the feed: query a July date and a
-   September date and compare the trip counts.
+   the operator's line page and obvious in the feed: pass a July date and a
+   September date in one query (`2026-07-15,2026-09-15`) and compare the counts.
 2. **The weekend is a different network.** Interurban lines are weekday-shaped;
    Sunday can be half the departures. Never read a weekday column and assume.
 3. **Short turns.** A trip that leaves the right stop is not a trip that reaches
