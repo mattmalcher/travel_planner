@@ -75,6 +75,18 @@ src/
     lists.js        list progress/partition, dangling segment_id detection
                     (issue #40), document-wide id sets for manual adds (#72)
     phrases.js      phrasebook counts + document-wide id sets (issue #75)
+    collection.js   the shape lists.js and phrases.js share — an array of
+                    groups each holding items, its id collectors and the
+                    array guard. Concepts stay separate; the shape does not
+    lint.js         referential-integrity checks the schema cannot express
+                    (issue #17) — also the source of segLabel, so the CLI's
+                    schema errors and lint's warnings name a segment alike
+    merge-patch.js  JSON Merge Patch, for the AI's patch_* tools
+    now.js          "is the trip underway" / current-day helpers (issue #35)
+    schema-brief.js condenseSchema — the schema summary in the AI prompt
+    seg-defs.js     segment type → subschema definition; imported by BOTH
+                    validators so an error comes from the segment's own
+                    branch and never the oneOf (issue #76)
     ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
     drafts.js       starting points for hand-added things: segment drafts per
                     type, the from-scratch trip, the blank document (issue #76)
@@ -91,7 +103,8 @@ src/
                     list — one row renderer, revision history under each
     jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
                     the Lists view's list chips and the Phrases view's group
-                    chips (issues #21, #69, #75)
+                    chips (issues #21, #69, #75). Owns the chip and strip
+                    markup too — jumpChip/jumpStrip — not just the scrolling
     focus.js        keepFocus/focusTo across a wholesale re-render, and
                     announce() into the one #hlive region (issue #93)
   ai/               OpenRouter assistant (browser-only, key in localStorage)
@@ -145,6 +158,17 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   without breaking links already sent, decoding a damaged link must *say so*
   rather than yield an empty trip, and the fragment is cleared once loaded so
   a refresh can't re-import a stale snapshot over later edits.
+- **There is one warning banner, and one way to raise it**: the upload guard,
+  the import decision, the saved-data version guard and a failed share link all
+  write the single `#hverwarn` element through `showUploadWarning(icon, title,
+  body, buttons)` in `app.js`, and put it away through `hideWarning()`. Do not
+  reach for `getElementById('hverwarn')` — it used to appear 11 times, and the
+  line that hides it 9 times, which is how a banner gets left on screen after
+  the decision it was asking about is settled. A banner that parks a decision
+  puts it in a `state.pending*` slot and every button that answers it goes
+  through `resolveWarning(slot, fn)`, so clearing the slot and hiding the
+  banner cannot come apart. `title`/`body` are HTML: anything from a document
+  or an error goes through `esc()` first.
 - **The library owns document identity**: `trip_id`, `rev`, `updated_at` and
   `updated_by` are the app's bookkeeping, settled by `persist()` in `store.js`
   — never written by a view, a form or the AI (they are kept out of the AI's
@@ -218,6 +242,14 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   The split matters: the digest disclosure, read-before-edit and
   prefer-a-patch rules are mobile context-window mitigations and are *wrong* on
   the desktop, where the whole file is in hand.
+- **The AI's tools come in entity families, and the family is the unit**:
+  segments, lists and phrase groups each need a read-before-edit guard, a
+  wrong-id error, id assignment and a schema check. Each of those four is
+  written *once* in `ai/tools.js` (`guardRead`, `noSuchId`, `assignIds`,
+  `schemaError`) and named per family beneath. They were three copies apiece
+  before, which is how the phrase-group messages ended up phrased differently
+  from the list ones. A fourth family is four one-liners plus its branch of
+  `applyTool` — not four more copies.
 - **A desktop-edited file must have its `rev` bumped before it goes back**
   (`npm run itin -- bump`). `classifyImport` reads same `trip_id` + same `rev` +
   different content as a **fork**, and `src/app.js` offers "Keep both" *first*
@@ -231,7 +263,10 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   `src/validate.js` and `scripts/itin.mjs` pick the one definition a segment's
   `type` names. Under the `oneOf` ajv reports every branch, so a half-filled
   event demands transport's `mode` and `departs` — 14 misleading errors instead
-  of one true one (issue #76).
+  of one true one (issue #76). The map itself is `lib/seg-defs.js`, imported by
+  both: it used to be typed out in each, and a type added to one and not the
+  other falls back to the `oneOf` silently. ajv still stays out of `lib/` —
+  only the map is shared, so the bundle can never gain a second copy of ajv.
 - **Every colour comes from a token, and dark mode is one media query**
   (issue #95): the palette is the `:root` custom properties at the top of
   `styles.css` and the `prefers-color-scheme: dark` block that redefines them
@@ -248,6 +283,12 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   colours. The chart-ish colours that are not themed — gantt block fills, map
   pins — are deliberate: they carry meaning, sit under white text, and read on
   either background.
+- **The three modals share `.hmodal` / `.hmodal-inner`**: the edit, settings
+  and trip-switcher backdrops and cards were byte-identical CSS bar `z-index`
+  and `max-width`, so only those differ per modal now. Their header and footer
+  rows are deliberately *not* shared — each pads them differently, and forcing
+  them together would change rendering. A new modal is the two classes plus an
+  id rule for its width and stacking order.
 - **The tab strip is an ARIA tablist, and one tab stop** (issue #90): the tabs
   are `<button role="tab">`s, the panels `role="tabpanel"`, and `switchView()`
   in `app.js` is the single place `aria-selected` and the roving `tabindex`
@@ -345,7 +386,11 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   apply: these sit in `gap:8px` rows. `tests/e2e/a11y.spec.js` measures every
   control in every view on the rendered page.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
-  style fallbacks in views.
+  style fallbacks in views. So does every date *format* and the ms arithmetic
+  around a day's bounds: a view writing `toLocaleDateString` or
+  `new Date(iso + 'T23:59:59')` inline is how the Schedule ended up with a
+  fourth date format and its own copy of `msToIso`. Add a named helper there
+  (`fmtDayMonth`, `fmtStamp`, `endOfDayMs`) rather than a format in a view.
 - **Inline onclick handlers** in markup call `window.h*` globals; if you add
   one, export the handler and register it in the `Object.assign(window, …)`
   block in `main.js`.
