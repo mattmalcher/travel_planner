@@ -7,6 +7,7 @@ import { fmtDayLong, fmtDayShort, fmtMinutes, nightsBetween, DEFAULT_CHECKIN_FRO
 import { currentDayChip } from '../lib/now.js';
 import { SEGMENT_KINDS } from '../lib/drafts.js';
 import { esc, safeUrl } from '../lib/escape.js';
+import { linkify } from '../lib/linkify.js';
 import { costBadge, proposalBadge, segIcon } from './badges.js';
 import { jumpTo, bindJumpSpy, updateActiveChip, jumpChip, jumpStrip } from './jump-nav.js';
 
@@ -86,13 +87,15 @@ function renderEvent(s, primaryCurrency) {
 function renderWarnings(s) {
   if (!s.warnings || !s.warnings.length) return '';
   return s.warnings.map(w =>
-    `<div class="hwarn" role="note" style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle hmeta-ic" aria-hidden="true"></i> <span class="sr-only">Warning:</span> ${esc(w)}</div>`
+    `<div class="hwarn" role="note" style="margin-top:6px;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-md);padding:5px 8px;font-size:12px"><i class="ti ti-alert-triangle hmeta-ic" aria-hidden="true"></i> <span class="sr-only">Warning:</span> ${linkify(w)}</div>`
   ).join('');
 }
 
 function renderNotes(s) {
   if (!s.notes) return '';
-  return `<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${esc(s.notes)}</div>`;
+  // Prose, so a url in it is rendered as a link (issue #109) — linkify escapes
+  // the rest of the text itself.
+  return `<div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary)">${linkify(s.notes)}</div>`;
 }
 
 /** Scroll the itinerary to a day's section (date strip chips, issue #21) —
