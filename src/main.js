@@ -120,7 +120,10 @@ document.querySelector('.htabs').addEventListener('keydown', tabKey);
 {
   const ta = document.getElementById('hchat-input');
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSubmit(); } });
-  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
+  // The cap is #hchat-input's max-height in styles.css, not a number here: a
+  // max-height constrains the used height whichever rule set it, inline
+  // included, so growing past it is impossible and the box scrolls instead.
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
 }
 
 /* keep the fixed chat panel matched to the visual viewport (mobile URL bar +

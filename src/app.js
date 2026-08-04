@@ -20,13 +20,14 @@ import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
 import { updateActiveChip } from './views/jump-nav.js';
 import { focusKey, focusTo } from './views/focus.js';
-import { renderChat } from './ai/chat.js';
+import { renderChat, restoreChat } from './ai/chat.js';
 import { hidePreview } from './ai/preview.js';
 
 export function load(data) {
   state.HD = typeof data === 'string' ? JSON.parse(data) : data;
   dismissStoreWarning();
   persist(); // settles trip_id/rev and makes this the library's current trip
+  restoreChat(); // the saved transcript for this trip, now that it has a trip_id
   showApp();
   updateHeader();
   renderAll();
@@ -156,6 +157,8 @@ export function closeTrip() {
   closeCurrent();
   destroyMap();
   dismissStoreWarning();
+  // The transcript is only cleared from view: it stays saved against this trip
+  // and comes back when the trip is opened again (issue #99).
   state.chat = []; state.draft = null; state.ops = [];
   hidePreview(); renderChat();
   document.getElementById('hupl').style.display = 'block';

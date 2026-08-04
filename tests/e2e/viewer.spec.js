@@ -716,6 +716,23 @@ test.describe('Holiday Itinerary Viewer', () => {
       globalThis.getComputedStyle(globalThis.document.getElementById('hchat-input')).fontSize));
     expect(inputFont).toBeGreaterThanOrEqual(16);
 
+    // …and it must open tall enough to show the prompt it suggests (issue #99),
+    // then grow with the text up to the CSS cap and scroll beyond it — the cap
+    // lives only in styles.css, so a JS-side number cannot fight it.
+    const box = page.locator('#hchat-input');
+    const rows = await page.evaluate(() => {
+      const el = globalThis.document.getElementById('hchat-input');
+      const cs = globalThis.getComputedStyle(el);
+      return { lines: el.clientHeight / parseFloat(cs.lineHeight), cap: parseFloat(cs.maxHeight) };
+    });
+    expect(rows.lines).toBeGreaterThanOrEqual(3);
+    const empty = (await box.boundingBox()).height;
+    await box.fill('one\ntwo\nthree\nfour\nfive');
+    expect((await box.boundingBox()).height).toBeGreaterThan(empty);
+    await box.fill('line\n'.repeat(40));
+    expect((await box.boundingBox()).height).toBeLessThanOrEqual(rows.cap + 1);
+    await box.fill('');
+
     // On small screens the open panel is fullscreen and the page behind it is
     // out of play (issue #48): body scroll locked, background hidden, panel
     // spanning the viewport — so there is nothing behind the panel to scroll.
