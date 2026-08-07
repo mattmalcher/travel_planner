@@ -28,6 +28,9 @@
 import {
   CAN_COMPRESS, deflateBytes, inflateBytes, bytesToBase64url, base64urlToBytes,
 } from './codec.js';
+// The wording a failed link gets, wherever it failed — see sharelink.js. No
+// cycle: sharelink.js knows nothing about encryption.
+import { DAMAGED } from './sharelink.js';
 
 /** AES-GCM's standard nonce length. Prefixed to the ciphertext. */
 const IV_BYTES = 12;
@@ -90,10 +93,10 @@ export async function decryptShare(bytes, key) {
   const s = subtle();
   let raw;
   try { raw = base64urlToBytes(key); }
-  catch (e) { throw new Error('The link is damaged or incomplete', { cause: e }); }
-  if (raw.length !== 32) throw new Error('The link is damaged or incomplete');
+  catch (e) { throw new Error(DAMAGED, { cause: e }); }
+  if (raw.length !== 32) throw new Error(DAMAGED);
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  if (data.length <= IV_BYTES) throw new Error('The link is damaged or incomplete');
+  if (data.length <= IV_BYTES) throw new Error(DAMAGED);
   const k = await s.importKey('raw', raw, { name: 'AES-GCM' }, false, ['decrypt']);
   let plain;
   try {
@@ -101,7 +104,7 @@ export async function decryptShare(bytes, key) {
       { name: 'AES-GCM', iv: data.subarray(0, IV_BYTES) }, k, data.subarray(IV_BYTES),
     ));
   } catch (e) {
-    throw new Error('The link is damaged or incomplete', { cause: e });
+    throw new Error(DAMAGED, { cause: e });
   }
   const body = plain.subarray(1);
   const bare = plain[0] === FLAG_DEFLATE ? await inflateBytes(body) : body;
