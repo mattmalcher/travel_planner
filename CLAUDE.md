@@ -128,8 +128,9 @@ src/
 worker/             the share store (issue #116) — a Cloudflare Worker over one
                     KV namespace, deployed with wrangler, entirely separate
                     from the page's build. Holds ciphertext for 30 days; see
-                    worker/README.md for the deploy and the two dashboard
-                    settings (rate limit, usage alert) it needs
+                    worker/README.md for the deploy, the `ratelimits` binding
+                    (a WAF rule is not available — workers.dev has no zone)
+                    and the one dashboard setting (usage alert) it needs
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
 scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     doctrine / bump. Reuses src/lib/ for all interpretation and

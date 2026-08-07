@@ -44,13 +44,33 @@ Anything else is `405`. A request from an origin not in `ALLOWED_ORIGINS` is
 `403`; a request with no `Origin` at all (curl, a bot) may read — the bytes are
 ciphertext — but never write.
 
+## Rate limiting
+
+~10 writes per IP per minute, via the `ratelimits` binding in
+`wrangler.jsonc` — it deploys with the Worker and there is nothing to click.
+
+It is deliberately **not** a WAF rate limiting rule. Those are scoped to a
+*zone*, and a `workers.dev` deploy is not in one, so that dashboard section
+does not appear at all for this account — an earlier version of this README
+sent you looking for it. If the Worker ever moves behind a custom domain, a
+WAF rule becomes available and is strictly better (it refuses in front of the
+Worker, costing no invocation); until then this is the only option.
+
+`namespace_id` in that block is an arbitrary label, unique within this Worker.
+It is not an account resource and there is nothing to create for it.
+
+What this costs and buys: a blocked request still burns a Worker invocation
+(100,000/day free), but it is refused before the body is read and before the
+KV write, so the **1,000 writes/day** that actually bind stay spent on real
+shares. The binding counts per-colo rather than globally, so a caller spread
+across locations gets the allowance at each — enough for the thing this
+defends against, which is one page in a loop.
+
+Reads are not limited: they spend no write quota and serve `Cache-Control:
+max-age=3600`, so a popular link mostly answers from cache.
+
 ## Things to set up in the dashboard, once
 
-Neither can be expressed in `wrangler.jsonc`, and the free tier's limits make
-both worth having:
-
-- **Rate limiting rule** — ~10 `POST`s per IP per minute. It runs in front of
-  the Worker, so blocked requests cost no KV quota at all.
 - **Usage alert** on the Workers dashboard. The free tier allows **1,000 KV
   writes per day account-wide**; past that, writes fail until 00:00 UTC. That
   is not a crisis — the app falls back to a `#d1=` link silently, and the user
