@@ -5,7 +5,8 @@
 // not one of the three.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handle, MAX_BYTES, TTL_SECONDS } from '../../worker/src/index.js';
+import { readFileSync } from 'node:fs';
+import { handle, MAX_BYTES, TTL_SECONDS, WRITES_PER_MINUTE } from '../../worker/src/index.js';
 
 const ORIGIN = 'https://mattmalcher.github.io';
 
@@ -159,4 +160,73 @@ test('anything but GET/POST/OPTIONS is refused', async () => {
     assert.equal(res.status, 405);
     assert.match(res.headers.get('Allow'), /GET/);
   }
+});
+
+/* --- rate limiting ------------------------------------------------------- */
+
+/** The RATE_LIMITER binding, which is a `limit({key})` returning `{success}`.
+    Records the keys it was asked about, since limiting the wrong key (one
+    value for every caller) would throttle everyone as one. */
+function limiterStub(allow) {
+  const keys = [];
+  return {
+    keys,
+    async limit({ key }) { keys.push(key); return { success: allow }; },
+  };
+}
+
+const IP = { 'CF-Connecting-IP': '203.0.113.7' };
+
+const postFrom = (headers, body = bytes(16)) => new Request('https://share.test/', {
+  method: 'POST', headers: { Origin: ORIGIN, ...headers }, body,
+});
+
+test('a throttled write is refused before it reaches KV', async () => {
+  const e = { ...env(), RATE_LIMITER: limiterStub(false) };
+  const res = await handle(postFrom(IP), e);
+  assert.equal(res.status, 429);
+  assert.equal(res.headers.get('Retry-After'), '60');
+  // The point of the check's placement: no quota was spent on it.
+  assert.equal(e.KV.store.size, 0);
+  assert.equal(e.RATE_LIMITER.keys[0], '203.0.113.7');
+});
+
+test('the limiter keys on the caller IP, not on one shared bucket', async () => {
+  const e = { ...env(), RATE_LIMITER: limiterStub(true) };
+  await handle(postFrom({ 'CF-Connecting-IP': '203.0.113.7' }), e);
+  await handle(postFrom({ 'CF-Connecting-IP': '198.51.100.4' }), e);
+  assert.deepEqual(e.RATE_LIMITER.keys, ['203.0.113.7', '198.51.100.4']);
+});
+
+test('reads are never rate limited — only writes spend the scarce quota', async () => {
+  const e = { ...env(), RATE_LIMITER: limiterStub(true) };
+  const { id } = await (await handle(postFrom(IP), e)).json();
+  e.RATE_LIMITER.keys.length = 0;
+  assert.equal((await handle(get(id), e)).status, 200);
+  assert.deepEqual(e.RATE_LIMITER.keys, []);
+});
+
+test('a missing binding allows the write, so wrangler dev is not a dead store', async () => {
+  const e = env();
+  assert.equal(e.RATE_LIMITER, undefined);
+  assert.equal((await handle(postFrom(IP), e)).status, 201);
+});
+
+test('a limiter that throws fails open rather than breaking sharing', async () => {
+  const e = {
+    ...env(),
+    RATE_LIMITER: { async limit() { throw new Error('limiter unavailable'); } },
+  };
+  assert.equal((await handle(postFrom(IP), e)).status, 201);
+});
+
+test('the configured limit matches the one the code documents', async () => {
+  const cfg = readFileSync(new URL('../../worker/wrangler.jsonc', import.meta.url), 'utf8');
+  // Strip // comments so the jsonc parses; there are no block comments or
+  // strings containing "//" in this file.
+  const parsed = JSON.parse(cfg.replace(/^\s*\/\/.*$/gm, ''));
+  const rl = parsed.ratelimits.find(r => r.name === 'RATE_LIMITER');
+  assert.ok(rl, 'wrangler.jsonc must declare the RATE_LIMITER binding');
+  assert.equal(rl.simple.limit, WRITES_PER_MINUTE);
+  assert.equal(rl.simple.period, 60);
 });

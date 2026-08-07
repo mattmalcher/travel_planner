@@ -36,6 +36,46 @@ const DEFAULT_ORIGINS = ['https://mattmalcher.github.io'];
     long (the 256-bit key is). */
 const ID_BYTES = 8;
 
+/**
+ * Writes per IP per minute, enforced by the RATE_LIMITER binding in
+ * wrangler.jsonc. It lives here rather than as a WAF rate limiting rule
+ * because those are scoped to a *zone*, and a `workers.dev` deploy has no
+ * zone — there is no dashboard rule to create.
+ *
+ * The trade is that a blocked request still costs a Worker invocation, where
+ * a WAF rule would have refused it in front of the Worker. That is the cheap
+ * quota (100k/day) and it protects the binding one: the check happens before
+ * the body is read and before the KV write, so the 1,000 writes/day that
+ * actually constrain this thing stay spent on real shares.
+ *
+ * The binding counts per-colo rather than globally, so a distributed caller
+ * gets this allowance per location. That is fine for what this defends
+ * against — one page in a loop — and anything cleverer than that was never
+ * going to be stopped by a number in a config file.
+ */
+export const WRITES_PER_MINUTE = 10;
+
+/**
+ * Whether this IP may write. Absent binding = allowed: `wrangler dev` and the
+ * unit tests drive the handler with a plain KV stub and no limiter, and a
+ * missing binding must not turn into a Worker that refuses everything.
+ */
+async function withinRateLimit(request, env) {
+  if (!env || !env.RATE_LIMITER) return true;
+  // CF-Connecting-IP is set by the edge and cannot be spoofed by the client;
+  // it is absent only off-platform, where the limiter is absent too.
+  const key = request.headers.get('CF-Connecting-IP') || 'unknown';
+  try {
+    const { success } = await env.RATE_LIMITER.limit({ key });
+    return success;
+  } catch (e) {
+    // A limiter that errors must not take the share store down with it —
+    // failing open here costs at most the daily write quota, which degrades
+    // to a long link in the app rather than to a broken share.
+    return true;
+  }
+}
+
 function allowedOrigins(env) {
   const configured = (env && env.ALLOWED_ORIGINS) || '';
   const list = configured.split(',').map(s => s.trim()).filter(Boolean);
@@ -83,6 +123,10 @@ export async function handle(request, env) {
   if (request.method === 'POST') {
     if (pathname !== '/') return json({ error: 'not found' }, 404, cors);
     if (!ok) return json({ error: 'origin not allowed' }, 403, cors);
+    // Before the body is read and before the put, so a throttled caller costs
+    // neither bandwidth nor KV quota.
+    if (!await withinRateLimit(request, env))
+      return json({ error: 'rate limited' }, 429, { 'Retry-After': '60', ...cors });
     // Checked twice: the declared length rejects an oversized upload before
     // it is read, and the actual byte count catches a chunked body that
     // declared nothing.
