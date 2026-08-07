@@ -13,6 +13,7 @@ import { takenGroupIds } from './lib/phrases.js';
 import { DEFAULT_EVENT_TIME, DEFAULT_EVENT_DURATION_MIN, msToIso } from './lib/dates.js';
 import { newSegmentDraft, newTripDraft, blankItinerary } from './lib/drafts.js';
 import { fieldsFor, applyForm } from './lib/edit-form.js';
+import { SHARE_MIME, shareFilename, shareFileText } from './lib/sharefile.js';
 import { FORM_SPEC } from './form-spec.js';
 import { renderForm, readForm } from './views/edit-form.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
@@ -227,17 +228,19 @@ export function revealSegment(idx) {
  * The downloaded file keeps trip_id/rev, so re-uploading it lands back on the
  * trip it came from rather than starting a second copy — as does a share
  * link, which carries the same document (issue #81, src/share.js).
+ *
+ * The bytes and the name come from lib/sharefile.js, which is also what the
+ * share sheet attaches (issue #114): a downloaded file and a shared one are
+ * byte-for-byte the same file, so there is one thing to debug when one of them
+ * will not open. The download deliberately keeps its undated name — it is the
+ * copy you keep, not one of several landing in a chat thread.
  */
 export function downloadDoc(doc, suffix) {
-  const out = { schema_version: H_SCHEMA_VERSION, ...doc };
-  out.schema_version = H_SCHEMA_VERSION; // win over any version the uploaded file carried
-
-  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const blob = new Blob([shareFileText(doc, H_SCHEMA_VERSION)], { type: SHARE_MIME });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const stem = ((doc.trip && doc.trip.name) || 'itinerary').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
-  a.download = stem + (suffix ? '_' + suffix : '') + '.json';
+  a.download = shareFilename(doc, null, suffix);
   a.click(); URL.revokeObjectURL(url);
 }
 

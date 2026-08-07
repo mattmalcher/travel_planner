@@ -41,10 +41,12 @@ src/
   store.js          localStorage binding for the trip library (issue #80):
                     persist() — the single write path — plus boot, import
                     decisions, revision recording and restore
-  share.js          share links, browser half (issue #81): building one from
-                    the open trip (share sheet / clipboard) and opening one
-                    that arrives in the fragment — boot() routes it through
-                    loadUpload(), and a link arriving at an open page reloads
+  share.js          sharing, browser half (issues #81, #114): the outbound
+                    ladder (share sheet with the JSON attached → download →
+                    copy-as-text → the old long link), importText() for a trip
+                    arriving as text, and opening a link that arrives in the
+                    fragment — boot() routes it through loadUpload(), and a
+                    link arriving at an open page reloads
   render.js         updateHeader / renderAll / refreshAfterChange (post-edit re-render)
   app.js            load/reset, tab switching, edit modal (form ⇄ JSON), version guard
   form-spec.js      edit-modal field descriptors — the __H_FORM_SPEC__ placeholder
@@ -72,6 +74,10 @@ src/
     codec.js        deflate-raw + base64url for stored revisions and share links
     sharelink.js    share-link encoding (issue #81): the `#d1=` fragment scheme,
                     decode guards and where the payload sits in a URL
+    sharefile.js    sharing as a file (issue #114): the attachment's bytes, name
+                    and MIME (the same file Download writes), the copy-as-text
+                    payload, and readShareText — the ONE parser for text that
+                    might be a trip (pasted payload, pasted link, raw JSON)
     lists.js        list progress/partition, dangling segment_id detection
                     (issue #40), document-wide id sets for manual adds (#72)
     phrases.js      phrasebook counts + document-wide id sets (issue #75)
@@ -166,6 +172,26 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   without breaking links already sent, decoding a damaged link must *say so*
   rather than yield an empty trip, and the fragment is cleared once loaded so
   a refresh can't re-import a stale snapshot over later edits.
+- **A trip goes out as a file first, and every rung below it still works**
+  (issue #114): a URL has a length a messenger will silently truncate — WhatsApp
+  on Android stops linkifying past a limit it does not document, so the message
+  arrives, the link *looks* tappable, and the trip does not open. An attachment
+  has no such limit, so `shareDoc()` tries `navigator.share({files})` first and
+  falls to download / copy-as-text / the long link, all offered together in the
+  toast. Three things about that ladder are load-bearing. `canShare` is asked
+  with the **real files array** — sharing a URL and sharing a file are separate
+  capabilities, and inferring one from `navigator.share` existing is how a
+  browser that has the first and not the second ends up throwing. The file is
+  built **synchronously** (`JSON.stringify`, not the async CompressionStream),
+  because `navigator.share` must be reached while the click is still the current
+  user gesture and an `await` in between spends it — which is also why the
+  attachment is plain JSON rather than the compressed payload. And the long link
+  is *kept*: links already sent must keep opening, it is just no longer what
+  Share does. Coming back the other way, the file picker, drag-and-drop, a paste
+  and dropped text all end at `importText()` → `loadUpload()`, so however a
+  document arrives it meets the same schema-version and ajv guards; the paste
+  listener is scoped to the opening screen and yields to any focused input, or
+  it would steal pastes from the chat box and the JSON tab.
 - **There is one warning banner, and one way to raise it**: the upload guard,
   the import decision, the saved-data version guard and a failed share link all
   write the single `#hverwarn` element through `showUploadWarning(icon, title,

@@ -2,9 +2,12 @@
 // DOM listeners, and restore any saved itinerary. This is the bundle entry
 // point (scripts/build.mjs inlines the bundle into the built HTML).
 import { state, H_SCHEMA_VERSION } from './state.js';
-import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, tabKey, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
+import { load, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, tabKey, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { libOpen, libClose, libSwitch, libRevs, libDelete, libRestore, libDownloadRev, libSaveName, libForgetAll } from './views/library.js';
-import { boot, shareTrip, shareRevision, shareToastClose } from './share.js';
+import {
+  boot, shareTrip, shareRevision, shareToastClose,
+  shareDownload, shareCopyText, shareCopyLink, importText, pasteTrip,
+} from './share.js';
 import { dismissStoreWarning } from './store.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
@@ -43,6 +46,10 @@ Object.assign(window, {
   hDownload: download,
   hShare: shareTrip,
   hShareToastClose: shareToastClose,
+  hShareDownload: shareDownload,
+  hShareCopyText: shareCopyText,
+  hShareCopyLink: shareCopyLink,
+  hPaste: pasteTrip,
   hToggleEdit: toggleEdit,
   hOpenEdit: openEdit,
   hOpenEditTrip: openEditTrip,
@@ -93,11 +100,15 @@ Object.assign(window, {
   hSetClearKey: settingsClearKey,
 });
 
-/* file picker + drag-and-drop upload */
+/* The four ways a trip arrives (issue #114): the file picker — which is also
+   where a share-sheet attachment lands, since the OS hands one to the page as
+   an ordinary file — drag-and-drop, a paste, and text dropped rather than a
+   file. All of them end at importText/loadUpload, so the schema guards are the
+   same however the document got here. */
 function loadFile(f) {
   if (!f) return;
   const r = new FileReader();
-  r.onload = ev => { try { loadUpload(ev.target.result); } catch (err) { alert('Invalid JSON: ' + err.message); } };
+  r.onload = ev => importText(ev.target.result);
   r.readAsText(f);
 }
 document.getElementById('hfile').addEventListener('change', e => {
@@ -108,7 +119,25 @@ dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('ove
 dz.addEventListener('dragleave', () => dz.classList.remove('over'));
 dz.addEventListener('drop', e => {
   e.preventDefault(); dz.classList.remove('over');
-  loadFile(e.dataTransfer.files[0]);
+  const file = e.dataTransfer.files[0];
+  if (file) { loadFile(file); return; }
+  // Dragging a link out of a chat app drops text, not a file.
+  const text = e.dataTransfer.getData('text');
+  if (text) importText(text);
+});
+
+/* Paste onto the opening screen. Scoped to it because a paste while a trip is
+   open belongs to whatever input has focus — the chat box, the edit modal's
+   JSON tab — and must not be stolen from it. */
+document.addEventListener('paste', e => {
+  const opening = document.getElementById('hupl');
+  if (!opening || opening.style.display === 'none') return;
+  const target = e.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+  const file = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0];
+  if (file) { e.preventDefault(); loadFile(file); return; }
+  const text = e.clipboardData && e.clipboardData.getData('text');
+  if (text && text.trim()) { e.preventDefault(); importText(text); }
 });
 
 /* Tab strip: Left/Right/Home/End move along it (issue #90). One listener on the

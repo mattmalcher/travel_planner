@@ -29,16 +29,17 @@ Working offline is important too, its pointless having some fancy AI itinary thi
 
 Maintaining a server and keeping it up to date and secure to enable your holiday planning feels like a bad idea. I also like the idea (however unlikely) that other people might use this thing. I dont want to have to look after their holiday plan details! So this thing is just a web page hosted on Github - no backend, stuff gets stored in browser local storage.
 
-Having no server to store state makes some things a bit harder. Another key feature for me is the ability to share the plans and work on them with someone else in a versioned way. The workaround is share links which contain the entire plan. That way people can use this, and all someone has to do to view someone else's plan is click on a link. This is also a neat workaround for any issues people might have with local storage getting cleared out - they can just click their link again.
+Having no server to store state makes some things a bit harder. Another key feature for me is the ability to share the plans and work on them with someone else in a versioned way. The workaround is that the whole plan travels with whatever you send: Share hands the trip to your phone's share sheet as a small JSON attachment, which WhatsApp and the rest treat as a document, with no length limit to run into. If a browser can't attach files it offers the same trip as a download, as a block of text you can paste into anything, or as the old style of link with the plan packed into the `#` fragment - those links still work, they just aren't the default any more, because a long one gets quietly truncated by some messaging apps. This is also a neat workaround for any issues people might have with local storage getting cleared out - they can just open their file or link again.
 
 
 # What is this thing? (techy version)
 A standalone HTML viewer for `HolidayItinerary` JSON files: itinerary, map,
 schedule and budget views, plus an optional AI editor (bring your own
 OpenRouter key). Load a file, or start an itinerary from scratch and build it
-up by hand, then send the whole trip to someone as a link — the itinerary
-travels inside the link's `#` fragment, so there is nothing to host and no
-account to make (and anyone holding the link can read the whole trip). The
+up by hand, then send the whole trip to someone — as a JSON attachment through
+the OS share sheet, as a downloaded file, as a pasteable block of text, or as
+a link carrying the itinerary in its `#` fragment. There is nothing to host and
+no account to make (and anyone holding any of those can read the whole trip). The
 app is developed as modular source in `src/` and built into a
 single self-contained `dist/holiday_itinerary_viewer.html` — the built file
 is produced by CI for deployment and is not committed.
