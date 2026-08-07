@@ -25,7 +25,7 @@ const HAS_STREAMS = typeof CompressionStream === 'function'
 /** True when this environment can actually compress. */
 export const CAN_COMPRESS = HAS_STREAMS;
 
-function bytesToBase64url(bytes) {
+export function bytesToBase64url(bytes) {
   let s = '';
   // Chunked: String.fromCharCode.apply blows the argument limit on a big array.
   for (let i = 0; i < bytes.length; i += 0x8000)
@@ -33,7 +33,7 @@ function bytesToBase64url(bytes) {
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function base64urlToBytes(text) {
+export function base64urlToBytes(text) {
   const bin = atob(String(text).replace(/-/g, '+').replace(/_/g, '/'));
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -57,16 +57,26 @@ export function fromBase64url(text) {
   return new TextDecoder().decode(base64urlToBytes(text));
 }
 
+/** deflate-raw over raw bytes. Callers that end up in a URL want the base64url
+    pair below; the hosted share payload (issue #116) stays bytes all the way to
+    the cipher, so it needs these. */
+export function deflateBytes(bytes) {
+  return through(new CompressionStream('deflate-raw'), bytes);
+}
+
+/** Inverse of deflateBytes. */
+export function inflateBytes(bytes) {
+  return through(new DecompressionStream('deflate-raw'), bytes);
+}
+
 /** Compress `text` to a base64url string. */
 export async function deflateToBase64url(text) {
-  const bytes = await through(new CompressionStream('deflate-raw'), new TextEncoder().encode(text));
-  return bytesToBase64url(bytes);
+  return bytesToBase64url(await deflateBytes(new TextEncoder().encode(text)));
 }
 
 /** Inverse of deflateToBase64url. */
 export async function inflateFromBase64url(text) {
-  const bytes = await through(new DecompressionStream('deflate-raw'), base64urlToBytes(text));
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder().decode(await inflateBytes(base64urlToBytes(text)));
 }
 
 /**

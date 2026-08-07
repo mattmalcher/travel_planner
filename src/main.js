@@ -134,8 +134,9 @@ if (window.visualViewport) {
 }
 
 renderChat();
-// A #d1= share link takes precedence over the trip that was open; with no
-// link, boot() is just loadSaved() (issue #81).
+// A share link in the fragment takes precedence over the trip that was open —
+// `#s1=` fetched and decrypted, `#d1=`/`#u1=` decoded in place; with no link,
+// boot() is just loadSaved() (issues #81, #116).
 boot();
 initServiceWorker();
 

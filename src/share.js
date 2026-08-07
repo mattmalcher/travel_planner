@@ -12,6 +12,14 @@
  * Worth being plain about, since the UI copy has to be: anyone holding the
  * link holds the whole itinerary, booking references included. It is a
  * shared secret, not a private page.
+ *
+ * Two link shapes now (issue #116). A hosted `s1` link is the default — the
+ * document is encrypted here, the ciphertext goes to the Worker in `worker/`,
+ * and only an id and the key travel, in the fragment. A `d1`/`u1` link carries
+ * the document itself and is the fallback whenever the store cannot be
+ * reached. That fallback is not a legacy path: it is the only thing that works
+ * offline, on `file://` and in a build with no store configured, so both
+ * directions stay first-class here.
  */
 import { state, H_SCHEMA_VERSION } from './state.js';
 import { loadUpload, loadSaved, showUploadWarning } from './app.js';
@@ -20,7 +28,10 @@ import { renderRecent } from './views/library.js';
 import { esc } from './lib/escape.js';
 import {
   readShareFragment, hasShareLink, decodeShare, shareUrl, shareDocument, isOverlong,
+  isHosted, parseHosted, hostedUrl, parseShareDocument,
 } from './lib/sharelink.js';
+import { encryptShare, decryptShare } from './lib/share-crypto.js';
+import { hasShareStore, putShare, getShare, SHARE_TTL_DAYS } from './share-store.js';
 
 /* --- producing ----------------------------------------------------------- */
 
@@ -41,16 +52,36 @@ export async function shareRevision(tripId, rev) {
  * Build the link and hand it over: the system share sheet where there is one
  * (a phone, which is where a trip actually gets sent), the clipboard
  * otherwise.
+ *
+ * Two link shapes, tried in that order (issue #116). A **hosted** link is
+ * ~120 characters whatever the trip weighs, which is what gets it linkified by
+ * WhatsApp on Android; a **fragment** link carries the document itself and is
+ * what every build did before, still perfectly good for a small trip and the
+ * only option with no network. The fallback is deliberately silent: a share
+ * store that is down, blocked, offline or out of daily quota is not the
+ * sharer's problem to read about, and they still get a link that works.
  */
 async function shareDoc(doc) {
-  let url;
-  try { url = await shareUrl(location.href, shareDocument(doc, H_SCHEMA_VERSION)); }
-  catch (e) { alert('Could not build a share link: ' + e.message); return; }
-  if (isOverlong(url) && !confirm(
-    `This link is about ${Math.round(url.length / 1024)} kB long, which some messaging apps `
-    + 'truncate — the person opening it would get a broken link rather than the trip. '
-    + 'Send it anyway?')) return;
+  const payload = shareDocument(doc, H_SCHEMA_VERSION);
   const name = (doc.trip && doc.trip.name) || 'Itinerary';
+
+  let url = await hostedLink(payload);
+  const hosted = !!url;
+  if (!url) {
+    try { url = await shareUrl(location.href, payload); }
+    catch (e) { alert('Could not build a share link: ' + e.message); return; }
+  }
+  // Only a fragment link can be too long, and only when the store was
+  // unreachable — so before warning about a link that will arrive broken, try
+  // sending the itinerary as a file instead. That is a share that cannot be
+  // truncated, and it is the same JSON the app uploads.
+  if (!hosted && isOverlong(url)) {
+    if (await shareFile(payload, name)) return;
+    if (!confirm(
+      `This link is about ${Math.round(url.length / 1024)} kB long, which some messaging apps `
+      + 'truncate — the person opening it would get a broken link rather than the trip. '
+      + 'Send it anyway?')) return;
+  }
   if (navigator.share) {
     try {
       await navigator.share({ title: name, text: `${name} — itinerary`, url });
@@ -61,13 +92,54 @@ async function shareDoc(doc) {
       if (e && e.name === 'AbortError') return;
     }
   }
-  await copyLink(url);
+  await copyLink(url, hosted);
 }
 
-async function copyLink(url) {
+/**
+ * The short link: encrypt here, upload only the ciphertext, and keep the key
+ * in the fragment. Returns null — never throws — when there is no store, no
+ * network, no WebCrypto or no quota left, which is the caller's cue to fall
+ * back to a link that carries the document.
+ */
+async function hostedLink(payload) {
+  if (!hasShareStore()) return null;
+  try {
+    const { bytes, key } = await encryptShare(JSON.stringify(payload));
+    const id = await putShare(bytes);
+    return hostedUrl(location.href, id, key);
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Hand over the itinerary as a file, for when no link would survive the trip.
+ * Resolves true when the share sheet took it *or* the user cancelled — both
+ * are outcomes — and false when this platform can't share a file at all.
+ */
+async function shareFile(payload, name) {
+  if (!navigator.canShare || typeof File !== 'function') return false;
+  const file = new File([JSON.stringify(payload, null, 2)],
+    `${name.replace(/[^\w-]+/g, '_').toLowerCase() || 'itinerary'}.json`,
+    { type: 'application/json' });
+  if (!navigator.canShare({ files: [file] })) return false;
+  try {
+    await navigator.share({ title: name, files: [file] });
+    return true;
+  } catch (e) {
+    return !!(e && e.name === 'AbortError');
+  }
+}
+
+async function copyLink(url, hosted) {
+  // The warning is the same for both shapes — the link is the secret either
+  // way — but a hosted one also stops working, and that has to be said when it
+  // goes out rather than discovered by whoever opens it in five weeks.
+  const message = 'Link copied. Anyone with it can open the whole itinerary — booking references included.'
+    + (hosted ? ` The link works for ${SHARE_TTL_DAYS} days.` : '');
   try {
     await navigator.clipboard.writeText(url);
-    shareToast('Link copied. Anyone with it can open the whole itinerary — booking references included.');
+    shareToast(message);
   } catch (e) {
     // No clipboard access (an insecure context, or a refused permission):
     // hand the link over in a box that can be copied by hand rather than
@@ -115,7 +187,7 @@ export function boot() {
   // list of saved trips wants to be there — the saved trip is deliberately not
   // auto-loaded over the top, since that would hide the warning with it.
   renderRecent();
-  return decodeShare(fragment).then(doc => {
+  return documentFrom(fragment).then(doc => {
     // Clear the fragment before loading: a refresh must not re-import a stale
     // snapshot over edits made since. The document is in hand by now, so
     // nothing is lost by dropping it from the URL.
@@ -129,11 +201,37 @@ export function boot() {
     return true;
   }).catch(e => {
     clearFragment();
+    // An expired share is not a broken link and must not be reported as one:
+    // nothing is wrong with what was sent, it is simply past its 30 days, and
+    // the only useful thing to say is "ask for a fresh one".
+    if (e && e.expired) {
+      showUploadWarning('clock-off', 'That share link has expired',
+        `Shared links are kept for ${SHARE_TTL_DAYS} days, and this one is past that — the itinerary it pointed at has been deleted. `
+        + 'Ask whoever sent it to share the trip again.',
+        ['<button onclick="hUploadCancel()" class="htool">Dismiss</button>']);
+      return false;
+    }
     showUploadWarning('alert-triangle', 'That share link could not be opened',
       `${esc(e.message || String(e))}. Ask whoever sent it for the link again — some apps shorten a long link, which breaks it.`,
       ['<button onclick="hUploadCancel()" class="htool">Dismiss</button>']);
     return false;
   });
+}
+
+/**
+ * The document a fragment names, whichever scheme it uses: decoded from the
+ * link itself for `d1`/`u1`, or fetched and decrypted for a hosted `s1`.
+ * Throws with `expired` set when the store no longer has it, which is the one
+ * failure worth its own message.
+ */
+function documentFrom(fragment) {
+  if (!isHosted(fragment)) return decodeShare(fragment);
+  const { id, key } = parseHosted(fragment);
+  return getShare(id)
+    .then(bytes => decryptShare(bytes, key))
+    // Same guard the fragment schemes apply once they have their text: how the
+    // bytes arrived is the only thing that differs between the two paths.
+    .then(parseShareDocument);
 }
 
 /**
