@@ -62,9 +62,26 @@ It is not an account resource and there is nothing to create for it.
 What this costs and buys: a blocked request still burns a Worker invocation
 (100,000/day free), but it is refused before the body is read and before the
 KV write, so the **1,000 writes/day** that actually bind stay spent on real
-shares. The binding counts per-colo rather than globally, so a caller spread
-across locations gets the allowance at each — enough for the thing this
-defends against, which is one page in a loop.
+shares.
+
+Be clear about how strong it is, because it is easy to overestimate. The
+counter is cached on the machine serving the request and propagates
+asynchronously, which makes it reliable *per connection* and permissive across
+them. Verified against the deployed Worker:
+
+| | |
+|---|---|
+| 30 POSTs, one keep-alive connection | 10 × `201`, then 20 × `429` |
+| 40 POSTs, a fresh connection each | 40 × `201`, no limiting at all |
+
+That is the documented behaviour, not a misconfiguration — Cloudflare calls
+the API "permissive, eventually consistent, and intentionally designed to not
+be used as an accurate accounting system". It stops one page or script in a
+loop, which is the realistic failure. It does not stop someone cycling
+connections on purpose; the backstop there is the daily write quota, which
+degrades to a `#d1=` link rather than to a broken share.
+
+If you want a hard limit, that needs a custom domain and a WAF rule.
 
 Reads are not limited: they spend no write quota and serve `Cache-Control:
 max-age=3600`, so a popular link mostly answers from cache.
