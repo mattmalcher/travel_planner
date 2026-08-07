@@ -44,7 +44,7 @@ function revisionRows(tripId) {
   return [...list].reverse().map(r => `<div class="hlib-rev">
       <span class="hlib-rev-meta">rev ${r.rev}${r.updated_at ? ` · ${esc(fmtStamp(r.updated_at))}` : ''}${r.updated_by ? ` · ${esc(r.updated_by)}` : ''}</span>
       <button onclick="hLibRestore('${esc(tripId)}',${r.rev})" title="Restore this revision"><i class="ti ti-restore" aria-hidden="true"></i> Restore</button>
-      <button onclick="hLibShareRev('${esc(tripId)}',${r.rev})" title="Share this revision as a link"><i class="ti ti-share" aria-hidden="true"></i></button>
+      <button onclick="hLibShareRev('${esc(tripId)}',${r.rev})" title="Share this revision"><i class="ti ti-share" aria-hidden="true"></i></button>
       <button onclick="hLibDownloadRev('${esc(tripId)}',${r.rev})" title="Download this revision as JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
     </div>`).join('');
 }

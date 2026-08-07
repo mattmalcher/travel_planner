@@ -19,6 +19,7 @@ export const state = {
   editMode: 'form',    // which editor tab is showing: 'form' or 'json'
   pendingUpload: null, // uploaded doc held back by the version/validation guard (issue #15)
   pendingImport: null, // uploaded doc waiting on a replace/keep-both decision (issue #80)
+  pendingShare: null,  // {doc, suffix} the share toast's fallback buttons act on (issue #114)
 };
 
 /* Schema version this build of the app expects. The placeholder below is

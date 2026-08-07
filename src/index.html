@@ -58,11 +58,15 @@
   <div class="hdrop" id="hdz" onclick="document.getElementById('hfile').click()">
     <i class="ti ti-file-import" style="font-size:28px;color:var(--color-text-secondary);display:block;margin-bottom:10px" aria-hidden="true"></i>
     <p style="font-size:14px;font-weight:500;margin-bottom:4px">Drop your itinerary JSON here</p>
-    <p style="font-size:12px;color:var(--color-text-secondary)">or click to browse</p>
+    <p style="font-size:12px;color:var(--color-text-secondary)">or click to browse — a share link or copied trip can be pasted straight onto this page</p>
   </div>
   <div style="text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-    <input type="file" id="hfile" accept=".json" style="display:none">
+    <input type="file" id="hfile" accept=".json,application/json" style="display:none">
     <button onclick="document.getElementById('hfile').click()"><i class="ti ti-upload" aria-hidden="true"></i> Browse</button>
+    <!-- The text half of sharing (issue #114): a link or the copied payload,
+         for a channel that mangles long URLs. Ctrl/Cmd-V anywhere on this
+         screen does the same; the button is for the phone that has no key. -->
+    <button onclick="hPaste()"><i class="ti ti-clipboard-text" aria-hidden="true"></i> Paste a trip</button>
     <!-- Start from scratch (issue #76): the trip form, then an empty
          itinerary every view invites you to fill — no file, no AI. -->
     <button onclick="hNewItinerary()"><i class="ti ti-file-plus" aria-hidden="true"></i> Start from scratch</button>
@@ -79,9 +83,11 @@
       <button onclick="hLibOpen()" class="htool" title="Switch trip"><i class="ti ti-luggage" aria-hidden="true"></i></button>
       <button onclick="hChatOpen()" class="htool" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
       <button id="hedit-toggle" onclick="hToggleEdit()" class="htool" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
-      <!-- Share a link with the whole itinerary in it (issue #81) — a shared
-           secret, which the confirmation on the link says out loud. -->
-      <button onclick="hShare()" class="htool" title="Share a link to this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
+      <!-- Send the whole itinerary to someone (issues #81, #114): the share
+           sheet with the JSON attached, falling back to download / copy-as-text
+           / the old long link. Whichever goes out is a shared secret, which the
+           toast says out loud. -->
+      <button onclick="hShare()" class="htool" title="Share this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
       <button onclick="hDownload()" class="htool" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
       <button onclick="hCloseTrip()" class="htool" title="Close this trip — it stays in your saved trips"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
     </div>
