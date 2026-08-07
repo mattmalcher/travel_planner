@@ -513,4 +513,76 @@ test.describe('Share links', () => {
     const doc = await savedDoc(page);
     expect(doc.trip_id).toBe('trip-frozen-fixture');
   });
+
+  /**
+   * The fallback has five entrances and only one of them used to be tested (a
+   * refused upload, above). These are the rest, because "falls back silently"
+   * is a promise about every way the store can be unavailable, not about the
+   * one that returns a tidy HTTP status.
+   *
+   * They all assert the same three things: a #d1= link reached the clipboard,
+   * no TTL was promised for a link that has none, and the banner stayed down.
+   */
+  async function expectFragmentFallback(page, name) {
+    await share(page).click();
+    await expect(page.locator('#hshare-toast')).toBeVisible();
+    const links = await copied(page);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toContain('#d1=');
+    await expect(page.locator('#hshare-toast')).not.toContainText('30 days');
+    await expect(page.locator('#hverwarn')).toBeHidden();
+    // The link has to actually open, or the fallback only looks like one.
+    await page.evaluate(() => globalThis.localStorage.clear());
+    await page.goto(links[0]);
+    await expect(page.locator('#htname')).toContainText(name);
+  }
+
+  test('a store that cannot be reached at all falls back, like one that refuses', async ({ page }) => {
+    // Not an HTTP status — fetch itself rejects. This is offline, DNS, a
+    // connection refused and a CORS block, and it is a different branch of
+    // putShare than a 4xx: the throw happens before there is a response to
+    // check. It is also the failure that actually shipped once, when the
+    // endpoint pointed at a hostname that did not resolve.
+    await page.route(STORE + '/**', route => route.abort('addressunreachable'));
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('Unreachable store'));
+    await expectFragmentFallback(page, 'Unreachable store');
+  });
+
+  test('a page that cannot encrypt shares the long link instead', async ({ page }) => {
+    // WebCrypto needs a secure context, so crypto.subtle is absent on a saved
+    // file:// copy — exactly where a fragment link is the only share there is.
+    // encryptShare throws before the store is ever consulted.
+    await page.addInitScript(() => {
+      Object.defineProperty(globalThis.crypto, 'subtle', { configurable: true, get: () => undefined });
+    });
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('No webcrypto'));
+    await expectFragmentFallback(page, 'No webcrypto');
+    // Nothing was uploaded: a page that cannot encrypt must not post plaintext.
+    expect(store.seen.filter(r => r.method === 'POST')).toHaveLength(0);
+  });
+
+  test('a store that answers 201 with no usable id falls back rather than minting a dead link', async ({ page }) => {
+    // The quiet one: the upload "succeeded", so nothing throws on status. A
+    // link built from a missing id would be handed over and 404 for whoever
+    // opened it, which is worse than a long link that works.
+    await page.route(STORE + '/**', async route => {
+      if (route.request().method() === 'OPTIONS')
+        return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' } });
+      if (route.request().method() === 'POST')
+        return route.fulfill({
+          status: 201,
+          headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
+          body: '{"ttl":2592000}',
+        });
+      return route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, body: '{}' });
+    });
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('No id back'));
+    await expectFragmentFallback(page, 'No id back');
+  });
 });
