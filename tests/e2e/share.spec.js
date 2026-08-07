@@ -1,15 +1,61 @@
-// Share links (issue #81): a trip encoded in the URL fragment, produced from
-// the header and consumed on boot. The encoding itself is unit-tested in
-// tests/unit/sharelink.test.js — what matters here is the browser half: the
-// fragment is cleared, the link goes to the clipboard or the share sheet, a
-// mangled link says so, and a link that comes back lands on the trip it
-// came from rather than a second copy of it.
+// Share links (issue #81, extended by #116): a trip either encoded in the URL
+// fragment or stored encrypted behind a short one, produced from the header
+// and consumed on boot. The encodings themselves are unit-tested in
+// tests/unit/sharelink.test.js and share-crypto.test.js — what matters here is
+// the browser half: the fragment is cleared, the link goes to the clipboard or
+// the share sheet, a mangled link says so, and a link that comes back lands on
+// the trip it came from rather than a second copy of it.
 //
-// Hermetic like the other specs: the clipboard and share
-// sheet are stubbed in the page rather than relying on browser permissions.
+// Hermetic like the other specs: the clipboard and share sheet are stubbed in
+// the page, and the share store is a Map behind page.route rather than the
+// real Worker — so these run with no network and no Cloudflare account. Every
+// test here routes it, including the ones about long links, because an
+// unrouted store request would go to the real internet.
 import { test, expect } from '@playwright/test';
 import { savedDoc, savedIndex } from './library.js';
 import { encodeShare, shareDocument } from '../../src/lib/sharelink.js';
+
+/** The endpoint the build baked in (scripts/build.mjs). */
+const STORE = 'https://travel-planner-share.matmalcher.workers.dev';
+
+/**
+ * Stand in for the Worker: POST keeps the ciphertext under a fresh id, GET
+ * hands it back. `opts.fail` makes every write fail, which is the quota /
+ * offline / blocked case the client must fall through silently. `opts.gone`
+ * 404s every read, which is an expired share.
+ */
+async function routeStore(page, opts = {}) {
+  const blobs = new Map();
+  const seen = [];
+  let n = 0;
+  let misses = opts.missesBeforeHit || 0;
+  await page.route(STORE + '/**', async route => {
+    const req = route.request();
+    seen.push({ method: req.method(), url: req.url(), body: (req.postDataBuffer() || Buffer.alloc(0)).toString('latin1') });
+    if (req.method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    if (req.method() === 'POST') {
+      if (opts.fail) return route.fulfill({ status: 429, headers: cors, body: '{"error":"quota"}' });
+      const id = `id${++n}`;
+      blobs.set(id, Buffer.from(req.postDataBuffer()));
+      return route.fulfill({
+        status: 201, headers: { ...cors, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    }
+    const id = new URL(req.url()).pathname.slice(1);
+    // KV is eventually consistent: a read straight after a write can 404 for
+    // a blob that exists, which is what missesBeforeHit reproduces.
+    const blob = opts.gone || misses-- > 0 ? null : blobs.get(id);
+    if (!blob) return route.fulfill({ status: 404, headers: cors, body: '{"error":"not found"}' });
+    return route.fulfill({
+      status: 200, headers: { ...cors, 'Content-Type': 'application/octet-stream' }, body: blob,
+    });
+  });
+  return { seen, blobs };
+}
+
+const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' };
 
 
 const itinerary = (name, over = {}) => ({
@@ -41,10 +87,11 @@ function upload(page, doc, name = 'itinerary.json') {
 }
 
 test.describe('Share links', () => {
-  let errors;
+  let errors, store;
 
   test.beforeEach(async ({ page }) => {
     errors = [];
+    store = await routeStore(page);
     page.on('pageerror', e => errors.push(e.message));
     // Stub the two ways a link leaves the page. navigator.share is absent on
     // desktop Chromium, which is the clipboard path; the sheet is opted into
@@ -58,6 +105,12 @@ test.describe('Share links', () => {
       Object.defineProperty(globalThis.navigator, 'share', {
         configurable: true,
         get: () => (globalThis.__share ? (d => (globalThis.__shared = d, globalThis.__shareRejects ? Promise.reject(Object.assign(new Error('nope'), { name: globalThis.__shareRejects })) : Promise.resolve())) : undefined),
+      });
+      // The file rung of the fallback chain, present only where the share
+      // sheet is — a desktop browser has neither.
+      Object.defineProperty(globalThis.navigator, 'canShare', {
+        configurable: true,
+        get: () => (globalThis.__share ? (d => !d.files || !!globalThis.__canShareFiles) : undefined),
       });
     });
   });
@@ -137,15 +190,167 @@ test.describe('Share links', () => {
     await share(page).click();
     await expect(page.locator('#hshare-toast')).toBeVisible();
     await expect(page.locator('#hshare-toast')).toContainText('booking references included');
+    // A hosted link stops working eventually, and that has to be said when it
+    // goes out rather than discovered by whoever opens it in five weeks.
+    await expect(page.locator('#hshare-toast')).toContainText('30 days');
 
     const links = await copied(page);
     expect(links).toHaveLength(1);
-    expect(links[0]).toContain('/holiday_itinerary_viewer.html#d1=');
+    expect(links[0]).toContain('/holiday_itinerary_viewer.html#s1=');
     // In the fragment, never the query — a fragment never reaches a server log.
     expect(links[0]).not.toContain('?');
+    // Short enough that no autolinker balks at it, which is the whole point.
+    expect(links[0].length).toBeLessThan(140);
 
     await page.locator('#hshare-toast').click();
     await expect(page.locator('#hshare-toast')).toBeHidden();
+  });
+
+  test('the store gets ciphertext and never the key that opens it', async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('Confidential tour'));
+    await share(page).click();
+    await expect.poll(async () => (await copied(page)).length).toBe(1);
+
+    const link = (await copied(page))[0];
+    const key = link.split('.').pop();
+    const writes = store.seen.filter(r => r.method === 'POST');
+    expect(writes).toHaveLength(1);
+    // The key is generated in the page and stays there: it is in no URL and
+    // no body the store ever sees.
+    for (const req of store.seen) {
+      expect(req.url).not.toContain(key);
+      expect(req.body).not.toContain(key);
+    }
+    // Nor is the itinerary itself readable in what was uploaded.
+    expect(writes[0].body).not.toContain('Confidential tour');
+    expect(writes[0].body).not.toContain('Jetson');
+  });
+
+  test('a hosted link opens on a device that has never seen the trip', async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('Stored trip'));
+    await share(page).click();
+    await expect.poll(async () => (await copied(page)).length).toBe(1);
+    const link = (await copied(page))[0];
+    const sent = await savedDoc(page);
+
+    await page.evaluate(() => globalThis.localStorage.clear());
+    await page.goto(link);
+    await expect(page.locator('#htname')).toContainText('Stored trip');
+    await expect(page.locator('#hvlist')).toContainText('Stored trip gig');
+    // Same trip, not a second copy of it, and the fragment is cleared behind it.
+    const received = await savedDoc(page);
+    expect(received.trip_id).toBe(sent.trip_id);
+    expect(received.rev).toBe(sent.rev);
+    expect(await page.evaluate(() => globalThis.location.hash)).toBe('');
+  });
+
+  test('a read that 404s while KV catches up is retried, not reported', async ({ page }) => {
+    // The recipient in another region who opens the link seconds after it was
+    // sent: the blob exists, the edge has not seen it yet.
+    store = await routeStore(page, { missesBeforeHit: 2 });
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('Just-shared trip'));
+    await share(page).click();
+    await expect.poll(async () => (await copied(page)).length).toBe(1);
+    const link = (await copied(page))[0];
+
+    await page.evaluate(() => globalThis.localStorage.clear());
+    await page.goto(link);
+    await expect(page.locator('#htname')).toContainText('Just-shared trip');
+    await expect(page.locator('#hverwarn')).toBeHidden();
+  });
+
+  test('an expired share says it expired, not that it is broken', async ({ page }) => {
+    store = await routeStore(page, { gone: true });
+    await page.goto('/holiday_itinerary_viewer.html#s1=gone12345x.' + 'a'.repeat(43));
+    await expect(page.locator('#hverwarn')).toContainText('expired');
+    await expect(page.locator('#hverwarn')).toContainText('30 days');
+    await expect(page.locator('#hverwarn')).not.toContainText('damaged');
+    await expect(page.locator('#happ')).toBeHidden();
+    // The opening screen is usable underneath, and the warning dismisses.
+    await expect(page.locator('#hdz')).toBeVisible();
+    await page.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(page.locator('#hverwarn')).toBeHidden();
+  });
+
+  test('a hosted link with the wrong key is damaged, not expired', async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('Mistyped trip'));
+    await share(page).click();
+    await expect.poll(async () => (await copied(page)).length).toBe(1);
+    const link = (await copied(page))[0];
+
+    await page.evaluate(() => globalThis.localStorage.clear());
+    await page.goto(link.slice(0, link.length - 4) + 'zzzz');
+    await expect(page.locator('#hverwarn')).toContainText('could not be opened');
+    await expect(page.locator('#hverwarn')).toContainText('damaged or incomplete');
+  });
+
+  test('a store that refuses the upload falls back to a link that carries the trip', async ({ page }) => {
+    // The free tier's daily write quota, an outage, a blocked request: none of
+    // it is the sharer's problem to read about, and they still get a link.
+    store = await routeStore(page, { fail: true });
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('Fallback trip'));
+
+    await share(page).click();
+    await expect(page.locator('#hshare-toast')).toBeVisible();
+    const links = await copied(page);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toContain('#d1=');
+    // Silent: no alert, no error, and no promise about a TTL this link
+    // doesn't have.
+    await expect(page.locator('#hshare-toast')).not.toContainText('30 days');
+    await expect(page.locator('#hverwarn')).toBeHidden();
+
+    // And it opens, which is the only thing that actually matters.
+    await page.evaluate(() => globalThis.localStorage.clear());
+    await page.goto(links[0]);
+    await expect(page.locator('#htname')).toContainText('Fallback trip');
+  });
+
+  test('with the store down and a trip too big to link, the file goes instead', async ({ page }) => {
+    // The last rung: no store, and a fragment link long enough that a
+    // messaging app would truncate it. Sending the itinerary as a file is a
+    // share that cannot arrive broken, so it is tried before the user is
+    // asked to accept a risky link.
+    store = await routeStore(page, { fail: true });
+    await page.addInitScript(() => { globalThis.__share = true; globalThis.__canShareFiles = true; });
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+
+    const base = itinerary('Enormous tour');
+    // Padded past SHARE_WARN_CHARS even after deflate: random-ish names don't
+    // compress away the way repeated ones would.
+    base.segments = Array.from({ length: 1200 }, (_, i) => ({
+      ...base.segments[0], id: `seg-${i}`,
+      name: `Gig ${i} ${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`,
+    }));
+    await upload(page, base);
+    await expect(page.locator('#htname')).toContainText('Enormous tour');
+
+    let dialogs = 0;
+    page.on('dialog', d => { dialogs++; d.dismiss(); });
+    await share(page).click();
+    await expect.poll(() => page.evaluate(() => globalThis.__shared)).toBeTruthy();
+
+    const shared = await page.evaluate(() => ({
+      hasFiles: !!(globalThis.__shared.files || []).length,
+      name: (globalThis.__shared.files || [])[0]?.name,
+      url: globalThis.__shared.url,
+    }));
+    expect(shared.hasFiles).toBe(true);
+    expect(shared.name).toMatch(/\.json$/);
+    expect(shared.url).toBeUndefined();     // the file went, not a doomed link
+    expect(dialogs).toBe(0);                // and nothing was asked of the user
+    expect(await copied(page)).toEqual([]);
   });
 
   test('Share offers the system share sheet where there is one', async ({ page }) => {
@@ -158,7 +363,7 @@ test.describe('Share links', () => {
     await expect.poll(() => page.evaluate(() => globalThis.__shared)).toBeTruthy();
     const shared = await page.evaluate(() => globalThis.__shared);
     expect(shared.title).toBe('Sheet trip');
-    expect(shared.url).toContain('#d1=');
+    expect(shared.url).toContain('#s1=');
     expect(await copied(page)).toEqual([]); // the sheet took it; no clipboard fallback
   });
 
@@ -189,7 +394,7 @@ test.describe('Share links', () => {
     let prompted = null;
     page.on('dialog', d => { prompted = d.defaultValue(); d.dismiss(); });
     await share(page).click();
-    await expect.poll(() => prompted).toContain('#d1=');
+    await expect.poll(() => prompted).toContain('#s1=');
   });
 
   test('a shared trip opened and shared back is the same trip, not a second copy', async ({ page }) => {
@@ -283,6 +488,101 @@ test.describe('Share links', () => {
     await page.locator('#hlib-list .hlib-icon[title="Revision history"]').first().click();
     await page.locator('#hlib-list .hlib-rev button[title="Share this revision as a link"]').first().click();
     await expect.poll(async () => (await copied(page)).length).toBe(1);
-    expect((await copied(page))[0]).toContain('#d1=');
+    expect((await copied(page))[0]).toContain('#s1=');
+  });
+
+  /**
+   * The compatibility promise, end to end. Every other link test in this file
+   * builds its fragment with the *current* encodeShare, so it would stay green
+   * through a codec change that broke every link already sent. This one is a
+   * literal captured from a shipped build, driven through the real page: boot,
+   * the schema-version guard, ajv, and the import decision.
+   *
+   * The fragment schemes are not a legacy path — they are the only share there
+   * is offline, on file://, and when the store is out of quota (issue #116).
+   */
+  test('a d1 link from an earlier build still opens in the built page', async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html#d1=XZFBbtQwGIWvEr0NGydyJplO6x0giqi6QLBE1chK_plaOLb12xk1jCJxiO5ZItYcgX0PwQk4AnIYtcDO-v_n7z0_HxG7Wxr09kAcjXdQaCpZSQgkNmFreqjlVO7YfyJX7sxdGpkgwHSAav_ooI5weiAoXC664tq4j8XlozixPpC1xBHqA67GfiquKEXvcCMQk-YEhZVs6lK2pVxBgFz_92gNgW5kJtdN28Bm0DxB4fWLt5gFIu0HcinDj1gyR9qXuztZZ-8p0PIK7WLwnCAw-P40Mg4CPhDr5BkK74PuyE7FO20sBHqd6P9kPQXN2euIYHWX98_j7c5zX7xx6Vm-lszShbxQdQ5udYJa11XdNq2AdXsoWZ1v2vNZQDObA_1DuzbWUvFqZB_oCVZL1W4eYbI6ay5WJ1hTyc16Mwv0I-tkvNsOxkHlvfMpw_FS7358K35-vi8e7skmXfz68vV77tTHlL314EeXoM7ap55P_S4flMZMCdr0mOeb-Tc');
+
+    // It opened — no warning banner, and the trip is on screen.
+    await expect(page.locator('#htname')).toContainText('Frozen Link Fixture');
+    await expect(page.locator('#hverwarn')).toBeHidden();
+    await expect(page.locator('#hvlist')).toContainText('Lille Europe');
+
+    // Identity survived the years, so it lands on its trip rather than forking.
+    const doc = await savedDoc(page);
+    expect(doc.trip_id).toBe('trip-frozen-fixture');
+  });
+
+  /**
+   * The fallback has five entrances and only one of them used to be tested (a
+   * refused upload, above). These are the rest, because "falls back silently"
+   * is a promise about every way the store can be unavailable, not about the
+   * one that returns a tidy HTTP status.
+   *
+   * They all assert the same three things: a #d1= link reached the clipboard,
+   * no TTL was promised for a link that has none, and the banner stayed down.
+   */
+  async function expectFragmentFallback(page, name) {
+    await share(page).click();
+    await expect(page.locator('#hshare-toast')).toBeVisible();
+    const links = await copied(page);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toContain('#d1=');
+    await expect(page.locator('#hshare-toast')).not.toContainText('30 days');
+    await expect(page.locator('#hverwarn')).toBeHidden();
+    // The link has to actually open, or the fallback only looks like one.
+    await page.evaluate(() => globalThis.localStorage.clear());
+    await page.goto(links[0]);
+    await expect(page.locator('#htname')).toContainText(name);
+  }
+
+  test('a store that cannot be reached at all falls back, like one that refuses', async ({ page }) => {
+    // Not an HTTP status — fetch itself rejects. This is offline, DNS, a
+    // connection refused and a CORS block, and it is a different branch of
+    // putShare than a 4xx: the throw happens before there is a response to
+    // check. It is also the failure that actually shipped once, when the
+    // endpoint pointed at a hostname that did not resolve.
+    await page.route(STORE + '/**', route => route.abort('addressunreachable'));
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('Unreachable store'));
+    await expectFragmentFallback(page, 'Unreachable store');
+  });
+
+  test('a page that cannot encrypt shares the long link instead', async ({ page }) => {
+    // WebCrypto needs a secure context, so crypto.subtle is absent on a saved
+    // file:// copy — exactly where a fragment link is the only share there is.
+    // encryptShare throws before the store is ever consulted.
+    await page.addInitScript(() => {
+      Object.defineProperty(globalThis.crypto, 'subtle', { configurable: true, get: () => undefined });
+    });
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('No webcrypto'));
+    await expectFragmentFallback(page, 'No webcrypto');
+    // Nothing was uploaded: a page that cannot encrypt must not post plaintext.
+    expect(store.seen.filter(r => r.method === 'POST')).toHaveLength(0);
+  });
+
+  test('a store that answers 201 with no usable id falls back rather than minting a dead link', async ({ page }) => {
+    // The quiet one: the upload "succeeded", so nothing throws on status. A
+    // link built from a missing id would be handed over and 404 for whoever
+    // opened it, which is worse than a long link that works.
+    await page.route(STORE + '/**', async route => {
+      if (route.request().method() === 'OPTIONS')
+        return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' } });
+      if (route.request().method() === 'POST')
+        return route.fulfill({
+          status: 201,
+          headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
+          body: '{"ttl":2592000}',
+        });
+      return route.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, body: '{}' });
+    });
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.waitForFunction("typeof window.hValidate === 'function'");
+    await upload(page, itinerary('No id back'));
+    await expectFragmentFallback(page, 'No id back');
   });
 });

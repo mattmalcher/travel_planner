@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "travel-planner-share",
+  "main": "src/index.js",
+  "compatibility_date": "2025-02-04",
+  "observability": {
+    "enabled": true
+  },
+
+  // Origins allowed to write. Comma-separated; the production origin covers
+  // the PR previews too, since they share github.io. Add
+  // "http://localhost:8345" here when running `wrangler dev` against a local
+  // `make host`.
+  "vars": {
+    "ALLOWED_ORIGINS": "https://mattmalcher.github.io"
+  },
+
+  // Writes per IP per minute (WRITES_PER_MINUTE in src/index.js, which the
+  // unit test holds to this number). Not a WAF rate limiting rule: those are
+  // scoped to a zone, and a workers.dev deploy has none. `namespace_id` is an
+  // arbitrary label, unique within this Worker — not an account resource, and
+  // nothing to create in the dashboard. `period` may only be 10 or 60.
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "d5e1042d042944b9b92c334d913db2a8"
+
+      // Add "preview_id" with a second namespace's id to use `wrangler dev`
+      // against local storage rather than the production namespace.
+    }
+  ]
+}

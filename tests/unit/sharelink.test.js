@@ -5,9 +5,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  SCHEME_DEFLATE, SCHEME_PLAIN, SHARE_WARN_CHARS,
+  SCHEME_DEFLATE, SCHEME_PLAIN, SCHEME_HOSTED, SHARE_WARN_CHARS,
   shareDocument, encodeShare, decodeShare, readShareFragment, hasShareLink,
-  linkBase, shareUrl, isOverlong,
+  linkBase, shareUrl, isOverlong, isHosted, hostedFragment, hostedUrl, parseHosted,
+  parseShareDocument, DAMAGED, NOT_A_SHARE,
 } from '../../src/lib/sharelink.js';
 import { toBase64url } from '../../src/lib/codec.js';
 
@@ -116,6 +117,46 @@ test('an implausibly long link is flagged, a realistic one is not', async () => 
   assert.equal(isOverlong('x'.repeat(SHARE_WARN_CHARS + 1)), true);
 });
 
+/* --- hosted links (issue #116) ------------------------------------------- */
+
+const KEY = 'a'.repeat(43);
+
+test('a hosted link names a stored blob and carries the key to open it', () => {
+  const url = hostedUrl(PAGE, 'AbCd012_-x', KEY);
+  assert.equal(url, `${PAGE}#s1=AbCd012_-x.${KEY}`);
+  // Both halves in the fragment: neither the id nor the key reaches a server.
+  assert.ok(!url.slice(0, url.indexOf('#')).includes('AbCd012_-x'));
+  assert.deepEqual(parseHosted(new URL(url).hash), { id: 'AbCd012_-x', key: KEY });
+});
+
+test('a hosted link is short, and stays short however big the trip is', () => {
+  const url = hostedUrl('https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html', 'AbCd012_-x', KEY);
+  // The whole point of issue #116: WhatsApp on Android silently declines to
+  // linkify a link of a few thousand characters, and a fragment link grows
+  // with the trip. This one does not.
+  assert.ok(url.length < 140, `hosted link is ${url.length} chars`);
+});
+
+test('a hosted fragment is recognised as one, and the old shapes are not', async () => {
+  assert.equal(isHosted(`#${hostedFragment('abc', KEY)}`), true);
+  assert.equal(readShareFragment(`#${hostedFragment('abc', KEY)}`).scheme, SCHEME_HOSTED);
+  assert.equal(hasShareLink(`#${hostedFragment('abc', KEY)}`), true);
+  assert.equal(isHosted('#' + await encodeShare(example)), false);
+  assert.equal(isHosted('#day-3'), false);
+});
+
+test('a hosted link needs fetching, and decoding one says so rather than guessing', async () => {
+  await assert.rejects(decodeShare(`#${hostedFragment('abc', KEY)}`), /must be fetched/);
+});
+
+test('a truncated hosted link says so instead of asking the store for half an id', () => {
+  assert.throws(() => parseHosted('#s1=abc'), /damaged or incomplete/);       // no key
+  assert.throws(() => parseHosted('#s1=.def'), /damaged or incomplete/);      // no id
+  assert.throws(() => parseHosted('#s1=abc.def.ghi'), /damaged or incomplete/);
+  assert.throws(() => parseHosted('#s1=abc def'), /damaged or incomplete/);
+  assert.throws(() => parseHosted('#d1=abcdef'), /does not carry an itinerary/);
+});
+
 test('a realistic trip stays inside a sendable link', async () => {
   // The example padded out to roughly two weeks of segments — the size the
   // proposal budgets 5–15 kB for.
@@ -128,4 +169,117 @@ test('a realistic trip stays inside a sendable link', async () => {
   const url = await shareUrl(PAGE, shareDocument(big, '3.1.0'));
   assert.ok(url.length < SHARE_WARN_CHARS, `link is ${url.length} chars`);
   assert.deepEqual((await decodeShare(new URL(url).hash)).segments.length, 60);
+});
+
+/* --- one wording for one event ------------------------------------------- */
+
+// The three stages of opening a link fail independently — the fragment, the
+// decryption, the JSON — but to whoever holds the link they are one event, so
+// they must say one thing. These were six literals across three modules.
+test('a damaged link says the same thing wherever it was caught', async () => {
+  const truncatedFragment = decodeShare('#d1=not-valid-deflate-data')
+    .then(() => null, e => e.message);
+  const badJson = (() => { try { parseShareDocument('{not json'); } catch (e) { return e.message; } })();
+  assert.equal(await truncatedFragment, DAMAGED);
+  assert.equal(badJson, DAMAGED);
+});
+
+test('parseShareDocument refuses anything that is not an itinerary object', () => {
+  for (const text of ['[]', 'null', '"a string"', '42']) {
+    assert.throws(() => parseShareDocument(text), { message: NOT_A_SHARE }, text);
+  }
+  assert.deepEqual(parseShareDocument('{"trip":{"name":"X"}}'), { trip: { name: 'X' } });
+});
+
+/* --- the wire format, frozen ---------------------------------------------- */
+
+/**
+ * Every other test in this file round-trips: it encodes with today's code and
+ * decodes with today's code, so it proves the two agree with each other and
+ * nothing at all about a link somebody was sent last year. Change the
+ * compression, the base64 alphabet or the payload framing on both sides at
+ * once and all of them stay green while every `d1=` link already in a WhatsApp
+ * thread stops opening.
+ *
+ * These two are literals, captured from a build that shipped. They are decoded
+ * by whatever the current code is, which is the direction that matters — a
+ * received link is the thing that must keep working. Freezing *encoder output*
+ * would be wrong: two deflate implementations may emit different bytes for the
+ * same input and both be correct, so only the decode is a real contract.
+ *
+ * If one of these fails, the encoding changed incompatibly. That is allowed —
+ * but it needs a NEW scheme letter (`d2=`), not an edit to `d1=`, because the
+ * old links do not get to be recalled.
+ */
+// Deliberately a document the real schema accepts (`itin validate` passes on
+// it), so "still opens" means what it says: it survives the ajv guard on the
+// way in, not merely the base64.
+const FROZEN_DOC = {
+  "schema_version": "3.0.0",
+  "trip_id": "trip-frozen-fixture",
+  "rev": 4,
+  "trip": {
+    "name": "Frozen Link Fixture",
+    "travellers": [
+      "Judy Jetson"
+    ],
+    "start": "2031-04-02",
+    "end": "2031-04-05",
+    "currency_primary": "GBP"
+  },
+  "segments": [
+    {
+      "id": "seg-fx01",
+      "type": "transport",
+      "mode": "train",
+      "operator": "Spacely Rail",
+      "date": "2031-04-02",
+      "departs": {
+        "place": "Ashford Int'l",
+        "time": "09:15",
+        "lat": 51.1434,
+        "lng": 0.8748
+      },
+      "arrives": {
+        "place": "Lille Europe",
+        "time": "10:47",
+        "lat": 50.6392,
+        "lng": 3.0757
+      },
+      "duration_min": 92,
+      "notes": "Caf\u00e9 \u2014 \u0394elta \ud83e\uddf3",
+      "cost": {
+        "amount": 64.0,
+        "currency": "GBP",
+        "status": "paid"
+      }
+    }
+  ]
+};
+
+const FROZEN_D1 = 'd1=XZFBbtQwGIWvEr0NGydyJplO6x0giqi6QLBE1chK_plaOLb12xk1jCJxiO5ZItYcgX0PwQk4AnIYtcDO-v_n7z0_HxG7Wxr09kAcjXdQaCpZSQgkNmFreqjlVO7YfyJX7sxdGpkgwHSAav_ooI5weiAoXC664tq4j8XlozixPpC1xBHqA67GfiquKEXvcCMQk-YEhZVs6lK2pVxBgFz_92gNgW5kJtdN28Bm0DxB4fWLt5gFIu0HcinDj1gyR9qXuztZZ-8p0PIK7WLwnCAw-P40Mg4CPhDr5BkK74PuyE7FO20sBHqd6P9kPQXN2euIYHWX98_j7c5zX7xx6Vm-lszShbxQdQ5udYJa11XdNq2AdXsoWZ1v2vNZQDObA_1DuzbWUvFqZB_oCVZL1W4eYbI6ay5WJ1hTyc16Mwv0I-tkvNsOxkHlvfMpw_FS7358K35-vi8e7skmXfz68vV77tTHlL314EeXoM7ap55P_S4flMZMCdr0mOeb-Tc';
+
+const FROZEN_U1 = 'u1=eyJzY2hlbWFfdmVyc2lvbiI6IjMuMC4wIiwidHJpcF9pZCI6InRyaXAtZnJvemVuLWZpeHR1cmUiLCJyZXYiOjQsInRyaXAiOnsibmFtZSI6IkZyb3plbiBMaW5rIEZpeHR1cmUiLCJ0cmF2ZWxsZXJzIjpbIkp1ZHkgSmV0c29uIl0sInN0YXJ0IjoiMjAzMS0wNC0wMiIsImVuZCI6IjIwMzEtMDQtMDUiLCJjdXJyZW5jeV9wcmltYXJ5IjoiR0JQIn0sInNlZ21lbnRzIjpbeyJpZCI6InNlZy1meDAxIiwidHlwZSI6InRyYW5zcG9ydCIsIm1vZGUiOiJ0cmFpbiIsIm9wZXJhdG9yIjoiU3BhY2VseSBSYWlsIiwiZGF0ZSI6IjIwMzEtMDQtMDIiLCJkZXBhcnRzIjp7InBsYWNlIjoiQXNoZm9yZCBJbnQnbCIsInRpbWUiOiIwOToxNSIsImxhdCI6NTEuMTQzNCwibG5nIjowLjg3NDh9LCJhcnJpdmVzIjp7InBsYWNlIjoiTGlsbGUgRXVyb3BlIiwidGltZSI6IjEwOjQ3IiwibGF0Ijo1MC42MzkyLCJsbmciOjMuMDc1N30sImR1cmF0aW9uX21pbiI6OTIsIm5vdGVzIjoiQ2Fmw6kg4oCUIM6UZWx0YSDwn6ezIiwiY29zdCI6eyJhbW91bnQiOjY0LCJjdXJyZW5jeSI6IkdCUCIsInN0YXR1cyI6InBhaWQifX1dfQ';
+
+test('a d1 link sent by an earlier build still opens', async () => {
+  assert.deepEqual(await decodeShare('#' + FROZEN_D1), FROZEN_DOC);
+});
+
+test('a u1 link sent by an earlier build still opens', async () => {
+  assert.deepEqual(await decodeShare('#' + FROZEN_U1), FROZEN_DOC);
+});
+
+test('the frozen links still carry identity, so an old link lands on its trip', async () => {
+  // The half of backward compatibility that is not about bytes: a link from
+  // before the library existed must still resolve against it (issue #80).
+  const doc = await decodeShare('#' + FROZEN_D1);
+  assert.equal(doc.trip_id, 'trip-frozen-fixture');
+  assert.equal(doc.rev, 4);
+});
+
+test('an unknown scheme is refused rather than guessed at', () => {
+  // The flip side: a d2= link arriving at a build that predates it must say it
+  // cannot read it, not decode it as if it were d1.
+  assert.equal(readShareFragment('#d2=' + 'x'.repeat(20)), null);
+  assert.equal(hasShareLink('#d2=abcdefgh'), false);
 });
