@@ -52,6 +52,12 @@
     <div style="font-size:17px;font-weight:500;margin-bottom:4px">Itinerary viewer</div>
     <div style="font-size:13px;color:var(--color-text-secondary)">Load any <code>HolidayItinerary</code> JSON file to view the itinerary, schedule, budget and map — or start one from scratch</div>
     <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:6px"><a href="holiday_itinerary_schema.json" style="color:var(--color-text-info)" target="_blank"><i class="ti ti-file-code" aria-hidden="true"></i> JSON Schema</a> — use this to create and validate your own itinerary files</div>
+    <!-- Absolute, unlike the schema link above: the built page is handed around
+         as a saved file:// copy and served from PR preview subfolders, and a
+         relative link would go nowhere from either. rel="noopener" is spelled
+         out rather than left to the modern default, since a saved copy may be
+         opened years later by a browser that hasn't got it. -->
+    <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px"><a href="https://github.com/mattmalcher/travel_planner" style="color:var(--color-text-info)" target="_blank" rel="noopener noreferrer"><i class="ti ti-brand-github" aria-hidden="true"></i> Source on GitHub</a> — how this page is built, and where to report a problem</div>
   </div>
   <div id="hverwarn" style="display:none;max-width:460px;margin:0 auto 1rem;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-lg);padding:.85rem 1rem;font-size:12px;line-height:1.45"></div>
   <!-- Trips already saved in this browser (issue #80), so a returning visit is
