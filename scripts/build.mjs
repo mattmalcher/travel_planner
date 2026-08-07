@@ -26,7 +26,7 @@ const out = p => join(root, 'dist', p);
 
 // The deployed share Worker (worker/wrangler.jsonc). Kept here rather than in
 // src/ so a fork can point a build at its own deploy without touching the app.
-const DEFAULT_SHARE_ENDPOINT = 'https://travel-planner-share.mattmalcher.workers.dev';
+const DEFAULT_SHARE_ENDPOINT = 'https://travel-planner-share.matmalcher.workers.dev';
 
 const schemaPath = join(root, 'schema', 'holiday_itinerary_schema.json');
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));

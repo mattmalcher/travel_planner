@@ -20,7 +20,7 @@ wrangler deploy
 ```
 
 `wrangler.jsonc` carries the namespace id and the allowed origins. The app
-points at `https://travel-planner-share.mattmalcher.workers.dev` by default;
+points at `https://travel-planner-share.matmalcher.workers.dev` by default;
 point a build somewhere else with `SHARE_ENDPOINT=… npm run build`, or at
 nothing at all with `SHARE_ENDPOINT= npm run build`, which builds a page that
 only ever produces the long fragment links.

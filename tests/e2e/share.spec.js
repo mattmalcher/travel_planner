@@ -16,7 +16,7 @@ import { savedDoc, savedIndex } from './library.js';
 import { encodeShare, shareDocument } from '../../src/lib/sharelink.js';
 
 /** The endpoint the build baked in (scripts/build.mjs). */
-const STORE = 'https://travel-planner-share.mattmalcher.workers.dev';
+const STORE = 'https://travel-planner-share.matmalcher.workers.dev';
 
 /**
  * Stand in for the Worker: POST keeps the ciphertext under a fresh id, GET
