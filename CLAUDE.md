@@ -44,7 +44,13 @@ src/
   share.js          share links, browser half (issue #81): building one from
                     the open trip (share sheet / clipboard) and opening one
                     that arrives in the fragment — boot() routes it through
-                    loadUpload(), and a link arriving at an open page reloads
+                    loadUpload(), and a link arriving at an open page reloads.
+                    Also the hosted/fragment fallback ladder (issue #116)
+  share-store.js    the share store client (issue #116): PUT/GET ciphertext,
+                    the read retry across KV's consistency window, and the
+                    expired-share error the boot warning keys off
+  share-config.js   SHARE_ENDPOINT — the __H_SHARE_ENDPOINT__ placeholder,
+                    filled at build time; empty means long links only
   render.js         updateHeader / renderAll / refreshAfterChange (post-edit re-render)
   app.js            load/reset, tab switching, edit modal (form ⇄ JSON), version guard
   form-spec.js      edit-modal field descriptors — the __H_FORM_SPEC__ placeholder
@@ -70,8 +76,11 @@ src/
                     index, revision history, import decisions, quota policy —
                     the store is a parameter, so all of it is unit-testable
     codec.js        deflate-raw + base64url for stored revisions and share links
-    sharelink.js    share-link encoding (issue #81): the `#d1=` fragment scheme,
+    sharelink.js    share-link encoding (issue #81): the `#d1=`/`#u1=` fragment
+                    schemes, the `#s1=<id>.<key>` hosted one (issue #116),
                     decode guards and where the payload sits in a URL
+    share-crypto.js AES-GCM-256 over a hosted share (issue #116): compress,
+                    encrypt, `iv‖ciphertext` out and a fresh key per share
     lists.js        list progress/partition, dangling segment_id detection
                     (issue #40), document-wide id sets for manual adds (#72)
     phrases.js      phrasebook counts + document-wide id sets (issue #75)
@@ -116,6 +125,11 @@ src/
                     announce() into the one #hlive region (issue #93)
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
+worker/             the share store (issue #116) — a Cloudflare Worker over one
+                    KV namespace, deployed with wrangler, entirely separate
+                    from the page's build. Holds ciphertext for 30 days; see
+                    worker/README.md for the deploy and the two dashboard
+                    settings (rate limit, usage alert) it needs
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
 scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     doctrine / bump. Reuses src/lib/ for all interpretation and
@@ -166,6 +180,28 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   without breaking links already sent, decoding a damaged link must *say so*
   rather than yield an empty trip, and the fragment is cleared once loaded so
   a refresh can't re-import a stale snapshot over later edits.
+- **A hosted share link stores ciphertext and nothing else** (issue #116): the
+  default link is now `#s1=<id>.<key>` — the document is encrypted in the page
+  with a fresh AES-GCM-256 key, only the ciphertext is POSTed to the Worker in
+  `worker/`, and *both* the id and the key ride in the fragment, so the store
+  learns an id and the page host learns nothing. Never move either half into
+  the query or a header, and never send the key anywhere: the operator being
+  unable to read a trip is the property that makes hosting one acceptable at
+  all. Why it exists: a link that carries the document grows with the document,
+  and WhatsApp on Android silently declines to linkify a few-thousand-character
+  URL — the recipient gets nothing and no error. A hosted link is ~120
+  characters for any trip.
+  The fragment schemes are **not** a legacy path and must keep working in both
+  directions: they are the only share there is on `file://`, offline, in a
+  build with `SHARE_ENDPOINT=` empty, or when the free tier's 1,000 writes/day
+  are spent. Falling back to one is silent and automatic — a store failure is
+  not the sharer's problem to read about, and `hostedLink()` returns null
+  rather than throwing precisely so no failure can end in a dead end. Only two
+  things are ever said out loud: the 30-day TTL, at share time (a link that
+  stops working must say so when it is *sent*), and an expired share on the way
+  in, which gets its own warning because "ask for a fresh link" is a different
+  instruction from "this link is damaged". KV is eventually consistent, so a
+  read retries over ~2s before it is allowed to call anything expired.
 - **There is one warning banner, and one way to raise it**: the upload guard,
   the import decision, the saved-data version guard and a failed share link all
   write the single `#hverwarn` element through `showUploadWarning(icon, title,

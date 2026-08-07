@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "travel-planner-share",
+  "main": "src/index.js",
+  "compatibility_date": "2025-02-04",
+  "observability": {
+    "enabled": true
+  },
+
+  // Origins allowed to write. Comma-separated; the production origin covers
+  // the PR previews too, since they share github.io. Add
+  // "http://localhost:8345" here when running `wrangler dev` against a local
+  // `make host`.
+  "vars": {
+    "ALLOWED_ORIGINS": "https://mattmalcher.github.io"
+  },
+
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "d5e1042d042944b9b92c334d913db2a8"
+
+      // Add "preview_id" with a second namespace's id to use `wrangler dev`
+      // against local storage rather than the production namespace.
+    }
+  ]
+}

@@ -31,14 +31,18 @@ Maintaining a server and keeping it up to date and secure to enable your holiday
 
 Having no server to store state makes some things a bit harder. Another key feature for me is the ability to share the plans and work on them with someone else in a versioned way. The workaround is share links which contain the entire plan. That way people can use this, and all someone has to do to view someone else's plan is click on a link. This is also a neat workaround for any issues people might have with local storage getting cleared out - they can just click their link again.
 
+That worked right up until the links got long. WhatsApp on Android just refuses to make a several-thousand-character link tappable, and says nothing about it - the message arrives, the link looks fine, and the other person gets nothing. So there is now one small server after all: a Cloudflare Worker that holds a blob for 30 days behind a short link. It cannot read what it holds - the plan is encrypted in your browser and the key travels in the `#` part of the link, which browsers never send to a server. I still don't want to look after anyone's holiday plans, and now I can't. If it is down, out of quota, or you are offline, sharing quietly falls back to the old link with the whole plan in it.
+
 
 # What is this thing? (techy version)
 A standalone HTML viewer for `HolidayItinerary` JSON files: itinerary, map,
 schedule and budget views, plus an optional AI editor (bring your own
 OpenRouter key). Load a file, or start an itinerary from scratch and build it
-up by hand, then send the whole trip to someone as a link — the itinerary
-travels inside the link's `#` fragment, so there is nothing to host and no
-account to make (and anyone holding the link can read the whole trip). The
+up by hand, then send the whole trip to someone as a link — encrypted in the
+browser and stored as ciphertext behind a short link, with the key in the
+link's `#` fragment so it never reaches a server, or carried whole inside the
+fragment when there is no store to reach. Either way there is no account to
+make, and anyone holding the link can read the whole trip. The
 app is developed as modular source in `src/` and built into a
 single self-contained `dist/holiday_itinerary_viewer.html` — the built file
 is produced by CI for deployment and is not committed.
