@@ -56,9 +56,21 @@ const SCHEMES = [SCHEME_HOSTED, SCHEME_DEFLATE, SCHEME_PLAIN];
  */
 export const SHARE_WARN_CHARS = 24000;
 
-/** Junk in, a clear error out — decoding must not turn a truncated link into
-    an empty trip. The message is UI copy: it reaches the upload warning. */
-const DAMAGED = 'The link is damaged or incomplete';
+/**
+ * The two things that can be wrong with a link, as the words the user sees.
+ *
+ * Exported because every stage of opening one can fail this way — parsing the
+ * fragment here, decrypting the blob in share-crypto.js, parsing the plaintext
+ * in share.js — and they must all say the *same* thing, since to the person
+ * holding the link they are the same event. They were six string literals
+ * across three modules, which is how a wording change gets applied to five of
+ * them.
+ *
+ * DAMAGED is UI copy and reaches the upload warning: junk in, a clear error
+ * out, because decoding must not turn a truncated link into an empty trip.
+ */
+export const DAMAGED = 'The link is damaged or incomplete';
+export const NOT_A_SHARE = 'That link does not carry an itinerary';
 
 /**
  * What goes in the link: the document as it stands, stamped with the schema
@@ -105,6 +117,24 @@ export function hasShareLink(hash) {
   return readShareFragment(hash) !== null;
 }
 
+/** Every reader below takes either a raw fragment string or what
+    readShareFragment already returned, so callers need not care which they
+    hold. One place to widen if a third input shape ever shows up. */
+const asFragment = f => (typeof f === 'string' ? readShareFragment(f) : f);
+
+/**
+ * The decoded JSON of a share payload, guarded. Shared by the fragment schemes
+ * (which decode the text out of the link) and the hosted one (which decrypts
+ * it out of a stored blob) — different ways to *get* the text, identical rules
+ * about what counts as an itinerary once you have it.
+ */
+export function parseShareDocument(text) {
+  let doc;
+  try { doc = JSON.parse(text); } catch (e) { throw new Error(DAMAGED, { cause: e }); }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new Error(NOT_A_SHARE);
+  return doc;
+}
+
 /**
  * The document a fragment carries. Takes either a raw fragment string or what
  * readShareFragment returned. Throws for anything that isn't a document — the
@@ -112,8 +142,8 @@ export function hasShareLink(hash) {
  * blank trip.
  */
 export async function decodeShare(fragment) {
-  const f = typeof fragment === 'string' ? readShareFragment(fragment) : fragment;
-  if (!f) throw new Error('That link does not carry an itinerary');
+  const f = asFragment(fragment);
+  if (!f) throw new Error(NOT_A_SHARE);
   // A hosted link carries no document to decode — it names one. Fetching and
   // decrypting it needs the network, which is share.js's half of the job; this
   // guard is here so a caller that forgets gets a plain error rather than the
@@ -125,11 +155,7 @@ export async function decodeShare(fragment) {
   try {
     text = f.scheme === SCHEME_DEFLATE ? await inflateFromBase64url(f.data) : fromBase64url(f.data);
   } catch (e) { throw new Error(DAMAGED, { cause: e }); }
-  let doc;
-  try { doc = JSON.parse(text); } catch (e) { throw new Error(DAMAGED, { cause: e }); }
-  if (!doc || typeof doc !== 'object' || Array.isArray(doc))
-    throw new Error('That link does not carry an itinerary');
-  return doc;
+  return parseShareDocument(text);
 }
 
 /** `href` with any fragment removed. The query survives — a deployment may
@@ -155,7 +181,7 @@ export function isOverlong(url) {
 
 /** Whether a fragment names a stored itinerary rather than carrying one. */
 export function isHosted(fragment) {
-  const f = typeof fragment === 'string' ? readShareFragment(fragment) : fragment;
+  const f = asFragment(fragment);
   return !!f && f.scheme === SCHEME_HOSTED;
 }
 
@@ -176,8 +202,8 @@ export function hostedUrl(href, id, key) {
  * half-id to the store and report it as expired.
  */
 export function parseHosted(fragment) {
-  const f = typeof fragment === 'string' ? readShareFragment(fragment) : fragment;
-  if (!f || f.scheme !== SCHEME_HOSTED) throw new Error('That link does not carry an itinerary');
+  const f = asFragment(fragment);
+  if (!f || f.scheme !== SCHEME_HOSTED) throw new Error(NOT_A_SHARE);
   const m = /^([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(f.data || '');
   if (!m) throw new Error(DAMAGED);
   return { id: m[1], key: m[2] };

@@ -8,6 +8,7 @@ import {
   SCHEME_DEFLATE, SCHEME_PLAIN, SCHEME_HOSTED, SHARE_WARN_CHARS,
   shareDocument, encodeShare, decodeShare, readShareFragment, hasShareLink,
   linkBase, shareUrl, isOverlong, isHosted, hostedFragment, hostedUrl, parseHosted,
+  parseShareDocument, DAMAGED, NOT_A_SHARE,
 } from '../../src/lib/sharelink.js';
 import { toBase64url } from '../../src/lib/codec.js';
 
@@ -168,4 +169,24 @@ test('a realistic trip stays inside a sendable link', async () => {
   const url = await shareUrl(PAGE, shareDocument(big, '3.1.0'));
   assert.ok(url.length < SHARE_WARN_CHARS, `link is ${url.length} chars`);
   assert.deepEqual((await decodeShare(new URL(url).hash)).segments.length, 60);
+});
+
+/* --- one wording for one event ------------------------------------------- */
+
+// The three stages of opening a link fail independently — the fragment, the
+// decryption, the JSON — but to whoever holds the link they are one event, so
+// they must say one thing. These were six literals across three modules.
+test('a damaged link says the same thing wherever it was caught', async () => {
+  const truncatedFragment = decodeShare('#d1=not-valid-deflate-data')
+    .then(() => null, e => e.message);
+  const badJson = (() => { try { parseShareDocument('{not json'); } catch (e) { return e.message; } })();
+  assert.equal(await truncatedFragment, DAMAGED);
+  assert.equal(badJson, DAMAGED);
+});
+
+test('parseShareDocument refuses anything that is not an itinerary object', () => {
+  for (const text of ['[]', 'null', '"a string"', '42']) {
+    assert.throws(() => parseShareDocument(text), { message: NOT_A_SHARE }, text);
+  }
+  assert.deepEqual(parseShareDocument('{"trip":{"name":"X"}}'), { trip: { name: 'X' } });
 });

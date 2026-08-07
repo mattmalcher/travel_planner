@@ -28,7 +28,7 @@ import { renderRecent } from './views/library.js';
 import { esc } from './lib/escape.js';
 import {
   readShareFragment, hasShareLink, decodeShare, shareUrl, shareDocument, isOverlong,
-  isHosted, parseHosted, hostedUrl,
+  isHosted, parseHosted, hostedUrl, parseShareDocument,
 } from './lib/sharelink.js';
 import { encryptShare, decryptShare } from './lib/share-crypto.js';
 import { hasShareStore, putShare, getShare, SHARE_TTL_DAYS } from './share-store.js';
@@ -229,13 +229,9 @@ function documentFrom(fragment) {
   const { id, key } = parseHosted(fragment);
   return getShare(id)
     .then(bytes => decryptShare(bytes, key))
-    .then(text => {
-      let doc;
-      try { doc = JSON.parse(text); } catch (e) { throw new Error('The link is damaged or incomplete', { cause: e }); }
-      if (!doc || typeof doc !== 'object' || Array.isArray(doc))
-        throw new Error('That link does not carry an itinerary');
-      return doc;
-    });
+    // Same guard the fragment schemes apply once they have their text: how the
+    // bytes arrived is the only thing that differs between the two paths.
+    .then(parseShareDocument);
 }
 
 /**
