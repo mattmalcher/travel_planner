@@ -216,6 +216,65 @@ test.describe('AI assistant (OpenRouter)', () => {
     for (const r of requests) expect(r.temperature).toBe(0.2);
   });
 
+  test('the busy line reports the turn: the step, the tools, and what the model said on the way (issue #99)', async ({ page }) => {
+    // The second request is held open, so the busy line can be read mid-turn —
+    // which is the only time it is on screen.
+    let release;
+    const held = new Promise(r => { release = r; });
+    let call = 0;
+    await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
+      const message = call++ === 0
+        ? {
+          role: 'assistant',
+          content: 'Let me look at the outbound leg first.',
+          tool_calls: [toolCall('call_1', 'get_segment', { ids: ['seg-1'] })],
+        }
+        : { role: 'assistant', content: 'Done — nothing needed changing.' };
+      if (call > 1) await held;
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message }] }) });
+    });
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await page.getByRole('button', { name: 'AI' }).click();
+    await page.locator('#hchat-input').fill('Check the outbound train');
+    await page.locator('#hchat-send').click();
+
+    // Mid-turn: what the model just did, and how far through the loop it is.
+    const busy = page.locator('#hchat-busy');
+    await expect(busy).toBeVisible();
+    await expect(busy).toHaveText(/Reading the segment… \(step 2 of 12\)/);
+
+    // Narration that came alongside the tool calls is kept, not dropped.
+    await expect(page.locator('#hchat-msgs')).toContainText('Let me look at the outbound leg first.');
+
+    release();
+    await expect(page.locator('#hchat-msgs')).toContainText('nothing needed changing');
+    await expect(busy).toBeHidden();
+  });
+
+  test('the transcript survives a reload, scoped to the trip it is about (issue #99)', async ({ page }) => {
+    await mockOpenRouter(page, ['Done — I made the requested change.']);
+    await page.goto('/holiday_itinerary_viewer.html');
+
+    await page.getByRole('button', { name: 'AI' }).click();
+    await page.locator('#hchat-input').fill('What is the plan for Friday?');
+    await page.locator('#hchat-send').click();
+    await expect(page.locator('#hchat-msgs')).toContainText('I made the requested change');
+
+    await page.reload();
+    await page.getByRole('button', { name: 'AI' }).click();
+    const msgs = page.locator('#hchat-msgs');
+    await expect(msgs).toContainText('What is the plan for Friday?');
+    await expect(msgs).toContainText('I made the requested change');
+
+    // Clearing forgets it for good — a reload does not bring it back.
+    await page.getByRole('button', { name: 'Clear conversation' }).click();
+    await expect(msgs).toContainText('Describe what to add or change');
+    await page.reload();
+    await page.getByRole('button', { name: 'AI' }).click();
+    await expect(msgs).not.toContainText('What is the plan for Friday?');
+  });
+
   test('refuses a half-formed segment at tool time and hands the errors back', async ({ page }) => {
     const requests = await mockOpenRouter(page, [
       // Legacy *_json string form, still accepted for older transcripts and

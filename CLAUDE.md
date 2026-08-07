@@ -87,6 +87,11 @@ src/
     seg-defs.js     segment type → subschema definition; imported by BOTH
                     validators so an error comes from the segment's own
                     branch and never the oneOf (issue #76)
+    chat-history.js the AI transcript kept in localStorage (issue #99): the caps
+                    it is trimmed to, the trip it is scoped to, and the rule
+                    that it is dropped rather than crowding out a trip save
+    ai-status.js    the assistant's busy line: which step of the tool loop is
+                    running and what the model did on the one before (issue #99)
     ids.js          random-suffix id assignment shared by AI tools and the UI (issue #41)
     drafts.js       starting points for hand-added things: segment drafts per
                     type, the from-scratch trip, the blank document (issue #76)
@@ -396,6 +401,16 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   is visible outside edit mode. The 24px-apart spacing exception does not
   apply: these sit in `gap:8px` rows. `tests/e2e/a11y.spec.js` measures every
   control in every view on the rendered page.
+- **The AI transcript is saved; a turn's working state is not** (issue #99):
+  `state.chat` is written to one localStorage slot, scoped to the open trip's
+  `trip_id` so a conversation comes back with the document it was about and
+  stays hidden under another. `state.draft`, `state.ops` and the read guards
+  are deliberately left out — a preview restored after a reload would offer to
+  apply changes computed against a document that has since moved on. History is
+  expendable and the trips are not, so a write that does not fit drops it
+  rather than crowding out a save (same policy as revisions in `lib/library.js`).
+  Restoring means an old transcript is replayed to the model on the next turn,
+  exactly as it would have been before the reload.
 - **Default times live in `lib/dates.js`** — do not add inline `|| '14:00'`
   style fallbacks in views. So does every date *format* and the ms arithmetic
   around a day's bounds: a view writing `toLocaleDateString` or
