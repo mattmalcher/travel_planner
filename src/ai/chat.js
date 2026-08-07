@@ -8,6 +8,8 @@ import { applyTool } from './tools.js';
 import { buildSystem } from './prompt.js';
 import { settingsOpen } from './settings.js';
 import { showPreview, hidePreview } from './preview.js';
+import { statusLine } from '../lib/ai-status.js';
+import { readChat, writeChat, clearChat } from '../lib/chat-history.js';
 
 export function emptyItinerary() {
   return { trip: { name: '', travellers: [], start: '', end: '', currency_primary: 'GBP' }, segments: [] };
@@ -58,12 +60,31 @@ export function syncChatViewport() {
 
 export function chatClear() {
   state.chat = []; state.draft = null; state.ops = []; state.reads = new Set(); state.listReads = new Set(); state.phraseReads = new Set();
+  clearChat(localStorage);
   renderChat(); hidePreview();
+}
+
+/* The transcript is saved per trip and comes back with it (issue #99). Only
+   state.chat is stored — the draft, the ops and the read guards are a single
+   turn's working state and must not survive a reload, or the preview would
+   offer to apply changes computed against a document that has since moved on.
+   Restoring does mean an old transcript is replayed to the model on the next
+   turn, exactly as it would have been before the reload. */
+function saveChat() {
+  writeChat(localStorage, state.HD && state.HD.trip_id, state.chat);
+}
+
+/** Load the saved transcript for the open trip. Called by load() once persist()
+    has settled the document's trip_id. */
+export function restoreChat() {
+  state.chat = readChat(localStorage, state.HD && state.HD.trip_id);
+  renderChat();
 }
 
 export function chatPush(role, content) {
   state.chat.push({ role, content });
   renderChat();
+  saveChat();
 }
 
 export function renderChat() {
@@ -77,14 +98,22 @@ function setBusy(b) {
   state.busy = b;
   document.getElementById('hchat-busy').classList.toggle('on', b);
   document.getElementById('hchat-send').disabled = b;
+  if (b) setStatus('Thinking…');
   const box = document.getElementById('hchat-msgs'); box.scrollTop = box.scrollHeight;
+}
+
+/** The busy line's text. Built by lib/ai-status.js from the model's own tool
+    names, so it is escaped here like any other model output. */
+function setStatus(text) {
+  document.getElementById('hchat-busy').innerHTML =
+    `<i class="ti ti-loader-2" aria-hidden="true"></i> ${esc(text)}`;
 }
 
 export function chatSubmit() {
   const ta = document.getElementById('hchat-input');
   const text = ta.value.trim();
   if (!text || state.busy) return;
-  ta.value = ''; ta.style.height = 'auto';
+  ta.value = ''; ta.style.height = ''; // hand the height back to the CSS min-height
   llmSend(text);
 }
 
@@ -108,15 +137,27 @@ async function llmSend(text) {
   // iteration costs nothing (issue #44).
   const MAX_STEPS = 12;
   let finished = false;
+  // What the model asked for on the step before, so the busy line can say what
+  // is happening rather than "Thinking…" for the length of a 12-step turn
+  // (issue #99). It is set as the next step *starts*, which is the moment the
+  // tools have all been applied.
+  let lastTools = [];
   try {
     for (let i = 0; i < MAX_STEPS; i++) {
+      setStatus(statusLine(i + 1, MAX_STEPS, lastTools));
       const data = await callOpenRouter(working);
       const msg = (data.choices && data.choices[0] && data.choices[0].message) || {};
       working.push(msg);
       if (msg.tool_calls && msg.tool_calls.length) {
+        // A model that narrates before it acts said something worth keeping:
+        // it explains the tool calls that follow, and it is the only account
+        // of a turn that later runs out of steps.
+        if (msg.content) chatPush('assistant', msg.content);
+        lastTools = [];
         for (const tc of msg.tool_calls) {
           if (tc.type && tc.type !== 'function') continue; // server tools resolved by OpenRouter
           const result = applyTool(tc);
+          lastTools.push(tc.function && tc.function.name);
           working.push({ role: 'tool', tool_call_id: tc.id, content: result });
         }
         continue;
