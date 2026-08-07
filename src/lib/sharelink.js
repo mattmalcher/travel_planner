@@ -10,8 +10,13 @@
  * The marker is versioned rather than bare (`d1=`, not `d=`) so a future
  * encoding can be introduced without breaking links already sent — a reader
  * that doesn't know a scheme says so instead of decoding it into nonsense.
- * Two schemes exist today, distinguished by their letter rather than by their
- * number: `d1` is deflate-raw, `u1` the uncompressed fallback for a browser
+ * That is not hypothetical any more: `s1` (issue #116) arrived exactly that
+ * way and is what the Share button produces now, while every `d1`/`u1` link
+ * already sent keeps opening.
+ *
+ * Three schemes exist today, distinguished by their letter rather than by
+ * their number: `s1` names a stored encrypted blob (see below), `d1` carries
+ * the whole document deflate-raw, `u1` the uncompressed fallback for a browser
  * with no CompressionStream (Safari before 16.4), which costs link length and
  * nothing else.
  *
@@ -22,12 +27,25 @@ import {
   CAN_COMPRESS, deflateToBase64url, inflateFromBase64url, toBase64url, fromBase64url,
 } from './codec.js';
 
-/** deflate-raw + base64url — what every current browser produces. */
+/** deflate-raw + base64url — the whole document, in the link. */
 export const SCHEME_DEFLATE = 'd1';
 /** base64url of the raw JSON, for a platform without CompressionStream. */
 export const SCHEME_PLAIN = 'u1';
+/**
+ * A *hosted* share (issue #116): `s1=<id>.<key>`, where the id names a blob of
+ * ciphertext in the share store and the key opens it. Preferred now, because a
+ * link that carries the document grows with the document, and past a few
+ * thousand characters WhatsApp on Android quietly declines to linkify it — the
+ * recipient taps nothing, or gets a truncated link, and neither says why. A
+ * hosted link is the same ~120 characters for a weekend and for a month.
+ *
+ * Both halves stay in the fragment, so neither the id nor the key reaches a
+ * server log — and the store, which only ever sees the id, holds ciphertext it
+ * cannot read.
+ */
+export const SCHEME_HOSTED = 's1';
 
-const SCHEMES = [SCHEME_DEFLATE, SCHEME_PLAIN];
+const SCHEMES = [SCHEME_HOSTED, SCHEME_DEFLATE, SCHEME_PLAIN];
 
 /**
  * The length at which a link is worth warning about before it goes out. Well
@@ -96,6 +114,12 @@ export function hasShareLink(hash) {
 export async function decodeShare(fragment) {
   const f = typeof fragment === 'string' ? readShareFragment(fragment) : fragment;
   if (!f) throw new Error('That link does not carry an itinerary');
+  // A hosted link carries no document to decode — it names one. Fetching and
+  // decrypting it needs the network, which is share.js's half of the job; this
+  // guard is here so a caller that forgets gets a plain error rather than the
+  // id parsed as if it were a payload.
+  if (f.scheme === SCHEME_HOSTED)
+    throw new Error('That link points at a stored itinerary and must be fetched');
   if (!/^[A-Za-z0-9_-]+$/.test(f.data)) throw new Error(DAMAGED);
   let text;
   try {
@@ -125,4 +149,36 @@ export async function shareUrl(href, doc) {
 /** Long enough to risk being truncated on the way to whoever it is for. */
 export function isOverlong(url) {
   return String(url).length > SHARE_WARN_CHARS;
+}
+
+/* --- hosted links (issue #116) ------------------------------------------- */
+
+/** Whether a fragment names a stored itinerary rather than carrying one. */
+export function isHosted(fragment) {
+  const f = typeof fragment === 'string' ? readShareFragment(fragment) : fragment;
+  return !!f && f.scheme === SCHEME_HOSTED;
+}
+
+/** The fragment payload for a stored blob: `s1=<id>.<key>`. */
+export function hostedFragment(id, key) {
+  return `${SCHEME_HOSTED}=${id}.${key}`;
+}
+
+/** The share link for a stored blob — this page's URL, id and key in the
+    fragment so neither reaches the server that serves the page. */
+export function hostedUrl(href, id, key) {
+  return `${linkBase(href)}#${hostedFragment(id, key)}`;
+}
+
+/**
+ * Split a hosted payload back into its id and key. Strict about the shape: a
+ * link cut short by a messaging app must say so here rather than send a
+ * half-id to the store and report it as expired.
+ */
+export function parseHosted(fragment) {
+  const f = typeof fragment === 'string' ? readShareFragment(fragment) : fragment;
+  if (!f || f.scheme !== SCHEME_HOSTED) throw new Error('That link does not carry an itinerary');
+  const m = /^([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(f.data || '');
+  if (!m) throw new Error(DAMAGED);
+  return { id: m[1], key: m[2] };
 }

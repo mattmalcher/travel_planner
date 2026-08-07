@@ -20,8 +20,15 @@ export default [
       globals: {
         ...globals.browser, L: 'readonly',
         __H_FORM_SPEC__: 'readonly', __H_SCHEMA_TEXT__: 'readonly',
+        __H_SHARE_ENDPOINT__: 'readonly',
       },
     },
+  },
+  {
+    // The share store worker (issue #116) runs on Cloudflare: a worker scope,
+    // not a window. Deployed by wrangler, not by scripts/build.mjs.
+    files: ['worker/**/*.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
   },
   {
     // The service worker runs in a worker scope, not a window.

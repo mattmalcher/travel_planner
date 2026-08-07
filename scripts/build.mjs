@@ -24,6 +24,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = p => join(root, 'src', p);
 const out = p => join(root, 'dist', p);
 
+// The deployed share Worker (worker/wrangler.jsonc). Kept here rather than in
+// src/ so a fork can point a build at its own deploy without touching the app.
+const DEFAULT_SHARE_ENDPOINT = 'https://travel-planner-share.mattmalcher.workers.dev';
+
 const schemaPath = join(root, 'schema', 'holiday_itinerary_schema.json');
 const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
 if (!schema.version) throw new Error('schema/holiday_itinerary_schema.json has no "version" field');
@@ -36,6 +40,12 @@ if (!schema.version) throw new Error('schema/holiday_itinerary_schema.json has n
 // src/validate.js parses. ajv is bundled alongside it, so the upload/share-link
 // guard no longer depends on reaching esm.sh or on the schema sidecar being
 // served next to the page — it works on a saved single file too.
+// Where hosted share links are stored (issue #116). A build-time constant
+// because the page must run from file:// with no config to fetch. Override
+// with SHARE_ENDPOINT=… (or SHARE_ENDPOINT= to build a page that only ever
+// produces the long fragment links, which is still a working share).
+const shareEndpoint = process.env.SHARE_ENDPOINT ?? DEFAULT_SHARE_ENDPOINT;
+
 const bundle = await build({
   entryPoints: [src('main.js')],
   bundle: true,
@@ -45,6 +55,7 @@ const bundle = await build({
   define: {
     __H_FORM_SPEC__: JSON.stringify(specFromSchema(schema)),
     __H_SCHEMA_TEXT__: JSON.stringify(JSON.stringify(schema)),
+    __H_SHARE_ENDPOINT__: JSON.stringify(shareEndpoint),
   },
   write: false,
 });
@@ -109,3 +120,4 @@ writeFileSync(out('manifest.webmanifest'), JSON.stringify({
 writeIcons(out(''));
 
 console.log(`built dist/holiday_itinerary_viewer.html (schema ${schema.version}, ${(html.length / 1024).toFixed(0)} kB) + sw.js/manifest/icons (build ${buildTag})`);
+console.log(`  share store: ${shareEndpoint || '(none — long links only)'}`);

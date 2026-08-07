@@ -5,9 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  SCHEME_DEFLATE, SCHEME_PLAIN, SHARE_WARN_CHARS,
+  SCHEME_DEFLATE, SCHEME_PLAIN, SCHEME_HOSTED, SHARE_WARN_CHARS,
   shareDocument, encodeShare, decodeShare, readShareFragment, hasShareLink,
-  linkBase, shareUrl, isOverlong,
+  linkBase, shareUrl, isOverlong, isHosted, hostedFragment, hostedUrl, parseHosted,
 } from '../../src/lib/sharelink.js';
 import { toBase64url } from '../../src/lib/codec.js';
 
@@ -114,6 +114,46 @@ test('an implausibly long link is flagged, a realistic one is not', async () => 
   assert.equal(isOverlong(await shareUrl(PAGE, example)), false);
   assert.equal(isOverlong('x'.repeat(SHARE_WARN_CHARS)), false);
   assert.equal(isOverlong('x'.repeat(SHARE_WARN_CHARS + 1)), true);
+});
+
+/* --- hosted links (issue #116) ------------------------------------------- */
+
+const KEY = 'a'.repeat(43);
+
+test('a hosted link names a stored blob and carries the key to open it', () => {
+  const url = hostedUrl(PAGE, 'AbCd012_-x', KEY);
+  assert.equal(url, `${PAGE}#s1=AbCd012_-x.${KEY}`);
+  // Both halves in the fragment: neither the id nor the key reaches a server.
+  assert.ok(!url.slice(0, url.indexOf('#')).includes('AbCd012_-x'));
+  assert.deepEqual(parseHosted(new URL(url).hash), { id: 'AbCd012_-x', key: KEY });
+});
+
+test('a hosted link is short, and stays short however big the trip is', () => {
+  const url = hostedUrl('https://mattmalcher.github.io/travel_planner/holiday_itinerary_viewer.html', 'AbCd012_-x', KEY);
+  // The whole point of issue #116: WhatsApp on Android silently declines to
+  // linkify a link of a few thousand characters, and a fragment link grows
+  // with the trip. This one does not.
+  assert.ok(url.length < 140, `hosted link is ${url.length} chars`);
+});
+
+test('a hosted fragment is recognised as one, and the old shapes are not', async () => {
+  assert.equal(isHosted(`#${hostedFragment('abc', KEY)}`), true);
+  assert.equal(readShareFragment(`#${hostedFragment('abc', KEY)}`).scheme, SCHEME_HOSTED);
+  assert.equal(hasShareLink(`#${hostedFragment('abc', KEY)}`), true);
+  assert.equal(isHosted('#' + await encodeShare(example)), false);
+  assert.equal(isHosted('#day-3'), false);
+});
+
+test('a hosted link needs fetching, and decoding one says so rather than guessing', async () => {
+  await assert.rejects(decodeShare(`#${hostedFragment('abc', KEY)}`), /must be fetched/);
+});
+
+test('a truncated hosted link says so instead of asking the store for half an id', () => {
+  assert.throws(() => parseHosted('#s1=abc'), /damaged or incomplete/);       // no key
+  assert.throws(() => parseHosted('#s1=.def'), /damaged or incomplete/);      // no id
+  assert.throws(() => parseHosted('#s1=abc.def.ghi'), /damaged or incomplete/);
+  assert.throws(() => parseHosted('#s1=abc def'), /damaged or incomplete/);
+  assert.throws(() => parseHosted('#d1=abcdef'), /does not carry an itinerary/);
 });
 
 test('a realistic trip stays inside a sendable link', async () => {

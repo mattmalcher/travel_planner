@@ -24,7 +24,7 @@ host: ## Build and host the viewer on http://localhost:8345
 demo: ## Build, then record demo/demo.gif (needs ffmpeg)
 	npm run demo
 
-lint: ## Run ESLint over src/, scripts/ and tests/
+lint: ## Run ESLint over src/, scripts/, worker/ and tests/
 	npm run lint
 
 validate: ## Schema-check and lint itinerary JSON (FILE=data/*.json)
