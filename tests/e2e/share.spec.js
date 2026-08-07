@@ -490,4 +490,27 @@ test.describe('Share links', () => {
     await expect.poll(async () => (await copied(page)).length).toBe(1);
     expect((await copied(page))[0]).toContain('#s1=');
   });
+
+  /**
+   * The compatibility promise, end to end. Every other link test in this file
+   * builds its fragment with the *current* encodeShare, so it would stay green
+   * through a codec change that broke every link already sent. This one is a
+   * literal captured from a shipped build, driven through the real page: boot,
+   * the schema-version guard, ajv, and the import decision.
+   *
+   * The fragment schemes are not a legacy path — they are the only share there
+   * is offline, on file://, and when the store is out of quota (issue #116).
+   */
+  test('a d1 link from an earlier build still opens in the built page', async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html#d1=XZFBbtQwGIWvEr0NGydyJplO6x0giqi6QLBE1chK_plaOLb12xk1jCJxiO5ZItYcgX0PwQk4AnIYtcDO-v_n7z0_HxG7Wxr09kAcjXdQaCpZSQgkNmFreqjlVO7YfyJX7sxdGpkgwHSAav_ooI5weiAoXC664tq4j8XlozixPpC1xBHqA67GfiquKEXvcCMQk-YEhZVs6lK2pVxBgFz_92gNgW5kJtdN28Bm0DxB4fWLt5gFIu0HcinDj1gyR9qXuztZZ-8p0PIK7WLwnCAw-P40Mg4CPhDr5BkK74PuyE7FO20sBHqd6P9kPQXN2euIYHWX98_j7c5zX7xx6Vm-lszShbxQdQ5udYJa11XdNq2AdXsoWZ1v2vNZQDObA_1DuzbWUvFqZB_oCVZL1W4eYbI6ay5WJ1hTyc16Mwv0I-tkvNsOxkHlvfMpw_FS7358K35-vi8e7skmXfz68vV77tTHlL314EeXoM7ap55P_S4flMZMCdr0mOeb-Tc');
+
+    // It opened — no warning banner, and the trip is on screen.
+    await expect(page.locator('#htname')).toContainText('Frozen Link Fixture');
+    await expect(page.locator('#hverwarn')).toBeHidden();
+    await expect(page.locator('#hvlist')).toContainText('Lille Europe');
+
+    // Identity survived the years, so it lands on its trip rather than forking.
+    const doc = await savedDoc(page);
+    expect(doc.trip_id).toBe('trip-frozen-fixture');
+  });
 });
