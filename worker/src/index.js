@@ -48,10 +48,19 @@ const ID_BYTES = 8;
  * the body is read and before the KV write, so the 1,000 writes/day that
  * actually constrain this thing stay spent on real shares.
  *
- * The binding counts per-colo rather than globally, so a distributed caller
- * gets this allowance per location. That is fine for what this defends
- * against — one page in a loop — and anything cleverer than that was never
- * going to be stopped by a number in a config file.
+ * What the limit is actually worth, measured rather than assumed: the counter
+ * is cached on the machine serving the request and propagates asynchronously,
+ * so it is reliable *per connection* and permissive across them. Thirty POSTs
+ * over one keep-alive connection give exactly ten 201s and twenty 429s; forty
+ * over forty fresh connections all succeeded, each landing on a counter that
+ * had not caught up. Cloudflare says as much — "permissive, eventually
+ * consistent, and intentionally designed to not be used as an accurate
+ * accounting system".
+ *
+ * So this stops the thing it is meant to stop, which is one page or script in
+ * a loop on one connection, and does not stop someone who cycles connections
+ * deliberately. The backstop for that is the daily write quota failing closed
+ * into a `#d1=` link, not this number.
  */
 export const WRITES_PER_MINUTE = 10;
 
