@@ -75,7 +75,20 @@ async function linkTo(doc) {
   return '/holiday_itinerary_viewer.html#' + await encodeShare(doc);
 }
 
-const share = page => page.locator('#happ button[title="Share a link to this trip"]');
+/** The header button, which opens the share sheet (issue #124). */
+const shareButton = page => page.locator('#happ button[title="Share this trip"]');
+
+/**
+ * Send a frozen copy — what the header button did on its own before the sheet
+ * existed, and still the default option inside it. Returns a thenable `click`
+ * so every existing `await share(page).click()` reads the same.
+ */
+const share = page => ({
+  async click() {
+    await shareButton(page).click();
+    await page.locator('#hshare-body button', { hasText: 'Send a copy' }).click();
+  },
+});
 
 /** What the page copied to the clipboard (the stub below records it). */
 const copied = page => page.evaluate(() => globalThis.__copied || []);

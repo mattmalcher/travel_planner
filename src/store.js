@@ -9,6 +9,7 @@
  */
 import { state, H_SCHEMA_VERSION } from './state.js';
 import { encodeValue, decodeValue } from './lib/codec.js';
+import { renderRoom } from './views/room.js';
 import {
   readDoc, writeDoc, readIndex, readHistory, writeHistory, nextHistory, historyMeta,
   nextRevision, withIdentity, restoredFrom, copyIdentity, classifyImport, forkOf,
@@ -71,6 +72,10 @@ export function persist() {
     reportStorageFailure(e);
     return;
   }
+  // "How much of this has not been shared" is `rev` against `rev_pushed`
+  // (issue #124), and `rev` is settled right here — so this is the one place
+  // that cannot miss a change, whichever view made it.
+  renderRoom();
   if (changed && stored) recordSuperseded(stored);
 }
 

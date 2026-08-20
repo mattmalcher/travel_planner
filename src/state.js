@@ -19,6 +19,9 @@ export const state = {
   editMode: 'form',    // which editor tab is showing: 'form' or 'json'
   pendingUpload: null, // uploaded doc held back by the version/validation guard (issue #15)
   pendingImport: null, // uploaded doc waiting on a replace/keep-both decision (issue #80)
+  roomWaiting: null,   // a pulled document that could not land silently, parked
+                       // until the user picks a moment for it (issue #124)
+  pendingRoom: null,   // that document, now on screen as a resolve decision
 };
 
 /* Schema version this build of the app expects. The placeholder below is

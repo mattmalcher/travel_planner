@@ -86,3 +86,93 @@ export async function getShare(id, waits = RETRY_MS) {
   }
   throw last || new Error('Could not reach the share store');
 }
+
+/* --- rooms: the same store, addressed by a derived id (issue #124) -------- */
+
+/** The write token's header. Never a path or query segment — the Worker's own
+    request logs would hold it. */
+export const TOKEN_HEADER = 'X-Share-Token';
+
+/**
+ * A conflict the store noticed at push time: someone else replaced the room
+ * since the version this push claimed to be replacing. `current` is what is
+ * actually there, so the app can resolve without a second round trip.
+ *
+ * Best-effort by construction (KV cannot do a real compare-and-set), which is
+ * why this is a nicety rather than the guarantee — see the Worker's header
+ * comment and `previous` below.
+ */
+export class RoomConflict extends Error {
+  constructor(current) {
+    super('Someone else has changed this trip');
+    this.name = 'RoomConflict';
+    this.conflict = true;
+    this.current = current;
+  }
+}
+
+/** The room is there but this device may not write to it — a viewer link, or
+    an id that was POSTed as a frozen snapshot rather than claimed as a room. */
+export class RoomForbidden extends Error {
+  constructor() {
+    super('That shared trip does not accept changes from here');
+    this.name = 'RoomForbidden';
+    this.forbidden = true;
+  }
+}
+
+/**
+ * Replace the blob at `id`, creating it if the slot is empty.
+ *
+ * @param {string} id      derived from the master key, never minted here
+ * @param {Uint8Array} bytes ciphertext
+ * @param {string} token   the derived write token
+ * @param {string|null} etag the version this push believes it is replacing
+ * @returns {Promise<{previous: Uint8Array|null}>} the bytes that were there
+ *   before — **swap semantics**. The caller checks they were the base it
+ *   thought it was pushing over; if they were not, it just learned it clobbered
+ *   a push it had not seen, and can raise the same resolve flow seconds later
+ *   rather than at the other person's next pull. That is KV's read-then-write
+ *   used for *detection* instead of pretended to be atomic.
+ *
+ * Throws RoomConflict when the store refused on `If-Match`, RoomForbidden for
+ * a token that does not match, and a plain Error for everything else.
+ */
+export async function putRoom(id, bytes, token, etag) {
+  if (!hasShareStore()) throw new Error('No share store configured');
+  const headers = { 'Content-Type': 'application/octet-stream', [TOKEN_HEADER]: token };
+  if (etag) headers['If-Match'] = etag;
+  const res = await fetch(`${base()}/${encodeURIComponent(id)}`, {
+    method: 'PUT', headers, body: bytes,
+  });
+  if (res.status === 409) throw new RoomConflict(new Uint8Array(await res.arrayBuffer()));
+  if (res.status === 403 || res.status === 401) throw new RoomForbidden();
+  if (!res.ok) throw new Error(`Share store refused the update (${res.status})`);
+  // 201 means the slot was empty: a brand new room, or one whose TTL lapsed
+  // and has just healed at the same id.
+  if (res.status === 201) return { previous: null };
+  const previous = new Uint8Array(await res.arrayBuffer());
+  return { previous: previous.length ? previous : null };
+}
+
+/** Stop sharing. Idempotent at the Worker, because the second person in a room
+    to tap it should not see a failure. */
+export async function deleteRoom(id, token) {
+  if (!hasShareStore()) throw new Error('No share store configured');
+  const res = await fetch(`${base()}/${encodeURIComponent(id)}`, {
+    method: 'DELETE', headers: { [TOKEN_HEADER]: token },
+  });
+  if (res.status === 403 || res.status === 401) throw new RoomForbidden();
+  if (!res.ok && res.status !== 404) throw new Error(`Share store refused the delete (${res.status})`);
+}
+
+/**
+ * Read a room. The retry ladder `getShare` uses is right for opening a link
+ * for the first time and wrong for a poll: a room that is not there yet is a
+ * normal state (nobody has pushed since it lapsed), and spending ~2s of
+ * sleeping on every poll to discover that is waste. Pass `waits` through for
+ * the boot read, which does want the ladder.
+ */
+export function getRoom(id, waits) {
+  return getShare(id, waits || []);
+}

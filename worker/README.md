@@ -1,8 +1,10 @@
 # Share store worker
 
-The other half of hosted share links (issue #116). ~100 lines over one KV
+The other half of hosted share links (issue #116, made mutable by #124). One KV
 namespace: it takes a blob of ciphertext, keeps it for 30 days, and hands it
-back by id.
+back by id. A blob is either **immutable** — POSTed, under an id the Worker
+mints — or a **room**, PUT under an id the client derived from a key only it
+holds, and replaceable so that a link can stay current.
 
 It cannot read what it stores. The app encrypts client-side with AES-GCM-256
 and puts the key in the URL **fragment**, which browsers never send in an HTTP
@@ -38,16 +40,51 @@ SHARE_ENDPOINT=http://localhost:8787 npm run build
 |---|---|---|
 | `POST /` | body = raw ciphertext, ≤1 MB | `201 {id, ttl}` |
 | `GET /:id` | | `200` bytes, or `404` |
+| `PUT /:id` | body = ciphertext; `X-Share-Token:`, optional `If-Match:` | `200` + the **previous** bytes, `201` (slot was empty), `409` + the current bytes, `403`, `401` |
+| `DELETE /:id` | `X-Share-Token:` | `204` |
 | `OPTIONS` | | `204` preflight |
 
 Anything else is `405`. A request from an origin not in `ALLOWED_ORIGINS` is
 `403`; a request with no `Origin` at all (curl, a bot) may read — the bytes are
-ciphertext — but never write.
+ciphertext — but never write or delete.
+
+A room's `GET` answers `Cache-Control: no-store`; an immutable blob keeps
+`max-age=3600`. The token hash beside the blob is the only thing that tells
+them apart, and it is the only thing the Worker knows about either.
+
+## Rooms
+
+`PUT` **creates as well as replaces**. The first write to an empty slot stores
+`SHA-256(token)` as KV metadata and claims it; later writes must present a
+token hashing to the same value. That is safe because the id is derived from a
+256-bit key nobody else holds (`src/lib/room-keys.js`), and it is what makes
+expiry self-healing — a lapsed room comes back at the same id on the next push,
+so every link already sent starts working again.
+
+The Worker still cannot read anything: it holds a hash of a hash and ciphertext
+it has no key for. It *does* see the token in flight, so its operator could
+overwrite a room — but without the content key anything they write fails
+AES-GCM authentication and reaches the recipient as a damaged link. Vandalism,
+never forgery, which is the same trust position as being able to delete a blob.
+
+`If-Match` is **best-effort and must not be relied on**. KV has no atomic
+primitive, so it is read-then-put over an eventually consistent store: two
+racing writes can both pass it, and the read itself can be ~60s stale. The
+`200` response carrying the *previous* blob (swap semantics) is the other half
+— the pusher checks it was the version it meant to replace — and anything that
+slips past both is caught by the app's revision chain as a fork on the next
+pull. A missed `409` never discards a trip; it only delays the conversation.
+The real fix is a Durable Object, deliberately out of scope.
+
+An immutable blob can never be turned into a room: with no token hash beside
+it, no token can ever match, so `PUT` over a POSTed id is `403`.
 
 ## Rate limiting
 
 ~10 writes per IP per minute, via the `ratelimits` binding in
 `wrangler.jsonc` — it deploys with the Worker and there is nothing to click.
+The check sits above the method fork, so it covers `POST`, `PUT` and `DELETE`
+alike, and it happens before the body is read and before KV is touched.
 
 It is deliberately **not** a WAF rate limiting rule. Those are scoped to a
 *zone*, and a `workers.dev` deploy is not in one, so that dashboard section

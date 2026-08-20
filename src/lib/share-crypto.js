@@ -62,6 +62,35 @@ async function compress(bytes) {
 }
 
 /**
+ * Encrypt `text` under a key the caller already holds — the room case (issue
+ * #124), where the content key is *derived* from the master key rather than
+ * minted per share, so that replacing the blob keeps every link already sent
+ * able to read it.
+ *
+ * @param {string} text
+ * @param {string} key base64url, 32 bytes
+ * @returns {Promise<Uint8Array>} the blob to upload
+ */
+export async function encryptWith(text, key) {
+  const s = subtle();
+  let raw;
+  try { raw = base64urlToBytes(key); }
+  catch (e) { throw new Error(DAMAGED, { cause: e }); }
+  if (raw.length !== 32) throw new Error(DAMAGED);
+  const k = await s.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt']);
+  const { flag, body } = await compress(new TextEncoder().encode(text));
+  const plain = new Uint8Array(1 + body.length);
+  plain[0] = flag;
+  plain.set(body, 1);
+  const iv = randomBytes(IV_BYTES);
+  const cipher = new Uint8Array(await s.encrypt({ name: 'AES-GCM', iv }, k, plain));
+  const bytes = new Uint8Array(iv.length + cipher.length);
+  bytes.set(iv, 0);
+  bytes.set(cipher, iv.length);
+  return bytes;
+}
+
+/**
  * Encrypt `text` under a fresh random key.
  *
  * @returns {Promise<{bytes: Uint8Array, key: string}>} the blob to upload and
@@ -69,19 +98,8 @@ async function compress(bytes) {
  *   never leaves the caller's hands — nothing in this module transmits it.
  */
 export async function encryptShare(text) {
-  const s = subtle();
-  const key = await s.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
-  const { flag, body } = await compress(new TextEncoder().encode(text));
-  const plain = new Uint8Array(1 + body.length);
-  plain[0] = flag;
-  plain.set(body, 1);
-  const iv = randomBytes(IV_BYTES);
-  const cipher = new Uint8Array(await s.encrypt({ name: 'AES-GCM', iv }, key, plain));
-  const bytes = new Uint8Array(iv.length + cipher.length);
-  bytes.set(iv, 0);
-  bytes.set(cipher, iv.length);
-  const raw = new Uint8Array(await s.exportKey('raw', key));
-  return { bytes, key: bytesToBase64url(raw) };
+  const key = bytesToBase64url(randomBytes(32));
+  return { bytes: await encryptWith(text, key), key };
 }
 
 /**

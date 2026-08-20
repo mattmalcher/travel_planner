@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classify, PRECACHE_CRITICAL, PRECACHE_OPTIONAL } from '../../src/lib/sw-cache.js';
+import { classify, CDN_HOSTS, PRECACHE_CRITICAL, PRECACHE_OPTIONAL } from '../../src/lib/sw-cache.js';
 
 // Project-pages deploy: the scope is a subdirectory, not the origin root.
 const SCOPE = 'https://jetson.github.io/travel_planner/';
@@ -40,6 +40,18 @@ test('PR previews on the production origin are never served the shell', () => {
 test('other origins go straight to the network', () => {
   assert.equal(classify('https://tile.openstreetmap.org/3/4/2.png', SCOPE), 'bypass');
   assert.equal(classify('https://openrouter.ai/api/v1/chat/completions', SCOPE), 'bypass');
+});
+
+test('the share store is never cached — a room changes under a stable id', () => {
+  // Live sharing (issue #124) reads the same URL over and over and expects a
+  // different answer each time. It already bypasses, because the store is
+  // neither the scope nor a listed CDN host — this pins that, so an edit to
+  // CDN_HOSTS cannot quietly start serving a stale room from the offline
+  // cache. (The browser's own HTTP cache is handled at the other end, by the
+  // Worker sending `Cache-Control: no-store` for a room.)
+  assert.equal(classify('https://travel-planner-share.matmalcher.workers.dev/AbCdEfGhIjK', SCOPE), 'bypass');
+  assert.equal(classify('https://travel-planner-share.matmalcher.workers.dev/', SCOPE), 'bypass');
+  assert.ok(!CDN_HOSTS.some(h => h.endsWith('workers.dev')));
 });
 
 test('unknown same-origin paths and paths outside the scope bypass', () => {

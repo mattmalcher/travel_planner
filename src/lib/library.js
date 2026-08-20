@@ -18,12 +18,16 @@
  *   hTripHist:<id>  the revisions this trip has left behind, compressed
  *                   (see lib/codec.js)
  *   hCurrentTrip    which trip to restore on boot
+ *   hShare:<id>     the share room this trip is in, if any — see lib/room.js,
+ *                   which owns that key space; the deletes below clear it
  *   hItinerary      the pre-library single slot, migrated once and then left
  *                   alone as a backup for one release
  *
  * The in-memory shape is unchanged: `state.HD` is still the one loaded
  * document, and only the save/boot paths know the rest exists.
  */
+
+import { forgetRoom } from './room.js';
 
 export const INDEX_KEY = 'hTrips';
 export const DOC_PREFIX = 'hTrip:';
@@ -382,10 +386,13 @@ export function writeDoc(store, doc, { current = true } = {}) {
   if (current) setCurrentTripId(store, doc.trip_id);
 }
 
-/** Forget one trip: its working copy, its history and its index row. */
+/** Forget one trip: its working copy, its history, its index row and its share
+    room (issue #124) — a deleted trip that left its key behind would keep a
+    live link serving its last state until the TTL ran out. */
 export function deleteTrip(store, tripId) {
   store.removeItem(docKey(tripId));
   store.removeItem(histKey(tripId));
+  forgetRoom(store, tripId);
   writeIndex(store, removeFromIndex(readIndex(store), tripId));
   if (currentTripId(store) === tripId) store.removeItem(CURRENT_KEY);
 }
@@ -395,6 +402,7 @@ export function clearLibrary(store) {
   for (const entry of readIndex(store)) {
     store.removeItem(docKey(entry.trip_id));
     store.removeItem(histKey(entry.trip_id));
+    forgetRoom(store, entry.trip_id);
   }
   store.removeItem(INDEX_KEY);
   store.removeItem(CURRENT_KEY);
