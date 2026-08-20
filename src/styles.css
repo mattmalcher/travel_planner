@@ -311,7 +311,12 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
    Two tones only: the calm one, and the amber that already means "there is
    something outstanding" everywhere else in the app. Both pairings are in
    tests/unit/contrast.test.js. */
-.hpill{display:inline-flex;align-items:center;gap:5px;min-height:24px;box-sizing:border-box;font:inherit;font-size:11px;font-weight:500;line-height:16px;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;max-width:12rem;overflow:hidden;text-overflow:ellipsis}
+/* The live-sharing status strip and its pill. The pill sat in the header
+   toolbar and was the only variable-width thing in it, so it truncated at
+   12rem — on the one message that has to be read. On its own row it says the
+   whole sentence, and the row is only there while a room exists. */
+#hroom-bar{display:flex;align-items:center;padding:.4rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)}
+.hpill{display:inline-flex;align-items:center;gap:5px;min-height:24px;box-sizing:border-box;font:inherit;font-size:11px;font-weight:500;line-height:16px;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;text-align:left}
 .hpill:hover{color:var(--color-text-primary)}
 .hpill-wait{background:var(--color-background-warning);color:var(--color-text-warning);border-color:transparent}
 .hpill-wait:hover{color:var(--color-text-warning)}

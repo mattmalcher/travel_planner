@@ -98,9 +98,12 @@ test.describe('Upload validation guard', () => {
     await page.goto('/holiday_itinerary_viewer.html');
     await uploadFile(page, validItinerary);
     await expect(page.locator('#happ')).toBeVisible();
+    // Download moved into the share sheet, with the other ways a copy of the
+    // trip leaves this page.
+    await page.locator('#happ button[title="Share this trip"]').click();
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.locator('button[title="Download JSON"]').click()
+      page.locator('#hshare-body button', { hasText: 'Download JSON' }).click()
     ]);
     const path = await download.path();
     const { readFileSync } = await import('node:fs');

@@ -25,6 +25,14 @@ const save = page => page.locator('#hedit-ft').getByRole('button', { name: 'Save
 const switcher = page => page.locator('#happ button[title="Switch trip"]');
 const rows = page => page.locator('#hlib-list .hlib-row');
 
+/** Put the open trip down. It moved out of the header toolbar and into the
+    switcher, with the other things you do to a trip as a whole. */
+async function closeTrip(page) {
+  await switcher(page).click();
+  await page.locator('#hlib-close-trip').click();
+  await expect(page.locator('#hlib-modal')).not.toHaveClass(/on/);
+}
+
 function upload(page, doc, name = 'itinerary.json') {
   return page.setInputFiles('#hfile', {
     name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(doc)),
@@ -58,7 +66,7 @@ test.describe('Trip library', () => {
     await expect(page.locator('#htname')).toContainText('Paris weekend');
 
     // Closing a trip puts it down; it does not forget it.
-    await page.getByRole('button', { name: 'Close' }).click();
+    await closeTrip(page);
     await expect(page.locator('#hupl')).toBeVisible();
     await expect(page.locator('#hupl-recent')).toContainText('Paris weekend');
 
@@ -134,7 +142,7 @@ test.describe('Trip library', () => {
 
   test('a trip started from scratch joins the library alongside the loaded one', async ({ page }) => {
     await upload(page, itinerary('Paris weekend'));
-    await page.getByRole('button', { name: 'Close' }).click();
+    await closeTrip(page);
 
     await page.getByRole('button', { name: 'Start from scratch' }).click();
     await field(page, 'name').fill('Lisbon, someday');
@@ -154,7 +162,7 @@ test.describe('Trip library', () => {
   test('uploading a diverged copy of a saved trip offers Keep both', async ({ page }) => {
     await upload(page, itinerary('Paris weekend'));
     const tripId = (await savedDoc(page)).trip_id;
-    await page.getByRole('button', { name: 'Close' }).click();
+    await closeTrip(page);
 
     // The same trip_id and rev, different contents: two people edited rev 1.
     const theirs = itinerary('Paris weekend', { trip_id: tripId, rev: 1 });
@@ -182,7 +190,7 @@ test.describe('Trip library', () => {
     const doc = itinerary('Paris weekend');
     await upload(page, doc);
     const first = await savedDoc(page);
-    await page.getByRole('button', { name: 'Close' }).click();
+    await closeTrip(page);
 
     await upload(page, doc, 'again.json');
     await expect(page.locator('#hverwarn')).toBeHidden();
@@ -195,7 +203,7 @@ test.describe('Trip library', () => {
   test('an uploaded newer revision of a saved trip can replace it', async ({ page }) => {
     await upload(page, itinerary('Paris weekend'));
     const tripId = (await savedDoc(page)).trip_id;
-    await page.getByRole('button', { name: 'Close' }).click();
+    await closeTrip(page);
 
     const theirs = itinerary('Paris weekend', { trip_id: tripId, rev: 4, updated_by: 'Sarah' });
     theirs.segments[0].name = 'A gig Sarah added';
@@ -234,7 +242,7 @@ test.describe('Trip library', () => {
 
   test('deleting a trip from the switcher takes only that trip', async ({ page }) => {
     await upload(page, itinerary('Paris weekend'), 'paris.json');
-    await page.getByRole('button', { name: 'Close' }).click();
+    await closeTrip(page);
     await upload(page, itinerary('Rome in spring'), 'rome.json');
 
     await switcher(page).click();

@@ -51,13 +51,16 @@ export function roomStatus() {
 /** Paint the pill, and the sheet too if it happens to be open. Called after
     anything that could move either — a push, a pull, a decision, a load. */
 export function renderRoom() {
+  const bar = document.getElementById('hroom-bar');
   const pill = document.getElementById('hroom-pill');
-  if (!pill) return;
+  if (!bar || !pill) return;
   const status = roomStatus();
+  // The whole strip goes, not just the pill: an empty bordered row above the
+  // tabs would read as a rendering fault on every trip that is not shared.
   if (!status) {
-    pill.style.display = 'none';
+    bar.style.display = 'none';
   } else {
-    pill.style.display = 'inline-flex';
+    bar.style.display = 'flex';
     pill.className = `hpill${status.tone === 'wait' ? ' hpill-wait' : ''}`;
     pill.innerHTML = `<i class="ti ti-${status.icon}" aria-hidden="true"></i> ${esc(status.text)}`;
   }
@@ -116,10 +119,14 @@ export function renderShareSheet() {
     rows.push('<p class="hshare-note">A live link stays current: change the trip, tap Update, and everyone’s link shows the new version. It is not automatic — you choose when an update goes out.</p>');
   }
 
+  // Download sits with the links rather than in the header row: all three are
+  // the same intent — a copy of this trip, leaving here — and only this one
+  // hands over nothing to anybody.
   rows.push(`<div class="hshare-act">
     <button onclick="hShareCopy()" class="htool"><i class="ti ti-share" aria-hidden="true"></i> Send a copy</button>
+    <button onclick="hDownload()" class="htool"><i class="ti ti-download" aria-hidden="true"></i> Download JSON</button>
   </div>`);
-  rows.push('<p class="hshare-note">A copy is a snapshot of the trip as it is right now, and never changes again — whatever you do here afterwards.</p>');
+  rows.push('<p class="hshare-note">A copy is a snapshot of the trip as it is right now, and never changes again — whatever you do here afterwards. The JSON file is the same snapshot on your own device, and the one the desktop tools read.</p>');
   rows.push('<p class="hshare-note">Any of these links is the whole itinerary, booking references included. Whoever holds one can read it; whoever holds an <b>edit</b> link — and anyone they forward it to — can change it. The link is the permission.</p>');
   box.innerHTML = rows.join('');
   const check = document.getElementById('hshare-edit');

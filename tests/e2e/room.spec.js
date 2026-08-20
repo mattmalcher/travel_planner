@@ -184,6 +184,30 @@ test.describe('Live sharing', () => {
     expect(writer.split('#')[1].length).toBeLessThan(50);
   });
 
+  test('the status pill is a strip of its own, and only there while shared', async ({ page }) => {
+    await routeStore(page);
+    await page.goto('/holiday_itinerary_viewer.html');
+    await upload(page, itinerary('Orbit City'));
+
+    // No room: no strip at all. An empty bordered row above the tabs would read
+    // as a rendering fault on every trip that is not shared.
+    await expect(page.locator('#hroom-bar')).toBeHidden();
+
+    await openSheet(page);
+    await linkFrom(page, () => sheetButton(page, 'Share live').click());
+    await expect(page.locator('#hroom-bar')).toBeVisible();
+
+    // It is status, not a toolbar control — it sits below the header rather
+    // than inside it, which is what keeps the toolbar from growing again.
+    const inToolbar = await pill(page).evaluate(el => !!el.closest('#happ > div:first-child'));
+    expect(inToolbar, 'the status pill is back in the header toolbar').toBe(false);
+
+    // And it says the whole sentence: it used to be capped at 12rem and
+    // ellipsised, on the one message that has to be readable.
+    const cut = await pill(page).evaluate(el => el.scrollWidth > el.clientWidth + 1);
+    expect(cut, 'the status pill is truncated').toBe(false);
+  });
+
   test('the pill counts what has not been sent, and Update clears it', async ({ page }) => {
     await routeStore(page);
     await page.goto('/holiday_itinerary_viewer.html');
@@ -407,7 +431,7 @@ test.describe('Live sharing', () => {
     page.on('dialog', d => d.accept());
     await openSheet(page);
     await sheetButton(page, 'Stop sharing').click();
-    await expect(pill(page)).toBeHidden();
+    await expect(page.locator('#hroom-bar')).toBeHidden();
     // Both halves: a kept key would resurrect the room at the same derived id
     // on the very next push.
     expect(await savedRoom(page)).toBeNull();

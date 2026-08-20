@@ -212,7 +212,9 @@ test.describe('semantics and accessible names (issue #92)', () => {
     // screen's is sr-only — clipped to 1px, so it counts as rendered.)
     await expect(page.locator('h1:visible')).toHaveText(['Semantics Test Trip']);
 
-    await page.click('.htool[title^="Close this trip"]');
+    // Closing the trip lives in the switcher now, not the header toolbar.
+    await page.click('#happ button[title="Switch trip"]');
+    await page.click('#hlib-close-trip');
     await expect(page.locator('#hupl')).toBeVisible();
     await expect(page.locator('h1:visible')).toHaveText([/^Holiday itinerary viewer/]);
   });
