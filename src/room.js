@@ -47,7 +47,7 @@ import { newMasterKey, deriveRoom, digest } from './lib/room-keys.js';
 import { encryptWith, decryptShare } from './lib/share-crypto.js';
 import { shareDocument, parseShareDocument, parseRoom, writerUrl, viewerUrl } from './lib/sharelink.js';
 import {
-  hasShareStore, putRoom, getRoom, deleteRoom, SHARE_TTL_DAYS,
+  hasShareStore, putRoom, getShare, deleteRoom, SHARE_TTL_DAYS,
 } from './share-store.js';
 import { shareToast, shareDoc, copyLink } from './share.js';
 import { renderRoom, renderShareSheet, currentRoom, letThemEdit } from './views/room.js';
@@ -139,7 +139,8 @@ export async function pullRoom() {
   const room = readRoom(store, id);
   if (!room || !state.HD || !hasShareStore()) return;
   let bytes;
-  try { bytes = await getRoom(room.id); } catch (e) { return; }
+  // No retry ladder: a room that is not there is a normal state for a poll.
+  try { bytes = await getShare(room.id, []); } catch (e) { return; }
   const etag = await digest(bytes);
   if (etag === room.etag) return; // the version we already have
   let doc;
@@ -147,6 +148,14 @@ export async function pullRoom() {
   const incoming = importKind(doc).doc;
   const act = pullAction(incoming, state.HD, room);
   if (act.action === 'drop') return;
+  // `pullAction` sees persisted revisions, not the half-done edit in front of
+  // the user: the edit modal open with nothing saved yet is exactly
+  // "nothing unpushed", and a `load()` under it would leave `saveEdit`
+  // writing by index into a document whose indices may have moved. Same for
+  // an AI draft, computed against the document that would be swapped out.
+  // Deferred rather than parked — nothing is stored, so the next pull (the
+  // poll, or focus) fetches it again and it lands once the edit is done.
+  if (act.action === 'apply' && (state.editTarget || state.draft)) return;
   if (act.action === 'apply') {
     load(incoming);
     writeRoom(store, id, { ...readRoom(store, id), rev_pushed: incoming.rev || 1, etag });
@@ -291,7 +300,7 @@ export async function roomDocument(fragment) {
   const creds = parsed.writer
     ? await deriveRoom(parsed.masterKey)
     : { id: parsed.id, encKey: parsed.key };
-  const bytes = await getRoom(creds.id, undefined); // the boot read wants the retry ladder
+  const bytes = await getShare(creds.id); // the boot read wants the retry ladder
   const etag = await digest(bytes);
   const doc = parseShareDocument(await decryptShare(bytes, creds.encKey));
   const settled = importKind(doc).doc;
