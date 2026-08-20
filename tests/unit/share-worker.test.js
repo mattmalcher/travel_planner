@@ -182,6 +182,49 @@ test('a write method with no token gets nowhere near KV', async () => {
   }
 });
 
+/* --- what a deployed page and its blobs already expect ------------------- */
+
+/* Rooms (issue #124) widened this Worker; they must not have moved it under
+   the pages and links that are already out there. A saved file:// copy, a
+   home-screen PWA and a browser cache all keep running the previous build for
+   as long as they like, and that build only ever POSTs and GETs. So the two
+   things pinned here are: those paths behave exactly as they did, and a blob
+   already sitting in KV — written before rooms existed, and so with no
+   metadata beside it — still reads back the same way. */
+
+test('a blob written by the previous deployment still reads back unchanged', async () => {
+  const e = env();
+  const existing = bytes(128);
+  // Seeded the way the pre-#124 Worker left it: no metadata, because there
+  // was none to write.
+  await e.KV.put('legacy-id', existing, { expirationTtl: TTL_SECONDS });
+  const res = await handle(get('legacy-id'), e);
+  assert.equal(res.status, 200);
+  assert.deepEqual(new Uint8Array(await res.arrayBuffer()), existing);
+  // Including the cache header, which is what an immutable blob still wants.
+  assert.equal(res.headers.get('Cache-Control'), 'public, max-age=3600');
+});
+
+test('a blob from the previous deployment cannot be claimed as a room', async () => {
+  const e = env();
+  await e.KV.put('legacy-id', bytes(32), { expirationTtl: TTL_SECONDS });
+  // No token hash beside it means no token can ever match it, so an old
+  // share link stays exactly as immutable as it was when it was sent.
+  assert.equal((await handle(put('legacy-id', bytes(32)), e)).status, 403);
+});
+
+test('the old client\'s POST is untouched: same 201, same id shape, same TTL', async () => {
+  const e = env();
+  const res = await handle(post(bytes(64)), e);
+  assert.equal(res.status, 201);
+  const body = await res.json();
+  assert.match(body.id, /^[A-Za-z0-9_-]+$/);
+  assert.equal(body.ttl, TTL_SECONDS);
+  assert.equal(e.KV.store.get(body.id).options.expirationTtl, TTL_SECONDS);
+  // And no metadata, so a POSTed blob is still an immutable one.
+  assert.equal(e.KV.store.get(body.id).options.metadata, undefined);
+});
+
 /* --- rooms: a mutable slot (issue #124) ---------------------------------- */
 
 /* The Worker's half of live sharing. The interesting part is still what it

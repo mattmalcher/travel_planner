@@ -363,13 +363,14 @@ test.describe('Live sharing', () => {
     expect(await page.evaluate(id => localStorage.getItem('hShare:' + id), tripId)).toBeNull();
   });
 
-  test('with no store to reach, live sharing is not offered and a copy still works', async ({ page }) => {
+  test('a store that refuses a room falls back to a copy rather than a dead end', async ({ page }) => {
     await routeStore(page, backend({ writeFails: true }));
     await page.goto('/holiday_itinerary_viewer.html');
     await upload(page, itinerary('Orbit City'));
     await openSheet(page);
-    // The store is there but refusing, so the option is offered and fails
-    // *silently* into a link that works — never a dead end.
+    // The same path a page running against a Worker that has no PUT yet takes:
+    // the write is refused, so live sharing fails *silently* into a link that
+    // carries the plan. Never a dead end, and nothing written locally.
     const link = await linkFrom(page, () => sheetButton(page, 'Share live').click());
     expect(link).toMatch(/#(d1|u1)=/);
     expect(await savedRoom(page)).toBeNull();
