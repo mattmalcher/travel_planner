@@ -17,7 +17,7 @@ I find planning holidays really stressful, but I like having a plan. I also like
 I started using AI tools to try and make plans for me, but its hard to get the details you want and do incremental changes. You also often end up with really generic recommendataions.
 Also, there are things its very hard for it to do (like book accomodation) that are kind of crucial, and need to be in the plan, but it doesnt control them.
 
-I also find it hard to visualise dates and times, so I wanted a viewer you could show the plan in and see where you have gaps or overlaps. I am a big fan of the (clashfinder)[https://clashfinder.com/], and thought something like a holiday version of that could be good.
+I also find it hard to visualise dates and times, so I wanted a viewer you could show the plan in and see where you have gaps or overlaps. I am a big fan of the [clashfinder](https://clashfinder.com/), and thought something like a holiday version of that could be good.
 
 To enable that I started with a standard format ([holiday_itinerary_schema.json](schema/holiday_itinerary_schema.json)) which can be read by AI tools, and at a pinch, a person. Having a standard format makes it easier to go back and forth, and it means you can design a viewer for that format.
 
