@@ -62,6 +62,32 @@ test.describe('offline service worker (issue #45)', () => {
     await context.setOffline(false);
   });
 
+  test.describe('with no CDN at all', () => {
+    // The icons used to come from jsdelivr, which made them the one thing a
+    // saved file:// page and a cold first load (before the worker exists) drew
+    // without. They are subset into the page now, so a page that never reaches
+    // the CDN must still have them.
+    test.use({ serviceWorkers: 'block' });
+
+    test('the icons still render with the CDN blocked', async ({ page }) => {
+      const blocked = [];
+      await page.route('**://cdn.jsdelivr.net/**', route => {
+        blocked.push(route.request().url());
+        return route.abort();
+      });
+      await page.goto('/holiday_itinerary_viewer.html');
+      await expect(page.locator('#hupl')).toBeVisible();
+
+      expect(await page.evaluate(() => globalThis.document.fonts.check('16px tabler-icons'))).toBe(true);
+      const width = await page.locator('#hupl i.ti').first()
+        .evaluate(el => el.getBoundingClientRect().width);
+      expect(width, 'an icon rendered as nothing without the CDN').toBeGreaterThan(4);
+
+      // Whatever is still on jsdelivr, none of it is a font.
+      expect(blocked.filter(u => /woff2?|\.ttf|icons-webfont/.test(u))).toEqual([]);
+    });
+  });
+
   test.describe('without a service worker', () => {
     // Registration is blocked → navigator.serviceWorker.register rejects,
     // which is the same no-op path as a missing sw.js sidecar or file://.

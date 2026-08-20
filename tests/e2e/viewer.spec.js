@@ -116,10 +116,10 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(page.locator('.htab')).toHaveText(['Itinerary', 'Map', 'Schedule', 'Lists', 'Phrases', 'Budget']);
   });
 
-  // Every tab carries its own icon. That the icon *name* is one Tabler
-  // actually ships is checked offline in tests/unit/icons.test.js — the font
-  // comes from a CDN, so asserting on rendered glyphs here would make this
-  // spec depend on the network it deliberately stubs out.
+  // Every tab carries its own icon, and the glyph really draws: the font is
+  // subset into the page now (scripts/icon-font.mjs), so this can assert on
+  // rendering without depending on the network the spec stubs out. That the
+  // name is one Tabler ships stays a unit check, in tests/unit/icons.test.js.
   test('every tab has its own icon', async ({ page }) => {
     await page.setInputFiles('#hfile', {
       name: 'generic_itinerary.json',
@@ -133,6 +133,13 @@ test.describe('Holiday Itinerary Viewer', () => {
       els.map(el => [...el.classList].find(c => c.startsWith('ti-'))));
     expect(names.every(Boolean)).toBe(true);
     expect(new Set(names).size).toBe(names.length);
+
+    // The face is a data: URI, so it is available without a fetch — and an
+    // icon that resolved to no glyph would collapse to zero width.
+    expect(await page.evaluate(() => globalThis.document.fonts.check('16px tabler-icons'))).toBe(true);
+    const widths = await page.locator('.htab i.ti').evaluateAll(els =>
+      els.map(el => el.getBoundingClientRect().width));
+    expect(Math.min(...widths), 'a tab icon rendered as nothing').toBeGreaterThan(4);
   });
 
   test('should allow switching tabs and update views accordingly', async ({ page }) => {
