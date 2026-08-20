@@ -101,11 +101,23 @@ export function refreshLibraryViews() {
 
 export function libOpen() {
   document.getElementById('hlib-modal').classList.add('on');
+  // The switcher is also reachable from the opening screen ("All N…"), where
+  // there is no open trip to put down.
+  document.getElementById('hlib-close-trip').style.display = state.HD ? 'inline-flex' : 'none';
   renderLibrary();
 }
 
 export function libClose() {
   document.getElementById('hlib-modal').classList.remove('on');
+}
+
+/** Put the open trip down and go back to the opening screen (issue #80). It
+    lives here rather than in the header toolbar, with the other things you do
+    to a trip as a whole — the row was full, and this is not a per-view action.
+    The modal has to go too, or it is left over the screen it was about. */
+export function libCloseTrip() {
+  libClose();
+  closeTrip();
 }
 
 /** Expand/collapse a trip's revision list. */

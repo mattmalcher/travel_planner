@@ -304,6 +304,30 @@ textarea.hef-in[data-line]{resize:none;overflow:hidden;overflow-wrap:anywhere}
 #hlib-list{overflow-y:auto;padding:.4rem .9rem;flex:1}
 #hlib-ft{display:flex;flex-direction:column;gap:.6rem;padding:.7rem .9rem;border-top:.5px solid var(--color-border-tertiary)}
 #hupl-recent{max-width:460px;margin:0 auto 1rem}
+/* Live sharing (issue #124): the status pill in the header and the share sheet.
+   The pill is a real <button> — it is the retry after a failed push and the way
+   into a parked decision, so it has to be reachable from the keyboard — sized
+   past the 24px target minimum the same way .hjump-chip is (WCAG 2.5.8).
+   Two tones only: the calm one, and the amber that already means "there is
+   something outstanding" everywhere else in the app. Both pairings are in
+   tests/unit/contrast.test.js. */
+/* The live-sharing status strip and its pill. The pill sat in the header
+   toolbar and was the only variable-width thing in it, so it truncated at
+   12rem — on the one message that has to be read. On its own row it says the
+   whole sentence, and the row is only there while a room exists. */
+#hroom-bar{display:flex;align-items:center;padding:.4rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)}
+.hpill{display:inline-flex;align-items:center;gap:5px;min-height:24px;box-sizing:border-box;font:inherit;font-size:11px;font-weight:500;line-height:16px;padding:3px 10px;border-radius:999px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;text-align:left}
+.hpill:hover{color:var(--color-text-primary)}
+.hpill-wait{background:var(--color-background-warning);color:var(--color-text-warning);border-color:transparent}
+.hpill-wait:hover{color:var(--color-text-warning)}
+#hshare-modal{z-index:1150}
+#hshare-inner{max-width:440px;max-height:90vh}
+#hshare-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:.7rem .9rem;border-bottom:.5px solid var(--color-border-tertiary)}
+#hshare-body{overflow-y:auto;padding:.8rem .9rem;display:flex;flex-direction:column;gap:.55rem}
+.hshare-status{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:12px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:999px;padding:4px 11px}
+.hshare-act{display:flex;gap:8px;flex-wrap:wrap}
+.hshare-note{margin:0;font-size:11px;line-height:1.45;color:var(--color-text-tertiary)}
+.hshare-check{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--color-text-secondary);cursor:pointer}
 .hlib-hd-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px}
 .hlib-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-top:.5px solid var(--color-border-tertiary)}
 .hlib-row:first-child{border-top:none}

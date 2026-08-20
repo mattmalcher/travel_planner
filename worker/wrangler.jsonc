@@ -15,8 +15,10 @@
     "ALLOWED_ORIGINS": "https://mattmalcher.github.io"
   },
 
-  // Writes per IP per minute (WRITES_PER_MINUTE in src/index.js, which the
-  // unit test holds to this number). Not a WAF rate limiting rule: those are
+  // Writes per IP per minute, POST/PUT/DELETE alike (WRITES_PER_MINUTE in
+  // src/index.js, which the unit test holds to this number). The check sits
+  // above the method fork, so one number covers every write path.
+  // Not a WAF rate limiting rule: those are
   // scoped to a zone, and a workers.dev deploy has none. `namespace_id` is an
   // arbitrary label, unique within this Worker — not an account resource, and
   // nothing to create in the dashboard. `period` may only be 10 or 60.

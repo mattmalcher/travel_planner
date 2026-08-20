@@ -3,11 +3,16 @@
  * and handing it over, and opening one that arrives in the fragment. The
  * encoding itself is pure and lives in lib/sharelink.js.
  *
- * A link is an immutable snapshot, and that is the feature: there is no sync
- * and no conflict resolution, only two people with copies that each know their
- * own `trip_id` and `rev` (issue #80). That is enough for the app to *tell*
- * you when two copies have diverged, which for two people is the right amount
- * of machinery.
+ * A `d1`/`u1`/`s1` link is an immutable snapshot, and that is still a feature:
+ * there is no sync and no conflict resolution, only two people with copies that
+ * each know their own `trip_id` and `rev` (issue #80), which is enough for the
+ * app to *tell* you when two copies have diverged. "Send a copy" in the share
+ * sheet is exactly that, and stays the right thing for most sharing.
+ *
+ * A **room** link (`w1`/`v1`, issue #124) is the other option: the same stored
+ * blob made replaceable, so the link stays current and — with an edit link —
+ * two people work on one plan. Everything about a room lives in room.js; this
+ * file keeps what it always had, the fragment and the boot decision.
  *
  * Worth being plain about, since the UI copy has to be: anyone holding the
  * link holds the whole itinerary, booking references included. It is a
@@ -28,10 +33,16 @@ import { renderRecent } from './views/library.js';
 import { esc } from './lib/escape.js';
 import {
   readShareFragment, hasShareLink, decodeShare, shareUrl, shareDocument, isOverlong,
-  isHosted, parseHosted, hostedUrl, parseShareDocument,
+  isHosted, isRoom, parseHosted, hostedUrl, parseShareDocument,
 } from './lib/sharelink.js';
 import { encryptShare, decryptShare } from './lib/share-crypto.js';
 import { hasShareStore, putShare, getShare, SHARE_TTL_DAYS } from './share-store.js';
+// Rooms (issue #124) are the other half of this file's job now: share.js still
+// owns the fragment and the boot decision, room.js owns what a *mutable* share
+// does once one arrives. The import runs both ways — room.js reaches back for
+// the toast and the snapshot path — which is safe because every crossing is a
+// hoisted function declaration, called long after both modules have evaluated.
+import { roomDocument, renderRoom } from './room.js';
 
 /* --- producing ----------------------------------------------------------- */
 
@@ -61,7 +72,7 @@ export async function shareRevision(tripId, rev) {
  * store that is down, blocked, offline or out of daily quota is not the
  * sharer's problem to read about, and they still get a link that works.
  */
-async function shareDoc(doc) {
+export async function shareDoc(doc) {
   const payload = shareDocument(doc, H_SCHEMA_VERSION);
   const name = (doc.trip && doc.trip.name) || 'Itinerary';
 
@@ -131,11 +142,17 @@ async function shareFile(payload, name) {
   }
 }
 
-async function copyLink(url, hosted) {
+/**
+ * Put the link where it can be used and say what it means. `note` overrides the
+ * wording for a room (issue #124), where the sentence is a different one: a
+ * live link keeps up with the trip, and an edit link hands over editing.
+ */
+export async function copyLink(url, hosted, note) {
   // The warning is the same for both shapes — the link is the secret either
   // way — but a hosted one also stops working, and that has to be said when it
   // goes out rather than discovered by whoever opens it in five weeks.
-  const message = 'Link copied. Anyone with it can open the whole itinerary — booking references included.'
+  const message = note
+    || 'Link copied. Anyone with it can open the whole itinerary — booking references included.'
     + (hosted ? ` The link works for ${SHARE_TTL_DAYS} days.` : '');
   try {
     await navigator.clipboard.writeText(url);
@@ -198,6 +215,7 @@ export function boot() {
     // here — which is the point, since a link is the least trusted way a
     // document arrives.
     loadUpload(doc);
+    renderRoom(); // a room link leaves this trip with a status pill
     return true;
   }).catch(e => {
     clearFragment();
@@ -225,6 +243,9 @@ export function boot() {
  * failure worth its own message.
  */
 function documentFrom(fragment) {
+  // A room link (issue #124) also names a stored blob, but joining it writes a
+  // record as well as reading bytes, so room.js owns that half.
+  if (isRoom(fragment)) return roomDocument(fragment);
   if (!isHosted(fragment)) return decodeShare(fragment);
   const { id, key } = parseHosted(fragment);
   return getShare(id)
