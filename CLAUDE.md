@@ -154,6 +154,9 @@ worker/             the share store (issues #116, #124) — a Cloudflare Worker
                     (a WAF rule is not available — workers.dev has no zone)
                     and the one dashboard setting (usage alert) it needs
 schema/holiday_itinerary_schema.json   the source of truth for the data shape
+scripts/icon-font.mjs  the icon subset: which `ti-*` names src/ renders, their
+                    codepoints from Tabler's own CSS, and the woff2 the build
+                    inlines. Owns the scanner icons.test.js checks against
 scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     doctrine / bump. Reuses src/lib/ for all interpretation and
                     owns only argv, file I/O and formatting; ajv stays here
@@ -185,7 +188,7 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 ## Invariants
 
 - **Single-file output**: the built page must stay fully self-contained
-  (external CDN links for Leaflet and the icon webfont only). Anything new in `src/`
+  (external CDN links for Leaflet only). Anything new in `src/`
   must be inlined by `scripts/build.mjs`. The offline sidecars the build
   also emits (`sw.js`, `manifest.webmanifest`, icons — issue #45) are
   deploy conveniences, never dependencies: the page must keep working when
@@ -357,7 +360,7 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   user-facing **"Load anyway"** button, which is why escaping (below) has to
   hold on its own: everything reaching HTML is still untrusted.
 - **Every external subresource carries an SRI hash**: the page loads Leaflet
-  and the Tabler webfont from jsdelivr's `/npm/` paths, which serve the
+  from jsdelivr's `/npm/` paths, which serve the
   published tarball file byte-for-byte — so `tests/unit/sri.test.js` can
   recompute each `integrity` hash from the pinned devDependency and fail when
   a URL and its hash drift apart. A new CDN asset needs a pinned version, an
@@ -365,11 +368,19 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   a host with no npm package behind it cannot be checked and should not be
   added. `crossorigin` is not decoration — without it the response is opaque
   and the browser cannot check the hash at all.
-- **Icon names must exist in the Tabler webfont**: an unknown `ti-*` class
-  renders as nothing at all, silently (the Schedule tab shipped a blank
-  `ti-chart-gantt` this way). `tests/unit/icons.test.js` checks every name in
-  `src/` against the pinned `@tabler/icons-webfont` devDependency, which must
-  stay at the version `src/index.html` loads from the CDN.
+- **The icon font is subset into the page, and an unknown name fails the
+  build**: `scripts/icon-font.mjs` scans `src/` for `ti-*` names, keeps those
+  codepoints out of the pinned `@tabler/icons-webfont` and inlines the result
+  (~13 kB) as a `data:` URI at `<!-- build:icons -->`. It replaced an 829 kB
+  woff2 + 250 kB CSS CDN load, and with it the last reason a saved `file://`
+  page or a cold offline load rendered without icons. Nothing at a call site
+  changed: same `.ti .ti-x` markup, same `:before` rule, same glyphs.
+  An unknown `ti-*` class used to render as nothing at all, silently (the
+  Schedule tab shipped a blank `ti-chart-gantt` that way); it now has no
+  codepoint to subset and throws during the build. The name scanner lives in
+  the build and `tests/unit/icons.test.js` *imports* it — a second copy that
+  drifted would pass a name the build never subset, which is the silent-blank
+  bug again. Adding an icon is just using its name; nothing to register.
 - **The authoring doctrine has one source, `lib/doctrine.js`**: the rules that
   say what a well-formed *plan* looks like (as opposed to well-formed JSON) are
   scoped data, not prose in a prompt. `src/ai/prompt.js` renders the `app` view;

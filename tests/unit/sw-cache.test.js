@@ -22,7 +22,7 @@ test('every precache path classifies as shell', () => {
 
 test('pinned third-party assets are cache-first', () => {
   assert.equal(classify('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js', SCOPE), 'cdn');
-  assert.equal(classify('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css', SCOPE), 'cdn');
+  assert.equal(classify('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css', SCOPE), 'cdn');
 });
 
 test('hosts the page no longer loads from are not cached', () => {

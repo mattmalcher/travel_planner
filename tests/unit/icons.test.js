@@ -2,45 +2,28 @@
 // an unknown name matches no CSS rule and silently renders as nothing, which
 // is how the Schedule tab sat with a blank `ti-chart-gantt` until issue #75.
 //
-// The page loads the webfont from a CDN, so this check reads the same version
-// from node_modules (a devDependency pinned to the URL's version) rather than
-// asserting on rendered glyphs in an e2e test that stubs the network.
+// The font is no longer a CDN load — the build subsets it to the glyphs src/
+// names and inlines the result (scripts/icon-font.mjs) — so an unknown name now
+// fails the *build*, which is a better place to find out than the page. This
+// file is the fast version of that check, plus the properties of the generated
+// CSS the build itself cannot assert about itself.
+//
+// The scanner is imported from the build rather than copied here on purpose: a
+// second copy that drifted would pass a name the build never subset, and the
+// icon would render as nothing again.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { codepoints, usedIcons, iconFontCss, version } from '../../scripts/icon-font.mjs';
 
 const root = new URL('../../', import.meta.url).pathname;
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const PINNED = pkg.devDependencies['@tabler/icons-webfont'];
+const SHIPPED = codepoints();
 
-const css = readFileSync(join(root, 'node_modules/@tabler/icons-webfont/dist/tabler-icons.css'), 'utf8');
-const SHIPPED = new Set([...css.matchAll(/\.ti-([a-z0-9-]+):before/g)].map(m => m[1]));
-
-/** Every file under src/, so a new view is covered without touching this. */
-function sources(dir) {
-  return readdirSync(dir).flatMap(name => {
-    const path = join(dir, name);
-    return statSync(path).isDirectory() ? sources(path) : [path];
-  });
-}
-
-/** The icon names a source file references, in either of the two forms the
-    codebase uses: `class="ti ti-x"` in markup, and a bare 'ti-x' string
-    returned by the per-kind icon helpers (views/badges.js, lists.js,
-    phrases.js). */
-function iconNames(text) {
-  return [
-    ...[...text.matchAll(/\bti ti-([a-z0-9-]+)/g)].map(m => m[1]),
-    ...[...text.matchAll(/'ti-([a-z0-9-]+)'/g)].map(m => m[1]),
-  ];
-}
-
-test('the pinned webfont matches the version the page loads from the CDN', () => {
-  const html = readFileSync(join(root, 'src/index.html'), 'utf8');
-  const m = html.match(/@tabler\/icons-webfont@([\d.]+)\//);
-  assert.ok(m, 'src/index.html links the Tabler webfont');
-  assert.equal(m[1], PINNED, 'the CDN link and the devDependency must not drift');
+test('the pinned webfont is the one the subset is cut from', () => {
+  assert.equal(pkg.devDependencies['@tabler/icons-webfont'], version(),
+    'the installed icon set and the pinned devDependency must not drift');
 });
 
 test('the webfont CSS parsed into a plausible set of glyph names', () => {
@@ -50,11 +33,32 @@ test('the webfont CSS parsed into a plausible set of glyph names', () => {
 });
 
 test('every icon the app renders is one Tabler ships', () => {
-  const missing = [];
-  for (const path of sources(join(root, 'src')))
-    for (const name of iconNames(readFileSync(path, 'utf8')))
-      if (!SHIPPED.has(name)) missing.push(`${path.slice(root.length)}: ti-${name}`);
-  assert.deepEqual(missing, []);
+  const missing = usedIcons().filter(name => !SHIPPED.has(name));
+  assert.deepEqual(missing.map(n => `ti-${n}`), []);
+});
+
+test('the page carries its icons rather than fetching them', () => {
+  const html = readFileSync(join(root, 'src/index.html'), 'utf8');
+  assert.ok(!html.includes('icons-webfont'),
+    'the icon font is subset into the page — src/index.html must not link it from a CDN');
+  assert.ok(html.includes('<!-- build:icons -->'), 'the subset has nowhere to be injected');
+});
+
+test('the generated CSS covers every icon in use, from an inlined font', async () => {
+  const { css, used, bytes } = await iconFontCss();
+  assert.ok(used.length > 40, `only ${used.length} icons found — did the scan break?`);
+
+  // The face is inline: no URL, no host, nothing to fail on a saved file://
+  // page or a cold offline load, which is the whole point of subsetting it.
+  assert.match(css, /@font-face\{[^}]*src:url\(data:font\/woff2;base64,[A-Za-z0-9+/=]+\) format\("woff2"\)\}/);
+  assert.ok(!css.includes('http'), 'the generated icon CSS reaches for the network');
+
+  // One rule per icon, at the codepoint Tabler's own CSS gives it.
+  for (const name of used)
+    assert.ok(css.includes(`.ti-${name}:before{content:"\\${SHIPPED.get(name)}"}`), `no rule for ti-${name}`);
+
+  // A subset that stopped subsetting would still pass everything above.
+  assert.ok(bytes < 120 * 1024, `the subset is ${(bytes / 1024).toFixed(0)} kB — is it still a subset?`);
 });
 
 test('the tabs each carry an icon, so none renders as a bare label', () => {
