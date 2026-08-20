@@ -790,5 +790,13 @@ test.describe('Holiday Itinerary Viewer', () => {
     // The dates/travellers meta line is gone from the header (only the name remains).
     await expect(page.locator('#htmeta')).toHaveCount(0);
     await expect(page.locator('#htname')).toHaveText('Summer Rail Tour 2026');
+
+    // The toolbar does not shrink, so every control added to it came out of the
+    // trip name — which at seven controls plus the status pill was down to a
+    // couple of characters and an ellipsis. Four icon buttons leave the name
+    // most of the row, and that is the property worth pinning: the count is
+    // allowed to change, the name having room is not.
+    const nameWidth = await page.locator('#htname').evaluate(el => el.getBoundingClientRect().width);
+    expect(nameWidth, 'the trip name is squeezed by the header toolbar').toBeGreaterThan(150);
   });
 });

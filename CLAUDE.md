@@ -132,8 +132,9 @@ src/
                     checklist: no tick-off, no Schedule, no cost
     library.js      the trip switcher and the opening screen's saved-trips
                     list — one row renderer, revision history under each
-    room.js         live sharing's two surfaces (issue #124): the header status
-                    pill and the share sheet's body. Separate from src/room.js
+    room.js         live sharing's two surfaces (issue #124): the status strip
+                    below the header and the share sheet's body. Separate from
+                    src/room.js
                     so app.js and store.js can repaint the pill without pulling
                     in the push/pull machinery, which imports app.js back
     jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
@@ -420,6 +421,19 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   colours. The chart-ish colours that are not themed — gantt block fills, map
   pins — are deliberate: they carry meaning, sit under white text, and read on
   either background.
+- **The header toolbar is four icon buttons, and it does not grow**: switch
+  trip, AI, edit mode, share. It is `flex-shrink:0` next to the trip name, so
+  every control added to it comes out of the name — at seven controls plus the
+  status pill the name was down to an ellipsis on a phone, and the pill (the
+  only variable-width thing in the row) was truncating the one sentence that
+  had to be read. A new trip-wide action goes to an existing home rather than
+  back into the row: **status** to the `#hroom-bar` strip below the header,
+  **a copy of the trip leaving here** to the share sheet (which is why Download
+  sits beside "Send a copy"), **the trip as a whole** to the switcher (which is
+  where Close lives). If none of those fit, the answer is an overflow menu, not
+  a fifth button. `tests/e2e/viewer.spec.js` pins the trip name's width at
+  393px, which is the property, not the count.
+
 - **The three modals share `.hmodal` / `.hmodal-inner`**: the edit, settings
   and trip-switcher backdrops and cards were byte-identical CSS bar `z-index`
   and `max-width`, so only those differ per modal now. Their header and footer
