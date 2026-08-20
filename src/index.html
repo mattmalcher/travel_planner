@@ -20,20 +20,23 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="Itinerary"/>
+<!-- The icon font, subset to the glyphs this page actually renders and inlined
+     as a data: URI by scripts/icon-font.mjs. It used to be a fourth CDN load —
+     829 kB of woff2 and 250 kB of CSS for ~70 glyphs, and the one reason a
+     saved file:// page or a cold offline load rendered without its icons. -->
+<!-- build:icons -->
 <!-- The only subresources the page does not carry itself. Each is pinned to an
      exact version AND to an SRI hash, so a tampered or swapped CDN response is
      rejected by the browser before it runs — which matters here because a
      script on this origin can read the OpenRouter key and every saved trip out
      of localStorage.
-     All three are served from jsdelivr's /npm/ paths, which return the
-     published tarball file byte-for-byte. That is what makes the hashes
-     derivable from (and checkable against) the pinned devDependencies —
+     Both are served from jsdelivr's /npm/ paths, which return the published
+     tarball file byte-for-byte. That is what makes the hashes derivable from
+     (and checkable against) the pinned devDependencies —
      tests/unit/sri.test.js recomputes them, so bumping a version without
      updating its hash fails the build rather than the page. Leaflet moved here
      from cdnjs for that reason: cdnjs's leaflet.min.js is a filename cdnjs
      mints itself, with nothing local to check it against. -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css"
-      integrity="sha384-8zE3cHqgn3iJlsilASXr1IcXFP7TnplbXZSbvKuaUYjPUpcK7QhlyLE/cY7lIBTp" crossorigin="anonymous"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"/>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"

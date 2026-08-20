@@ -18,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeIcons } from './icons.mjs';
+import { iconFontCss, version as iconVersion } from './icon-font.mjs';
 import { specFromSchema } from '../src/lib/edit-form.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -64,6 +65,11 @@ if (js.includes('__H_SCHEMA_VERSION__')) throw new Error('schema version placeho
 
 const css = (await transform(readFileSync(src('styles.css'), 'utf8'), { loader: 'css', minify: true })).code;
 
+// The icon font, subset to what src/ renders (scripts/icon-font.mjs). An icon
+// name Tabler does not ship has no codepoint to keep, so it fails here rather
+// than rendering as silent nothing on the page.
+const icons = await iconFontCss();
+
 // A literal "</script>" inside inlined code would truncate the page early.
 // The bundle now carries the schema text, so this guards that too.
 if (js.includes('</script')) {
@@ -77,6 +83,7 @@ const inject = (placeholder, text) => {
   if (!html.includes(placeholder)) throw new Error(`placeholder ${placeholder} missing from src/index.html`);
   html = html.replace(placeholder, () => text);
 };
+inject('<!-- build:icons -->', `<style>${icons.css}</style>`);
 inject('<!-- build:styles -->', `<style>\n${css}</style>`);
 inject('<!-- build:app -->', `<script>\n${js}</script>`);
 
@@ -121,3 +128,4 @@ writeIcons(out(''));
 
 console.log(`built dist/holiday_itinerary_viewer.html (schema ${schema.version}, ${(html.length / 1024).toFixed(0)} kB) + sw.js/manifest/icons (build ${buildTag})`);
 console.log(`  share store: ${shareEndpoint || '(none — long links only)'}`);
+console.log(`  icons: ${icons.used.length} glyphs subset from Tabler ${iconVersion()} (${(icons.bytes / 1024).toFixed(1)} kB woff2, inlined)`);

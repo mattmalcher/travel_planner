@@ -1,7 +1,9 @@
 // Subresource Integrity for the CDN assets in src/index.html.
 //
-// The page loads three files it does not carry itself, on the same origin that
-// holds the OpenRouter key and every saved trip in localStorage. Version
+// The page loads two files it does not carry itself — Leaflet's CSS and JS —
+// on the same origin that holds the OpenRouter key and every saved trip in
+// localStorage. (The Tabler webfont was a third until the build started
+// subsetting it into the page; see scripts/icon-font.mjs.) Version
 // pinning alone does not stop a tampered or swapped CDN response; the SRI hash
 // does. This test is what stops the hash and the URL drifting apart: every
 // asset is served from jsdelivr's /npm/ path, which returns the published
