@@ -46,9 +46,16 @@ src/
                     that arrives in the fragment — boot() routes it through
                     loadUpload(), and a link arriving at an open page reloads.
                     Also the hosted/fragment fallback ladder (issue #116)
-  share-store.js    the share store client (issue #116): PUT/GET ciphertext,
-                    the read retry across KV's consistency window, and the
+  share-store.js    the share store client (issues #116, #124): POST/GET
+                    ciphertext for a frozen snapshot, PUT/DELETE for a room
+                    (with the write token and the swap-semantics response), the
+                    read retry across KV's consistency window, and the
                     expired-share error the boot warning keys off
+  room.js           live sharing, the browser half (issue #124): minting a room,
+                    the manual push, the automatic pull, the conflict decisions
+                    and the share sheet's actions. share.js still owns the
+                    fragment and the boot decision; this owns what a *mutable*
+                    share does once one arrives
   share-config.js   SHARE_ENDPOINT — the __H_SHARE_ENDPOINT__ placeholder,
                     filled at build time; empty means long links only
   render.js         updateHeader / renderAll / refreshAfterChange (post-edit re-render)
@@ -77,8 +84,16 @@ src/
                     the store is a parameter, so all of it is unit-testable
     codec.js        deflate-raw + base64url for stored revisions and share links
     sharelink.js    share-link encoding (issue #81): the `#d1=`/`#u1=` fragment
-                    schemes, the `#s1=<id>.<key>` hosted one (issue #116),
+                    schemes, the `#s1=<id>.<key>` hosted one (issue #116), the
+                    `#w1=<K>` / `#v1=<id>.<key>` room pair (issue #124),
                     decode guards and where the payload sits in a URL
+    room-keys.js    one master key → id, content key and write token, all by
+                    HKDF with distinct info strings (issue #124); plus the
+                    base64url SHA-256 the Worker computes identically
+    room.js         the room record (`hShare:<trip_id>`, the fourth key space),
+                    what "unpushed" means, and the rule deciding whether an
+                    automatically pulled document lands, is parked, or is
+                    dropped. Store is a parameter, like library.js
     share-crypto.js AES-GCM-256 over a hosted share (issue #116): compress,
                     encrypt, `iv‖ciphertext` out and a fresh key per share
     lists.js        list progress/partition, dangling segment_id detection
@@ -117,6 +132,10 @@ src/
                     checklist: no tick-off, no Schedule, no cost
     library.js      the trip switcher and the opening screen's saved-trips
                     list — one row renderer, revision history under each
+    room.js         live sharing's two surfaces (issue #124): the header status
+                    pill and the share sheet's body. Separate from src/room.js
+                    so app.js and store.js can repaint the pill without pulling
+                    in the push/pull machinery, which imports app.js back
     jump-nav.js     the sticky jump strip shared by the itinerary's day chips,
                     the Lists view's list chips and the Phrases view's group
                     chips (issues #21, #69, #75). Owns the chip and strip
@@ -125,9 +144,11 @@ src/
                     announce() into the one #hlive region (issue #93)
   ai/               OpenRouter assistant (browser-only, key in localStorage)
     client.js tools.js prompt.js chat.js preview.js settings.js
-worker/             the share store (issue #116) — a Cloudflare Worker over one
-                    KV namespace, deployed with wrangler, entirely separate
-                    from the page's build. Holds ciphertext for 30 days; see
+worker/             the share store (issues #116, #124) — a Cloudflare Worker
+                    over one KV namespace, deployed with wrangler, entirely
+                    separate from the page's build. Holds ciphertext for 30
+                    days, immutable behind a minted id or replaceable behind a
+                    derived one; see
                     worker/README.md for the deploy, the `ratelimits` binding
                     (a WAF rule is not available — workers.dev has no zone)
                     and the one dashboard setting (usage alert) it needs
@@ -203,10 +224,73 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   in, which gets its own warning because "ask for a fresh link" is a different
   instruction from "this link is damaged". KV is eventually consistent, so a
   read retries over ~2s before it is allowed to call anything expired.
+- **A room is the same blob made replaceable, and the key *is* the room**
+  (issue #124). One master key `K` never leaves the page; `id`, the content key
+  and the write token are all HKDF(K, …) with distinct info strings, so the
+  store learns an opaque id and a hash of a hash and still cannot read
+  anything. Two link grades fall out: `#w1=<K>` writes, `#v1=<id>.<key>` only
+  reads — and a viewer cannot re-derive the token, because the derivation only
+  runs forwards. There is no per-person identity: **the link is the
+  permission**, forwarding an edit link hands over editing, and the only
+  revocation is Reset sharing, which retires the room and mints another.
+  Because the id is derived, `PUT /:id` **creates as well as replaces** and a
+  room cannot die, only nap: expiry costs a link's *uptime*, never a trip, and
+  the next push heals it at the same id — which is why none of the "your old
+  link stopped working" machinery exists. The corollary is that **Stop sharing
+  must forget `K` locally as well as deleting the blob**, or the next push
+  resurrects the room somebody just asked to end.
+- **Push is manual; pull is automatic** (issue #124), and the asymmetry is the
+  simplification — no debounce, no `pagehide` flush, no in-flight
+  serialisation. `persist()` runs on every mutation, so pushing on it would be
+  a network write per ticked checkbox, and the free tier's 1,000 writes/day is
+  **one Cloudflare account's quota shared by everyone using the deployed
+  page**; reads are ten times that, so freshness rides on them instead (a
+  ≥60s poll, gated on the tab being visible *and* a room existing). Staleness
+  nobody can see is the cost, so the status pill carries it — "3 changes not
+  shared", which is `rev > rev_pushed` and costs nothing to compute because
+  `persist()` has just settled `rev`. If quota pressure ever shows up the lever
+  is a minimum interval between pushes, not automation. An automatically pulled
+  document may land **silently only when it lands clean** (nothing unpushed
+  locally, and `classifyImport` says `newer`); anything else is *parked* and
+  the pill says so, because a resolve banner thrown over a half-finished edit
+  is worse than the staleness it replaced — and `older`/`duplicate` are dropped
+  without a word, since a mutable slot read through an eventually consistent
+  store can regress.
+- **The compare-and-set is best-effort, and the rev chain is the guarantee**
+  (issue #124). KV has no atomic primitive: the Worker's `If-Match` is
+  read-then-put over an eventually consistent store, so two racing pushes can
+  both pass it and the read itself can be ~60s stale. The 409 is therefore an
+  optimisation — it catches most conflicts at the friendly moment, seconds
+  after the user tapped Update — and PUT's **swap semantics** (the blob it
+  replaced comes back in the response) catch most of the rest. Build on the
+  weaker invariant: *a missed 409 degrades a push-time conflict into a
+  pull-time fork; it never silently discards anyone's trip.* Do not add
+  cleverness on KV to close the window — the honest upgrade is a Durable
+  Object, deliberately out of scope. Inside a room the banner's answers take
+  room-specific meanings: **Keep mine** is not "push my rev 8 over their rev 8"
+  (the other side would fork, permanently) but my content renumbered above
+  theirs and sent, and **Keep both** forks *my* copy out of the share and lets
+  the shared trip become theirs — forking theirs instead would leave the shared
+  trip diverged and re-park the same conflict on every pull. Either answer must
+  record the etag it was shown, or resolving is itself detected as a clobber.
+- **The room is never the source of truth**: the localStorage library is, and
+  the room is transport. `file://`, offline, an empty `SHARE_ENDPOINT` and a
+  spent quota all keep working — sync just doesn't happen, and "Send a copy"
+  still produces a link. The room record (`hShare:<trip_id>`, lib/room.js) is a
+  **fourth key space** and deliberately not a field on the index row, which
+  `entryFor()` rebuilds from the document on every save; keying by `trip_id`
+  also settles fork inheritance for free. It is quota-classed with the working
+  copy rather than history, and it is **never** in the downloaded JSON — a file
+  gets mailed around casually, and a key inside one would silently promote
+  every recipient to writer.
 - **There is one warning banner, and one way to raise it**: the upload guard,
-  the import decision, the saved-data version guard and a failed share link all
-  write the single `#hverwarn` element through `showUploadWarning(icon, title,
-  body, buttons)` in `app.js`, and put it away through `hideWarning()`. Do not
+  the import decision, the saved-data version guard, a failed share link and a
+  room's conflict (issue #124) all write the single `#hverwarn` element through
+  `showUploadWarning(icon, title, body, buttons)` in `app.js`, and put it away
+  through `hideWarning()`. It sits *above both screens* in `index.html` rather
+  than inside `#hupl`: a room's conflict arrives while a trip is open, and
+  parked inside the opening screen the banner was `display:none` exactly when
+  it had something to say. Do not
   reach for `getElementById('hverwarn')` — it used to appear 11 times, and the
   line that hides it 9 times, which is how a banner gets left on screen after
   the decision it was asking about is settled. A banner that parks a decision

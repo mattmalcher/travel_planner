@@ -44,8 +44,27 @@ export const SCHEME_PLAIN = 'u1';
  * cannot read.
  */
 export const SCHEME_HOSTED = 's1';
+/**
+ * A **room** (issue #124): the same stored blob, made replaceable, so the link
+ * stays current instead of freezing the trip as it was the day it was sent.
+ *
+ * Two grades, because a mutable slot has to answer "who may write to it":
+ *
+ *   `w1=<K>`         writer — the master key itself, from which the id, the
+ *                    content key and the write token all derive (lib/room-keys.js).
+ *                    ~60 characters, and the shortest link the app produces.
+ *   `v1=<id>.<key>`  viewer — the id and the content key only, laid out exactly
+ *                    like `s1` because it is the same two halves. A viewer
+ *                    cannot derive the write token: the derivation only runs
+ *                    forwards, so read access genuinely does not imply write.
+ *
+ * The link *is* the permission — there is no per-person identity, and
+ * forwarding a writer link hands over writing.
+ */
+export const SCHEME_ROOM_WRITER = 'w1';
+export const SCHEME_ROOM_VIEWER = 'v1';
 
-const SCHEMES = [SCHEME_HOSTED, SCHEME_DEFLATE, SCHEME_PLAIN];
+const SCHEMES = [SCHEME_HOSTED, SCHEME_ROOM_WRITER, SCHEME_ROOM_VIEWER, SCHEME_DEFLATE, SCHEME_PLAIN];
 
 /**
  * The length at which a link is worth warning about before it goes out. Well
@@ -148,7 +167,7 @@ export async function decodeShare(fragment) {
   // decrypting it needs the network, which is share.js's half of the job; this
   // guard is here so a caller that forgets gets a plain error rather than the
   // id parsed as if it were a payload.
-  if (f.scheme === SCHEME_HOSTED)
+  if (f.scheme === SCHEME_HOSTED || isRoom(f))
     throw new Error('That link points at a stored itinerary and must be fetched');
   if (!/^[A-Za-z0-9_-]+$/.test(f.data)) throw new Error(DAMAGED);
   let text;
@@ -207,4 +226,44 @@ export function parseHosted(fragment) {
   const m = /^([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(f.data || '');
   if (!m) throw new Error(DAMAGED);
   return { id: m[1], key: m[2] };
+}
+
+/* --- rooms (issue #124) -------------------------------------------------- */
+
+/** Whether a fragment names a room — a stored blob that can be replaced —
+    rather than a frozen `s1` snapshot or a document carried whole. */
+export function isRoom(fragment) {
+  const f = asFragment(fragment);
+  return !!f && (f.scheme === SCHEME_ROOM_WRITER || f.scheme === SCHEME_ROOM_VIEWER);
+}
+
+/** The link that lets the recipient edit: the master key, and nothing else. */
+export function writerUrl(href, masterKey) {
+  return `${linkBase(href)}#${SCHEME_ROOM_WRITER}=${masterKey}`;
+}
+
+/** The link that only reads. Carries the derived id and content key rather
+    than the master key, which is the whole point — a viewer must not be able
+    to re-derive the write token. */
+export function viewerUrl(href, id, key) {
+  return `${linkBase(href)}#${SCHEME_ROOM_VIEWER}=${id}.${key}`;
+}
+
+/**
+ * Split a room fragment into what it carries. Strict about the shape for the
+ * same reason parseHosted is: a link cut short by a messaging app must say so
+ * here rather than send half an id to the store and have it reported expired.
+ *
+ * @returns {{writer: true, masterKey: string}|{writer: false, id: string, key: string}}
+ */
+export function parseRoom(fragment) {
+  const f = asFragment(fragment);
+  if (!f || !isRoom(f)) throw new Error(NOT_A_SHARE);
+  if (f.scheme === SCHEME_ROOM_WRITER) {
+    if (!/^[A-Za-z0-9_-]+$/.test(f.data || '')) throw new Error(DAMAGED);
+    return { writer: true, masterKey: f.data };
+  }
+  const m = /^([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(f.data || '');
+  if (!m) throw new Error(DAMAGED);
+  return { writer: false, id: m[1], key: m[2] };
 }

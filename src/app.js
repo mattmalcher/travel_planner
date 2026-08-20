@@ -21,6 +21,9 @@ import { refreshGanttNow } from './views/gantt.js';
 import { updateActiveChip } from './views/jump-nav.js';
 import { focusKey, focusTo } from './views/focus.js';
 import { renderChat, restoreChat } from './ai/chat.js';
+// The pill, and only the pill: views/room.js is the DOM half of live sharing
+// (issue #124) and imports nothing that imports this file back.
+import { renderRoom } from './views/room.js';
 import { hidePreview } from './ai/preview.js';
 
 export function load(data) {
@@ -66,10 +69,11 @@ export function showUploadWarning(icon, title, body, buttons) {
 
 /**
  * Settle a pending decision: take whatever the banner was asking about, clear
- * the slot, put the banner away, and act on it. The five buttons across the
- * upload guard and the import decision differ only in `fn`.
+ * the slot, put the banner away, and act on it. The buttons across the upload
+ * guard, the import decision and a room's conflict (issue #124, in room.js —
+ * which is why this is exported) differ only in `fn`.
  */
-function resolveWarning(slot, fn) {
+export function resolveWarning(slot, fn) {
   const pending = state[slot];
   state[slot] = null;
   hideWarning();
@@ -160,7 +164,11 @@ export function closeTrip() {
   // The transcript is only cleared from view: it stays saved against this trip
   // and comes back when the trip is opened again (issue #99).
   state.chat = []; state.draft = null; state.ops = [];
-  hidePreview(); renderChat();
+  // A parked incoming version belongs to the trip that was open, not the next
+  // one, so it is dropped with it — the room record stays and the next pull
+  // fetches it again.
+  state.roomWaiting = null; state.pendingRoom = null;
+  hidePreview(); renderChat(); renderRoom();
   document.getElementById('hupl').style.display = 'block';
   document.getElementById('happ').style.display = 'none';
   hideWarning();

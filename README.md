@@ -33,6 +33,12 @@ Having no server to store state makes some things a bit harder. Another key feat
 
 Unfortunately messaging apps don't always like long links. So there is now a Cloudflare Worker that holds a blob for 30 days behind a short link. It can't read what it holds - the plan is encrypted in your browser and the key travels in the `#` part of the link, which browsers never send to a server.  If it is down, out of quota, not configured, or you are offline, sharing quietly falls back to the old link with the whole plan in it. 
 
+A link that freezes the plan the moment you send it is only half of what I wanted, though. Plans change, and re-sending a link every time is exactly the sort of admin that makes people stop bothering. So the stored blob can now be *replaced*: **Share live** gives you a link that stays current, and ticking **Let them edit** gives the other person a link that lets them change the plan too. Still no backend holding your holiday, still ciphertext the operator can't read - the same trick as before, only the slot is writable, and who may write to it comes out of the link rather than out of an account.
+
+It is deliberately janky, and I think that is the right trade. You tap **Update shared copy** to send your changes; it is not live and it does not sync in the background. That is partly because writes to the free tier are a shared budget across everyone using the page, and partly because a thing that quietly syncs is a thing that quietly overwrites. What you get instead is a little status pill that says how many changes you haven't shared yet, and a nudge rather than a surprise. Changes coming the *other* way do arrive on their own, but they only land silently when they can't tread on anything you were in the middle of; otherwise they wait until you say so.
+
+The plan in your browser stays the real one throughout. If two of you edit from the same starting point the app says so and asks, exactly as it already did for a file or a link - nobody's version gets thrown away. And if a shared link expires (30 days after the last update) that pauses the link, not the trip: one more update brings the same link back to life for everyone you sent it to.
+
 
 # What is this thing? (techy version)
 A standalone HTML viewer for `HolidayItinerary` JSON files: itinerary, map,
@@ -41,8 +47,11 @@ OpenRouter key). Load a file, or start an itinerary from scratch and build it
 up by hand, then send the whole trip to someone as a link — encrypted in the
 browser and stored as ciphertext behind a short link, with the key in the
 link's `#` fragment so it never reaches a server, or carried whole inside the
-fragment when there is no store to reach. Either way there is no account to
-make, and anyone holding the link can read the whole trip. The
+fragment when there is no store to reach. A link can be a frozen copy, or a
+**live** one that keeps up with your updates; a live one comes in two grades,
+view and edit, and the link *is* the permission — forwarding an edit link
+hands over editing. Either way there is no account to make, and anyone holding
+a link can read the whole trip. The
 app is developed as modular source in `src/` and built into a
 single self-contained `dist/holiday_itinerary_viewer.html` — the built file
 is produced by CI for deployment and is not committed.

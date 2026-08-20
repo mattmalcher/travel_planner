@@ -44,6 +44,15 @@
      displayed: the opening screen's is sr-only prose describing the app, the
      open trip's is its name in the header. A single page-level <h1> sitting
      above both would put an h1 after the day headings once a trip is open. -->
+<!-- The one warning banner (see the invariant in CLAUDE.md): the upload
+     guards, the import decision, the saved-data version guard, a failed share
+     link and a room's conflict (issue #124) are all this element, raised
+     through showUploadWarning() and put away through hideWarning().
+     It sits above BOTH screens rather than inside the opening one, because a
+     room's conflict arrives while a trip is open — parked inside #hupl it was
+     display:none exactly when it had something to say. -->
+<div id="hverwarn" style="display:none;max-width:460px;margin:1rem auto;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-lg);padding:.85rem 1rem;font-size:12px;line-height:1.45"></div>
+
 <div id="hupl" style="padding:2.5rem 1.5rem">
   <h1 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views</h1>
   <div style="text-align:center;margin-bottom:1.75rem">
@@ -57,7 +66,6 @@
          opened years later by a browser that hasn't got it. -->
     <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px"><a href="https://github.com/mattmalcher/travel_planner" style="color:var(--color-text-info)" target="_blank" rel="noopener noreferrer"><i class="ti ti-brand-github" aria-hidden="true"></i> Source on GitHub</a> — how this page is built, and where to report a problem</div>
   </div>
-  <div id="hverwarn" style="display:none;max-width:460px;margin:0 auto 1rem;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-lg);padding:.85rem 1rem;font-size:12px;line-height:1.45"></div>
   <!-- Trips already saved in this browser (issue #80), so a returning visit is
        one tap instead of a file picker. Filled by views/library.js. -->
   <div id="hupl-recent" style="display:none"></div>
@@ -79,15 +87,21 @@
 <div id="happ" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:.75rem 1.25rem;border-bottom:.5px solid var(--color-border-tertiary)">
     <h1 id="htname" style="margin:0;font-size:15px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></h1>
-    <div style="display:flex;gap:8px;flex-shrink:0">
+    <div style="display:flex;gap:8px;flex-shrink:0;align-items:center">
+      <!-- Live sharing's status (issue #124), shown only while this trip is in
+           a room: how far the shared copy is behind, or that someone else's
+           changes are waiting. It is also the retry after a failed push and
+           the way into a parked decision. -->
+      <button id="hroom-pill" class="hpill" onclick="hRoomPill()" style="display:none"></button>
       <!-- The trip switcher (issue #80): several trips live here, and this is
            where you flip between them, wind one back, or forget one. -->
       <button onclick="hLibOpen()" class="htool" title="Switch trip"><i class="ti ti-luggage" aria-hidden="true"></i></button>
       <button onclick="hChatOpen()" class="htool" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i> AI</button>
       <button id="hedit-toggle" onclick="hToggleEdit()" class="htool" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
-      <!-- Share a link with the whole itinerary in it (issue #81) — a shared
-           secret, which the confirmation on the link says out loud. -->
-      <button onclick="hShare()" class="htool" title="Share a link to this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
+      <!-- Sharing is a choice now (issue #124): a frozen copy, or a live room
+           that stays current. Either way the link is the whole itinerary, and
+           the confirmation on it says so out loud (issue #81). -->
+      <button onclick="hShareOpen()" class="htool" title="Share this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
       <button onclick="hDownload()" class="htool" title="Download JSON"><i class="ti ti-download" aria-hidden="true"></i></button>
       <button onclick="hCloseTrip()" class="htool" title="Close this trip — it stays in your saved trips"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
     </div>
@@ -187,7 +201,7 @@
         <input class="hset-in" id="hlib-by" type="text" placeholder="e.g. Matt" autocomplete="off" onchange="hLibSaveName()" onblur="hLibSaveName()">
       </div>
       <div style="font-size:11px;color:var(--color-text-tertiary);line-height:1.4">
-        A share link carries the itinerary inside the link itself — anyone holding it can read the whole trip, booking references included, and the copy they open is a snapshot rather than a live view.
+        A share link hands over the whole trip, booking references included — anyone holding it can read it. A copy is a snapshot; a live link keeps up with your updates, and an edit link lets whoever holds it (and anyone they forward it to) change the trip.
       </div>
       <div style="font-size:11px;color:var(--color-text-tertiary);line-height:1.4">
         Saved trips live in this browser only — treat them as a cache, not an archive, and download a trip to keep it. iOS clears a site's storage after about a week of not visiting; adding this page to your Home Screen exempts it.
@@ -196,6 +210,21 @@
         <button onclick="hLibForget()" class="htool" style="color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Forget all saved trips</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- The share sheet (issue #124). Two options plus a modifier, never three
+     peer buttons: a frozen copy, or a live room, with "Let them edit" as a
+     checkbox on the act of sharing — deliberately not a toggle, because a
+     writer link cannot be un-issued and a toggle would read as if it could.
+     The body is rendered by room.js, which knows whether a room exists. -->
+<div id="hshare-modal" class="hmodal" onclick="if(event.target===this)hShareClose()">
+  <div id="hshare-inner" class="hmodal-inner">
+    <div id="hshare-hd">
+      <span style="font-size:13px;font-weight:500"><i class="ti ti-share" aria-hidden="true"></i> Share this trip</span>
+      <button onclick="hShareClose()" class="htool"><i class="ti ti-x" aria-hidden="true"></i></button>
+    </div>
+    <div id="hshare-body"></div>
   </div>
 </div>
 

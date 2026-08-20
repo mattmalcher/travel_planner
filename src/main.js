@@ -4,7 +4,11 @@
 import { state, H_SCHEMA_VERSION } from './state.js';
 import { load, loadUpload, uploadAnyway, uploadCancel, importReplace, importBoth, importCancel, closeTrip, switchView, tabKey, download, toggleEdit, openEdit, openEditTrip, openAddSegment, openNewItinerary, openScheduleItem, openEditList, openAddList, openEditListItem, openEditPhraseGroup, openAddPhraseGroup, openEditPhrase, closeEdit, saveEdit, editTab, deleteEdit, downloadSaved, forceLoadSaved, discardSaved } from './app.js';
 import { libOpen, libClose, libSwitch, libRevs, libDelete, libRestore, libDownloadRev, libSaveName, libForgetAll } from './views/library.js';
-import { boot, shareTrip, shareRevision, shareToastClose } from './share.js';
+import { boot, shareRevision, shareToastClose } from './share.js';
+import {
+  shareOpen, shareClose, sendCopy, roomPill, roomStart, roomCopy, roomPush, roomStop,
+  roomReset, roomTheirs, roomMine, roomBoth, roomLater, watchRoom, renderRoom,
+} from './room.js';
 import { dismissStoreWarning } from './store.js';
 import { toggleGanttMode } from './views/gantt.js';
 import { jumpToDay } from './views/list.js';
@@ -41,8 +45,21 @@ Object.assign(window, {
   hStoreWarnClose: dismissStoreWarning,
   hsw: switchView,
   hDownload: download,
-  hShare: shareTrip,
+  hShareCopy: sendCopy,
+  hShareOpen: shareOpen,
+  hShareClose: shareClose,
   hShareToastClose: shareToastClose,
+  // Live sharing (issue #124)
+  hRoomPill: roomPill,
+  hRoomStart: roomStart,
+  hRoomCopy: roomCopy,
+  hRoomPush: roomPush,
+  hRoomStop: roomStop,
+  hRoomReset: roomReset,
+  hRoomTheirs: roomTheirs,
+  hRoomMine: roomMine,
+  hRoomBoth: roomBoth,
+  hRoomLater: roomLater,
   hToggleEdit: toggleEdit,
   hOpenEdit: openEdit,
   hOpenEditTrip: openEditTrip,
@@ -138,6 +155,10 @@ renderChat();
 // `#s1=` fetched and decrypted, `#d1=`/`#u1=` decoded in place; with no link,
 // boot() is just loadSaved() (issues #81, #116).
 boot();
+// Rooms pull on focus and on a slow visible-tab timer (issue #124); push is
+// always a deliberate tap. Both no-op until the open trip is actually in one.
+watchRoom();
+renderRoom();
 initServiceWorker();
 
 export { state }; // handy for debugging from the console via the bundle
