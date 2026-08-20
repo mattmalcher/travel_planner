@@ -80,7 +80,8 @@ const PAIRS = [
   // text on the info tint.
   ['--color-text-primary', ['page', 'primary', 'secondary', 'info']],
   // Tab labels, .hli-local, chip labels, the add-row label, .hli-progress
-  // (which is on the secondary fill).
+  // (which is on the secondary fill), the live-sharing pill at rest and the
+  // share sheet's status chip (also on the secondary fill).
   ['--color-text-secondary', ['page', 'primary', 'secondary']],
   // Not decoration — this one carries content: segment notes, booking
   // references, completed list items, the "No items yet" empty states, the
@@ -89,7 +90,8 @@ const PAIRS = [
   // .hbadge.paid / .included / .free.
   ['--color-text-success', ['success']],
   // .hbadge.pending / .partial, .hli-chip.broken, .hph-todo-count, .hpv-warn,
-  // #hstorewarn and renderWarnings' banner.
+  // #hstorewarn, renderWarnings' banner, and the live-sharing pill in its
+  // attention state — "3 changes not shared" (issue #124).
   ['--color-text-warning', ['warning']],
   // .hbadge.rejected and .hpv-err on the danger tint; .hjump-chip.hday-today
   // and the delete hovers on a plain card.

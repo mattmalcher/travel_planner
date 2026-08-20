@@ -9,6 +9,7 @@ import {
   shareDocument, encodeShare, decodeShare, readShareFragment, hasShareLink,
   linkBase, shareUrl, isOverlong, isHosted, hostedFragment, hostedUrl, parseHosted,
   parseShareDocument, DAMAGED, NOT_A_SHARE,
+  isRoom, parseRoom, writerUrl, viewerUrl, SCHEME_ROOM_WRITER, SCHEME_ROOM_VIEWER,
 } from '../../src/lib/sharelink.js';
 import { toBase64url } from '../../src/lib/codec.js';
 
@@ -282,4 +283,47 @@ test('an unknown scheme is refused rather than guessed at', () => {
   // cannot read it, not decode it as if it were d1.
   assert.equal(readShareFragment('#d2=' + 'x'.repeat(20)), null);
   assert.equal(hasShareLink('#d2=abcdefgh'), false);
+});
+
+/* --- room links (issue #124) --------------------------------------------- */
+
+const KEY43 = 'A'.repeat(43);
+
+test('a writer link carries the master key and nothing else', () => {
+  const url = writerUrl('https://x.test/v.html?a=1#old', KEY43);
+  assert.equal(url, `https://x.test/v.html?a=1#${SCHEME_ROOM_WRITER}=${KEY43}`);
+  // The short link the design promises: ~60 characters for any trip at all.
+  assert.ok(url.split('#')[1].length < 50);
+  assert.deepEqual(parseRoom(url.split('#')[1]), { writer: true, masterKey: KEY43 });
+});
+
+test('a viewer link carries the id and the content key, laid out like s1', () => {
+  const url = viewerUrl('https://x.test/v.html', 'rid123', KEY43);
+  assert.equal(url, `https://x.test/v.html#${SCHEME_ROOM_VIEWER}=rid123.${KEY43}`);
+  assert.deepEqual(parseRoom(url.split('#')[1]), { writer: false, id: 'rid123', key: KEY43 });
+});
+
+test('both room schemes are recognised as rooms, and the frozen ones are not', () => {
+  assert.equal(isRoom(`${SCHEME_ROOM_WRITER}=${KEY43}`), true);
+  assert.equal(isRoom(`${SCHEME_ROOM_VIEWER}=rid.${KEY43}`), true);
+  assert.equal(isRoom(`s1=rid.${KEY43}`), false);
+  assert.equal(isRoom('d1=abc'), false);
+  assert.equal(isRoom(''), false);
+});
+
+test('a truncated room link says so rather than sending half a key to the store', async () => {
+  assert.throws(() => parseRoom(`${SCHEME_ROOM_VIEWER}=rid-with-no-key`), /damaged/i);
+  assert.throws(() => parseRoom(`${SCHEME_ROOM_WRITER}=`), /does not carry|damaged/i);
+  assert.throws(() => parseRoom('d1=abc'), /does not carry/i);
+});
+
+test('decoding a room link in place is refused — it names a document, it does not carry one', async () => {
+  await assert.rejects(() => decodeShare(`${SCHEME_ROOM_WRITER}=${KEY43}`), /must be fetched/);
+  await assert.rejects(() => decodeShare(`${SCHEME_ROOM_VIEWER}=rid.${KEY43}`), /must be fetched/);
+});
+
+test('a room link is found in a fragment that is doing something else too', () => {
+  const f = readShareFragment(`#anchor&${SCHEME_ROOM_WRITER}=${KEY43}`);
+  assert.equal(f.scheme, SCHEME_ROOM_WRITER);
+  assert.equal(f.data, KEY43);
 });
