@@ -75,6 +75,11 @@ export function renderRoom() {
 export function renderShareSheet() {
   const box = document.getElementById('hshare-body');
   if (!box) return;
+  // The sheet repaints whenever the room moves — a push, a pull, the poll —
+  // and the rebuild would silently untick the box: tick it, tap Update, tap
+  // Copy, and the link handed over is the wrong grade. The tick belongs to
+  // the user, not the render, so it survives the rebuild.
+  const wantedEdit = letThemEdit();
   const room = currentRoom();
   const status = roomStatus();
   const rows = [];
@@ -117,6 +122,8 @@ export function renderShareSheet() {
   rows.push('<p class="hshare-note">A copy is a snapshot of the trip as it is right now, and never changes again — whatever you do here afterwards.</p>');
   rows.push('<p class="hshare-note">Any of these links is the whole itinerary, booking references included. Whoever holds one can read it; whoever holds an <b>edit</b> link — and anyone they forward it to — can change it. The link is the permission.</p>');
   box.innerHTML = rows.join('');
+  const check = document.getElementById('hshare-edit');
+  if (check) check.checked = wantedEdit;
 }
 
 const editCheckbox = () => '<label class="hshare-check">'

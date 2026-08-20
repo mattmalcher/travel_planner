@@ -209,6 +209,25 @@ test.describe('Live sharing', () => {
     await expect(pill(page)).toContainText('up to date');
   });
 
+  test('"Let them edit" survives the sheet repainting', async ({ page }) => {
+    await routeStore(page);
+    await page.goto('/holiday_itinerary_viewer.html');
+    await upload(page, itinerary('Orbit City'));
+    await openSheet(page);
+    await linkFrom(page, () => sheetButton(page, 'Share live').click());
+
+    // Tick the box, then do something that repaints the sheet — a push does.
+    // The tick belongs to the user, not the render: losing it here handed out
+    // a viewer link the sharer believed was an edit link.
+    await openSheet(page);
+    await page.locator('#hshare-edit').check();
+    await sheetButton(page, 'Update shared copy').click();
+    await expect(pill(page)).toContainText('up to date');
+    await expect(page.locator('#hshare-edit')).toBeChecked();
+    const link = await linkFrom(page, () => sheetButton(page, 'Copy the live link').click());
+    expect(link).toMatch(/#w1=/);
+  });
+
   test('an edit link makes the other device a writer; a view link does not', async ({ page, context }) => {
     const store = await routeStore(page);
     await page.goto('/holiday_itinerary_viewer.html');
@@ -273,6 +292,53 @@ test.describe('Live sharing', () => {
     await openSheet(page); // opening the sheet pulls
     await expect(page.locator('#htname')).toHaveText('Orbit City Redux');
     await expect(pill(page)).toContainText('up to date');
+    await other.close();
+  });
+
+  test('a clean update waits out an open edit modal rather than landing under it', async ({ page, context }) => {
+    const store = await routeStore(page);
+    await page.goto('/holiday_itinerary_viewer.html');
+    await upload(page, itinerary('Orbit City'));
+    await openSheet(page);
+    await page.locator('#hshare-edit').check();
+    const writerLink = await linkFrom(page, () => sheetButton(page, 'Share live').click());
+
+    const other = await context.browser().newContext();
+    const them = await other.newPage();
+    await routeStore(them, store);
+    await them.goto(new URL(writerLink).pathname + new URL(writerLink).hash);
+    await expect(them.locator('#htname')).toHaveText('Orbit City');
+    await them.locator('#happ button[title="Toggle edit mode"]').click();
+    await them.locator('#htname + .hpencil, #happ .hpencil').first().click();
+    await them.locator('#hedit-tab-json').click();
+    const trip = await them.locator('#hedit-ta').inputValue();
+    await them.locator('#hedit-ta').fill(trip.replace('Orbit City', 'Orbit City Redux'));
+    await them.locator('#hedit-ft button', { hasText: 'Save' }).click();
+    await openSheet(them);
+    await sheetButton(them, 'Update shared copy').click();
+    await expect(them.locator('#hroom-pill')).toContainText('up to date');
+
+    // The first device has nothing unpushed — the revisions say "apply
+    // silently" — but its edit modal is open on a half-typed form. `saveEdit`
+    // writes back by index, so a document swapped out underneath it would take
+    // the save into whatever now sits at that index. The pull must wait.
+    await closeSheet(page);
+    await page.locator('#hedit-toggle').click();
+    await page.locator('#hvlist .hpencil').first().click();
+    await expect(page.locator('#hedit-modal')).toHaveClass(/on/);
+    const pulls = () => store.seen.filter(r => r.method === 'GET').length;
+    const before = pulls();
+    await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))");
+    await expect.poll(pulls).toBeGreaterThan(before);
+    // Proving a negative: give the pull's decrypt-and-apply time it must not use.
+    await page.waitForTimeout(400);
+    await expect(page.locator('#htname')).toHaveText('Orbit City');
+    await expect(page.locator('#hedit-modal')).toHaveClass(/on/);
+
+    // The moment the modal is out of the way, the same pull lands it.
+    await page.locator('#hedit-ft button', { hasText: 'Cancel' }).click();
+    await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))");
+    await expect(page.locator('#htname')).toHaveText('Orbit City Redux');
     await other.close();
   });
 

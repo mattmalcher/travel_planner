@@ -166,13 +166,8 @@ export async function deleteRoom(id, token) {
   if (!res.ok && res.status !== 404) throw new Error(`Share store refused the delete (${res.status})`);
 }
 
-/**
- * Read a room. The retry ladder `getShare` uses is right for opening a link
- * for the first time and wrong for a poll: a room that is not there yet is a
- * normal state (nobody has pushed since it lapsed), and spending ~2s of
- * sleeping on every poll to discover that is waste. Pass `waits` through for
- * the boot read, which does want the ladder.
- */
-export function getRoom(id, waits) {
-  return getShare(id, waits || []);
-}
+/* Reading a room is `getShare` with the right `waits` for the moment: the
+   default retry ladder when opening a link for the first time (a room created
+   seconds ago can genuinely 404 on a stale edge read), and `[]` for a poll —
+   a room that is not there is a normal state for one (nobody has pushed since
+   it lapsed), and ~2s of sleeping per poll to discover that is waste. */
