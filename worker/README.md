@@ -12,6 +12,22 @@ request — so the key reaches the recipient's browser and nothing else. Whoever
 holds the whole link holds both halves, which is the same thing a `#d1=` link
 already meant: the link *is* the secret.
 
+## Deploying an update
+
+The room methods are additive: `POST` and `GET` behave exactly as they did, a
+blob already in KV has no token hash beside it and so stays immutable and
+keeps its `max-age=3600`, and the wider `Access-Control-Allow-*` values only
+permit more. A page running the previous build only ever POSTs and GETs, so it
+carries on working against this Worker unchanged — which matters, because a
+saved `file://` copy or a home-screen PWA can run an old build indefinitely.
+`tests/unit/share-worker.test.js` pins all three of those.
+
+**Deploy the Worker before the page.** The other order is not broken, but a new
+page against an old Worker gets a `405` for its first `PUT`, which the app
+treats like any other write failure: live sharing is abandoned, nothing is
+stored locally, and the share falls back to a link that carries the plan. That
+is a silent downgrade rather than an error, so it is easy not to notice.
+
 ## Deploy
 
 ```bash
