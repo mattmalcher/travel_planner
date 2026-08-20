@@ -3,7 +3,7 @@
 import { buildTools } from './tools.js';
 
 export const HOR_URL = 'https://openrouter.ai/api/v1/chat/completions';
-export const HOR_DEFAULT_MODEL = 'google/gemini-3.6-flash';
+export const HOR_DEFAULT_MODEL = 'google/gemini-3.7-flash';
 
 // Pure tool-calling: a low pinned temperature measurably reduces malformed
 // calls on small models (issue #44). Overridable via the hOpenRouterTemp
