@@ -174,6 +174,12 @@ scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     source that answers "does this line run on THIS date"
                     (tools/gtfs_query.py); seasonality, weekend and short-turn
                     traps, and the four things GTFS cannot tell you
+  uk-rail-timetables/  British train times, from the Realtime Trains API
+                    (tools/rail_query.py, fixture-tested by tools/
+                    test_rail_query.py): GB has no open feed, so this is the
+                    one skill that needs a key. Resolves CRS codes offline out
+                    of find-stop's cached database, and knows why a GB fare
+                    cannot be quoted automatically
   browser-research/ driving the user's real Chrome (via the claude-in-chrome
                     extension) for pages that refuse a fetch — last rung of the
                     ladder, hands off to find-stop/authoring; one host is deep
