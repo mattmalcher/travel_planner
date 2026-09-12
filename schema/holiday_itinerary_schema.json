@@ -335,6 +335,10 @@
           "minimum": 0,
           "description": "The single total amount for this cost. When payments[] is present it must equal their sum (checked by lint, not the schema)."
         },
+        "estimated": {
+          "type": "boolean",
+          "description": "Whether this amount is an estimate rather than a firm quoted price."
+        },
         "payments": {
           "type": "array",
           "items": {
