@@ -4,7 +4,7 @@
 
     Two surfaces consume this. The in-app assistant renders the `app` view into
     its system prompt (src/ai/prompt.js). Desktop editing in this repo renders
-    the `desktop` view into .claude/skills/itinerary-authoring/SKILL.md, kept in
+    the `desktop` view into .agents/skills/itinerary-authoring/SKILL.md, kept in
     step by `npm run itin -- doctrine --write` and guarded by
     tests/unit/doctrine.test.js.
 

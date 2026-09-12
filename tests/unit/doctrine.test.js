@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { DOCTRINE, SCOPES, renderDoctrine } from '../../src/lib/doctrine.js';
 import { doctrineBlock } from '../../scripts/itin.mjs';
 
-const SKILL = new URL('../../.claude/skills/itinerary-authoring/SKILL.md', import.meta.url);
+const SKILL = new URL('../../.agents/skills/itinerary-authoring/SKILL.md', import.meta.url);
 
 test('every entry has a usable id, scope and text', () => {
   assert.ok(DOCTRINE.length > 0);
@@ -85,7 +85,7 @@ test("the assistant's system prompt renders the app doctrine verbatim", async ()
 test('the SKILL.md doctrine block matches the module', () => {
   const md = readFileSync(SKILL, 'utf8');
   assert.ok(md.includes(doctrineBlock()),
-    'the doctrine block in .claude/skills/itinerary-authoring/SKILL.md is stale — run `npm run itin -- doctrine --write`');
+    'the doctrine block in .agents/skills/itinerary-authoring/SKILL.md is stale — run `npm run itin -- doctrine --write`');
 });
 
 test('SKILL.md has exactly one pair of doctrine markers', () => {

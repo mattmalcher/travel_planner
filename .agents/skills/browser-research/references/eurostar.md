@@ -6,7 +6,7 @@ does this weekend cost by train".
 
 ## The timetable pages are NOT walled — only the fare search is
 
-A plain `WebFetch` of
+A normal page fetch of
 `/us-en/travel-info/timetable/<originId>/<destId>/<slug>/<slug>` returns the
 whole day's departures with train numbers (London St Pancras `7015400`, Paris
 Gare du Nord `8727100`). That answers "which departures exist and what connects"
@@ -25,9 +25,9 @@ the timetable page introduced two errors that the original had right.
 
 The results page is a deep link —
 `/search/uk-en?adult=2&origin=<id>&destination=<id>&outbound=YYYY-MM-DD` — so
-after one form submission every further date is a `navigate` + `get_page_text`,
-several to a `browser_batch`. Station ids are opaque (Grenoble `8774700`); read a
-new one out of the URL after searching that station once.
+after one form submission every further date can reuse the deep link with a new
+date. Station ids are opaque (Grenoble `8774700`); read a new one out of the URL
+after searching that station once.
 
 Two traps:
 

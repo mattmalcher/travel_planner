@@ -133,7 +133,7 @@ TransXChange, not GTFS.
 (`$GTFS_CACHE` to move it), so later queries and later sessions reuse it:
 
 ```bash
-.claude/skills/bus-timetables/tools/gtfs_query.py "<resource url>" --routes 'T7|55'
+.agents/skills/bus-timetables/scripts/gtfs_query.py "<resource url>" --routes 'T7|55'
 ```
 
 Every run prints which directory it used and **when it was fetched**, on stderr;
@@ -163,9 +163,9 @@ cut -d, -f1,2 feed/agency.txt   # which operators are actually in here
 ## Step 3 — query it
 
 ```bash
-.claude/skills/bus-timetables/tools/gtfs_query.py feed --routes 'T7|55'
-.claude/skills/bus-timetables/tools/gtfs_query.py feed T75 2026-09-11 45.1917,5.7145 45.0553,6.0300
-.claude/skills/bus-timetables/tools/gtfs_query.py feed T75 2026-09-11..2026-09-13 45.1917,5.7145 45.0553,6.0300
+.agents/skills/bus-timetables/scripts/gtfs_query.py feed --routes 'T7|55'
+.agents/skills/bus-timetables/scripts/gtfs_query.py feed T75 2026-09-11 45.1917,5.7145 45.0553,6.0300
+.agents/skills/bus-timetables/scripts/gtfs_query.py feed T75 2026-09-11..2026-09-13 45.1917,5.7145 45.0553,6.0300
 ```
 
 `--routes` takes a regex over the short and long names and is how you find what

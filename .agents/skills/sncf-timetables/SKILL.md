@@ -80,8 +80,8 @@ republished roughly daily) is read in seconds by `gtfs_query.py` from the
 `bus-timetables` skill — a ~400k-row `stop_times.txt`, not a national monster:
 
 ```bash
-.claude/skills/bus-timetables/tools/gtfs_query.py <resource-url> --routes 'Grenoble'
-.claude/skills/bus-timetables/tools/gtfs_query.py <resource-url> 621A 2026-09-11 48.844888,2.37352 45.191493,5.714584
+.agents/skills/bus-timetables/scripts/gtfs_query.py <resource-url> --routes 'Grenoble'
+.agents/skills/bus-timetables/scripts/gtfs_query.py <resource-url> 621A 2026-09-11 48.844888,2.37352 45.191493,5.714584
 ```
 
 Two things specific to this feed:
