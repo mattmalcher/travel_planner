@@ -57,6 +57,15 @@ test('an off-enum cost status is rejected — the badge XSS payload never valida
   assert.equal(validate(seg), false);
 });
 
+test('a cost may mark its amount as estimated', () => {
+  const validate = sub(SUBSCHEMAS.event);
+  const seg = {
+    id: 'seg-1', type: 'event', subtype: 'activity', name: 'Louvre', date: '2026-09-18',
+    cost: { status: 'not_booked', amount: 20, estimated: true },
+  };
+  assert.equal(validate(seg), true, JSON.stringify(validate.errors));
+});
+
 test('a segment is judged by its own type, not the oneOf (issue #76)', () => {
   // A half-filled event must not come back demanding transport's fields.
   const validate = sub(SUBSCHEMAS.event);

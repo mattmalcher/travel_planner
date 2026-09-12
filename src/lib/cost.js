@@ -42,34 +42,36 @@ function paymentTotals(c) {
 /**
  * Summarise a segment's cost for display.
  * Returns null (no cost), {t:'inc'} (included in another segment),
- * {t:'nb'} (not booked), or {t:'amt', tot, cur, st, due?}.
+ * {t:'nb'} (not booked with no figure), or {t:'amt', tot, cur, st, due?,
+ * estimated?}. A not-booked cost with an amount is still an amount: retaining
+ * it here keeps list, budget and AI digest views in agreement.
  */
 export function costInfo(s, primaryCurrency) {
   const c = s.cost;
   if (!c) return null;
   if (c.included_in) return { t: 'inc' };
-  if (c.status === 'not_booked') return { t: 'nb' };
+  if (c.status === 'not_booked' && c.amount == null) return { t: 'nb' };
   const cur = c.currency || primaryCurrency;
   if (c.payments) {
     const { tot, st } = paymentTotals(c);
-    return { t: 'amt', tot, cur, st };
+    return { t: 'amt', tot, cur, st, estimated: c.estimated };
   }
-  return { t: 'amt', tot: c.amount || 0, cur, st: c.status, due: c.due };
+  return { t: 'amt', tot: c.amount ?? 0, cur, st: c.status, due: c.due, estimated: c.estimated };
 }
 
 /**
  * Aggregate all segment costs for the budget view, grouped by currency
  * (issue #16). Returns {totals, notBooked, upcoming, rows}:
- * - totals: one {cur, paid, pending} per currency present; the trip's
+ * - totals: one {cur, paid, pending, estimated} per currency present; the trip's
  *   primary currency always comes first (even when unused)
  * - upcoming: pending payments {n, amt, cur, due} sorted by due date, undated last
  * - rows: one {s, st, amt, cur} per costed segment, in input order
  */
 export function budgetSummary(segments, primaryCurrency) {
   const primary = primaryCurrency || 'GBP';
-  const byCur = new Map([[primary, { cur: primary, paid: 0, pending: 0 }]]);
+  const byCur = new Map([[primary, { cur: primary, paid: 0, pending: 0, estimated: 0 }]]);
   const bucket = cur => {
-    if (!byCur.has(cur)) byCur.set(cur, { cur, paid: 0, pending: 0 });
+    if (!byCur.has(cur)) byCur.set(cur, { cur, paid: 0, pending: 0, estimated: 0 });
     return byCur.get(cur);
   };
   const upcoming = [], notBooked = [], rows = [];
@@ -77,7 +79,13 @@ export function budgetSummary(segments, primaryCurrency) {
     const c = s.cost;
     if (!c || c.included_in) continue;
     const cur = c.currency || primary;
-    if (c.status === 'not_booked') { notBooked.push(s); rows.push({ s, st: 'not_booked', amt: null, cur }); continue; }
+    if (c.status === 'not_booked') {
+      const amt = c.amount ?? null;
+      notBooked.push(s);
+      if (amt !== null) bucket(cur).estimated += amt;
+      rows.push({ s, st: 'not_booked', amt, cur, estimated: amt !== null || c.estimated });
+      continue;
+    }
     if (c.status === 'free') { rows.push({ s, st: 'free', amt: 0, cur }); continue; }
     const b = bucket(cur);
     if (c.payments) {
@@ -86,12 +94,12 @@ export function budgetSummary(segments, primaryCurrency) {
         if (p.status === 'paid') b.paid += p.amount;
         else { b.pending += p.amount; upcoming.push({ n: s.name || s.operator, amt: p.amount, cur, due: p.due }); }
       }
-      rows.push({ s, st, amt: tot, cur });
+      rows.push({ s, st, amt: tot, cur, estimated: c.estimated });
     } else {
-      const amt = c.amount || 0;
+      const amt = c.amount ?? 0;
       if (c.status === 'paid') b.paid += amt;
       else if (c.status === 'pending') { b.pending += amt; upcoming.push({ n: s.name || s.operator, amt, cur, due: c.due }); }
-      rows.push({ s, st: c.status, amt, cur });
+      rows.push({ s, st: c.status, amt, cur, estimated: c.estimated });
     }
   }
   upcoming.sort((a, b) => new Date(a.due || '9999') - new Date(b.due || '9999'));
