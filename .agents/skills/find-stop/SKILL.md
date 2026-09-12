@@ -21,7 +21,7 @@ feed is already downloaded for that stop's times, its coordinates are in there.
 ## Step 1 — search Trainline
 
 ```bash
-STATIONS_CACHE=<scratchpad> .claude/skills/find-stop/tools/lookup.sh '<pattern>' [CC]
+STATIONS_CACHE=<temporary-cache-path> .agents/skills/find-stop/scripts/lookup.sh '<pattern>' [CC]
 ```
 
 The pattern is an extended regex, matched case- and **accent-insensitively**,
@@ -53,7 +53,7 @@ If a stop is missing, or it is a bus/tram/ferry stop, go to step 2.
 
 Overpass enforces per-IP concurrency limits and answers 429 when too many
 requests are in flight, so build **one** query covering every stop Trainline
-could not answer and fetch it with a **single** WebFetch — never parallel calls.
+could not answer and fetch it with a **single** web request — never parallel calls.
 Keep `[timeout:15]` or lower so you don't hold a server slot. If one combined
 query returns too much noise, split it into *sequential* requests.
 

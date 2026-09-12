@@ -26,7 +26,7 @@ import { takenListIds, takenItemIds } from '../src/lib/lists.js';
 import { takenGroupIds, takenPhraseIds } from '../src/lib/phrases.js';
 
 const SCHEMA_URL = new URL('../schema/holiday_itinerary_schema.json', import.meta.url);
-const SKILL_URL = new URL('../.claude/skills/itinerary-authoring/SKILL.md', import.meta.url);
+const SKILL_URL = new URL('../.agents/skills/itinerary-authoring/SKILL.md', import.meta.url);
 const draft7 = 'http://json-schema.org/draft-07/schema#';
 
 export const schema = JSON.parse(readFileSync(SCHEMA_URL, 'utf8'));
@@ -242,7 +242,7 @@ function cmdDoctrine(args) {
   const next = replaceDoctrineBlock(md);
   if (next === md) { console.log('SKILL.md doctrine block already up to date.'); return 0; }
   writeFileSync(SKILL_URL, next);
-  console.log('Updated the doctrine block in .claude/skills/itinerary-authoring/SKILL.md');
+  console.log('Updated the doctrine block in .agents/skills/itinerary-authoring/SKILL.md');
   return 0;
 }
 
