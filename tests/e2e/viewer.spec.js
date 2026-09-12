@@ -190,11 +190,15 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(paidCard).toBeVisible();
     await expect(paidCard).toContainText('£243.24');
     
-    const pendingCard = page.locator('.hsmc:has-text("Pending")');
-    await expect(pendingCard).toBeVisible();
-    await expect(pendingCard).toContainText('£0.00');
+    const dueCard = page.locator('.hsmc:has-text("Due")');
+    await expect(dueCard).toBeVisible();
+    await expect(dueCard).toContainText('£0.00');
 
-    const totalCard = page.locator('.hsmc:has-text("Total confirmed")');
+    const estimatedCard = page.locator('.hsmc:has-text("Estimated")');
+    await expect(estimatedCard).toBeVisible();
+    await expect(estimatedCard).toContainText('£0.00');
+
+    const totalCard = page.locator('.hsmc:has-text("Trip total")');
     await expect(totalCard).toBeVisible();
     await expect(totalCard).toContainText('£243.24');
   });

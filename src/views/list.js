@@ -146,7 +146,7 @@ export function renderList() {
         const ci = costInfo(s, HD.trip.currency_primary), ic = segIcon(s);
         const title = esc(s.name || s.operator || 'Segment');
         const sub = s.type === 'transport' ? `${esc(s.departs.place)} → ${esc(s.arrives.place)}` : s.type === 'accommodation' ? esc(s.address) : (s.subtype ? esc(s.subtype.charAt(0).toUpperCase() + s.subtype.slice(1)) : '');
-        const costStr = ci && ci.t === 'amt' ? esc(fmtCurrency(ci.tot, ci.cur)) : '';
+        const costStr = ci && ci.t === 'amt' ? `${ci.estimated || ci.st === 'not_booked' ? '~' : ''}${esc(fmtCurrency(ci.tot, ci.cur))}` : '';
         const detail = s.type === 'transport' ? renderTransport(s, HD.trip) : s.type === 'accommodation' ? renderAccom(s) : renderEvent(s, HD.trip.currency_primary);
         // There is one pencil per card, so a bare "Edit segment" would give a
         // day full of identically named buttons — the name says which one
@@ -162,7 +162,7 @@ export function renderList() {
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
               <button class="hpencil hedit-btn" data-focus="seg-edit:${HD.segments.indexOf(s)}" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment" aria-label="Edit ${title}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
-              ${costStr ? `<span style="font-size:13px;font-weight:500">${costStr}</span>` : ''}
+              ${costStr ? `<span style="font-size:13px;font-weight:500${ci.estimated || ci.st === 'not_booked' ? ';color:var(--color-text-secondary)' : ''}">${costStr}</span>` : ''}
               ${costBadge(ci)}${proposalBadge(s)}
             </div>
           </div>
