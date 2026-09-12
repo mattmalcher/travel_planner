@@ -88,6 +88,8 @@ test('flags surface detail the line omits: proposal, notes, warnings', () => {
 
 test('costLine covers not_booked, included_in and missing cost', () => {
   assert.equal(costLine({ cost: { status: 'not_booked' } }, 'GBP'), 'not_booked');
+  assert.equal(costLine({ cost: { status: 'not_booked', amount: 40, currency: 'EUR' } }, 'GBP'), 'not_booked EUR 40');
+  assert.equal(costLine({ cost: { status: 'pending', amount: 200, estimated: true } }, 'GBP'), 'pending GBP 200 estimated');
   assert.equal(costLine({ cost: { included_in: 'seg-1' } }, 'GBP'), 'cost included in seg-1');
   assert.equal(costLine({}, 'GBP'), null);
 });

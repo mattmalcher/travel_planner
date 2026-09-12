@@ -21,16 +21,18 @@ export function renderBudget() {
         <div style="font-size:21px;font-weight:500;color:var(--color-text-success)">${esc(fmtCurrency(prim.paid, prim.cur))}</div>
         ${extras(t => t.paid)}
       </div>
-      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Pending</div>
+      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Due</div>
         <div style="font-size:21px;font-weight:500;color:var(--color-text-warning)">${esc(fmtCurrency(prim.pending, prim.cur))}</div>
         ${extras(t => t.pending)}
       </div>
-      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Not booked</div>
-        <div style="font-size:21px;font-weight:500;color:var(--color-text-secondary)">${notBooked.length} item${notBooked.length !== 1 ? 's' : ''}</div>
+      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Estimated</div>
+        <div style="font-size:21px;font-weight:500;color:var(--color-text-secondary)">${esc(fmtCurrency(prim.estimated, prim.cur))}</div>
+        ${extras(t => t.estimated)}
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${notBooked.length} not booked item${notBooked.length !== 1 ? 's' : ''}</div>
       </div>
-      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Total confirmed</div>
-        <div style="font-size:21px;font-weight:500">${esc(fmtCurrency(prim.paid + prim.pending, prim.cur))}</div>
-        ${extras(t => t.paid + t.pending)}
+      <div class="hsmc"><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px">Trip total</div>
+        <div style="font-size:21px;font-weight:500">${esc(fmtCurrency(prim.paid + prim.pending + prim.estimated, prim.cur))}</div>
+        ${extras(t => t.paid + t.pending + t.estimated)}
       </div>
     </div>
     ${upcoming.length ? `<div style="font-size:13px;font-weight:500;margin-bottom:.5rem">Upcoming payments</div>
@@ -44,7 +46,7 @@ export function renderBudget() {
         <div style="font-size:11px;color:var(--color-text-secondary)">${esc(r.s.type)}${r.s.mode ? ' · ' + esc(r.s.mode) : ''}${r.s.subtype ? ' · ' + esc(r.s.subtype) : ''}</div></div>
         <div style="display:flex;gap:8px;align-items:center">
           ${badge(r.st, lbl[r.st] || r.st)}
-          <span style="font-weight:500;min-width:60px;text-align:right">${r.amt !== null ? esc(fmtCurrency(r.amt, r.cur)) : '—'}</span>
+          <span style="font-weight:500;min-width:60px;text-align:right${r.estimated || r.st === 'not_booked' ? ';color:var(--color-text-secondary)' : ''}">${r.amt !== null ? `${r.estimated || r.st === 'not_booked' ? '~' : ''}${esc(fmtCurrency(r.amt, r.cur))}` : '—'}</span>
         </div>
       </div>`).join('')}
     </div>`;
