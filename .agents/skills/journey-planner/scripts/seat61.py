@@ -48,6 +48,14 @@ def sections(raw):
     return [(clean(h), clean(t)) for h, t in out if clean(t)]
 
 
+def page_url(page):
+    """A full URL as given; a path under the site; or a country name, which
+    seat61 spells capitalised with a .htm suffix (France.htm, Spain.htm)."""
+    if page.startswith('http'):
+        return page
+    return SITE + (page if page.endswith('.htm') else page.capitalize() + '.htm')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('page', help='a full URL, a path like trains-and-routes/x.htm, or a country name')
@@ -55,9 +63,7 @@ def main():
     ap.add_argument('--context', type=int, default=700, help='characters around each match (default 700)')
     args = ap.parse_args()
 
-    page = args.page
-    if not page.startswith('http'):
-        page = SITE + (page if page.endswith('.htm') else page.capitalize() + '.htm')
+    page = page_url(args.page)
     raw = fetch(page)
     secs = sections(raw)
     if not args.find:

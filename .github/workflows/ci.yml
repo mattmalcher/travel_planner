@@ -31,6 +31,11 @@ jobs:
       - name: Unit tests
         run: node --test tests/unit/*.test.js
 
+      - name: Skill scripts
+        run: |
+          python3 -m py_compile .agents/skills/*/scripts/*.py
+          python3 -m unittest discover -s tests/skills -t tests/skills
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
