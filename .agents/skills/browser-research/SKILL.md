@@ -14,9 +14,11 @@ or the answer exists only in a signed-in session.
 Stop at the first method that works:
 
 1. **Ask the data first.** `journey-planner` answers any European rail, coach
-   or sleeper timetable question, including all of Great Britain, in one call;
-   `bus-timetables` reads the operator's own GTFS feed; `sncf-timetables` has
-   the fiche PDFs. Most timetable questions never reach rung 2.
+   or sleeper timetable question, including all of Great Britain, in one call,
+   and its seat61 reader answers "which route, which ticket, which ferry"
+   without a browser; `bus-timetables` reads the operator's own GTFS feed;
+   `sncf-timetables` has the fiche PDFs. Most timetable and booking-method
+   questions never reach rung 2.
 2. Use web search when a result snippet answers the question or reveals a direct
    URL, especially for PDFs.
 3. Open or fetch the page with normal web tools for static pages, APIs, and
@@ -86,6 +88,7 @@ that tab unless the user explicitly identifies another one.
 | `sncf-connect.com` | Bot wall and JS-rendered results | Booking engine; for timetables prefer the fiche horaire route in `sncf-timetables`. |
 | `thetrainline.com` | Bot wall | Fares and times render only after JavaScript. |
 | `eurostar.com` | Fare search is walled; timetable pages usually fetch | Read [references/eurostar.md](references/eurostar.md) before writing a cross-Channel segment. |
+| Ferry operators (Stena, DFDS, Brittany Ferries, Irish Ferries, P&O) | Bot-walled or JS-rendered | Read the seat61 crossing page first (`journey-planner` §0); the browser is for the sailing on the date only. |
 | Booking.com, Airbnb, hotel chains | Bot wall and session-dependent pricing | Record the lookup date and say that prices vary by session. |
 | Google Maps and Google Flights | JS-rendered | Opening hours and journey results usually need a browser. |
 

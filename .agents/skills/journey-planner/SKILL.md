@@ -27,6 +27,32 @@ Two rules that follow:
    regional bus. Any leg written into a document is confirmed against the
    operator's own source first (§4).
 
+## §0 — for a route you have not planned before: seat61 first
+
+The Man in Seat 61 (`seat61.com`) is the curated answer to "how do I get to
+X by train": the sensible route, which changes are bookable as one ticket,
+where to cross Paris, which sleepers and ferries exist, what it roughly
+costs, and where to buy. A planner cannot know any of that. It is not a
+timetable — it gives typical times and examples — so read it for the shape
+and the booking method, then take the dates from §1 and the confirmation
+from §4. It fetches without a browser.
+
+```bash
+T=.agents/skills/journey-planner/scripts/seat61.py
+$T France                                   # headings on the country page
+$T France --find 'Lyon & Grenoble'          # the section for the route
+$T Spain --find 'ferry'                     # Portsmouth–Santander/Bilbao
+$T sleepers.htm --find 'Nightjet|European Sleeper'
+$T train-and-ferry-to-dublin.htm --find 'SailRail'
+```
+
+A country page is up to 850 KB, so the script fetches it once (cached a
+week), and prints the headings or the matching sections only — never fetch a
+seat61 page whole into the conversation. Country pages are `/<Country>.htm`;
+route pages live under `/trains-and-routes/`, `/international-trains/` and
+`/stations/`; when a guessed path 404s, web-search `site:seat61.com <place>`
+rather than trying variants. Cite it as `seat61.com, read <date>`.
+
 ## §1 — the script
 
 ```bash
@@ -95,10 +121,11 @@ Everything below is reachable by the sources in this repository. Hubs first:
 | **Edinburgh / Glasgow / Fort William / Inverness** | Caledonian Sleeper from Euston, or LNER/Avanti by day | Scotland — GB feed covers ScotRail and the Highland lines |
 | **Penzance** | Night Riviera from Paddington | Cornwall |
 
-Ferries are **not in any GTFS feed** and their sites are bot-walled; treat
-them like fares (`browser-research`), record the sailing date read, and
-prefer the operator's Rail & Sail / SailRail product when one exists because
-the through ticket is what protects a missed connection.
+Ferries are **not in any GTFS feed** and their sites are bot-walled. seat61
+(§0) documents every crossing and the Rail & Sail / SailRail products and how
+to buy them; go there before any ferry site, treat sailings like fares
+(`browser-research`), record the date read, and prefer the through ticket
+because it is what protects a missed connection.
 
 For a **DB / ÖBB / SBB leg**, Transitous gives the structure; `sbb.ch` is the
 operator-grade check for the whole German-speaking region, including line
