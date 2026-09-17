@@ -45,11 +45,8 @@ combined. So:
   time when `get_page_text` or `find` can read it whole.
 - **Prefer text reads to screenshots.** A screenshot is for a grid, a seat map
   or a calendar, where layout is the information.
-- **One search per accommodation question.** For Booking.com or Airbnb, open
-  the deep link with dates already in the URL, read the first page of results
-  once, log the figures with the date read, stop. Prices are session-priced and
-  a second look is not more accurate. Hotel-direct sites are often outside the
-  extension's allowed domains; plan to quote an aggregator and say so.
+- **Accommodation: design the search before opening the site** (section
+  below). Prices are session-priced and a second look is not more accurate.
 - **Trailheads and huts do not need AllTrails.** `find-stop`'s Photon and
   Overpass routes geocode a named refuge or col in one fetch.
 - A screenshot permission denial is not a dead end: `get_page_text`,
@@ -94,6 +91,46 @@ that tab unless the user explicitly identifies another one.
 
 Prices and availability are session- and lookup-date-dependent. Never present a
 fare as stable.
+
+## Accommodation
+
+The expensive pattern is using a booking site to answer a geography question:
+searching suburb after suburb for "somewhere near the station". Do the
+geography first, then ask the booking site about prices.
+
+1. **Start from a point already in hand** — the arrival station, the last bus
+   stop, the trailhead — and read the traveller's saved list if there is one
+   (an Airbnb or Booking wishlist is the one thing only the signed-in browser
+   can give; read it once, at the start).
+2. **List what is there** with `find-stop`'s Overpass lodging query: hotels,
+   hostels and guest houses within a radius of that point, with names,
+   coordinates and often the hotel's own website, in one keyless call.
+3. **Build the deep link with the filters already set**, so the first results
+   page is the one you wanted:
+
+   ```
+   https://www.booking.com/searchresults.en-gb.html?ss=<place or station>
+     &checkin=YYYY-MM-DD&checkout=YYYY-MM-DD&group_adults=2&no_rooms=1
+     &order=price&nflt=review_score=80;ht_id=204;distance=1000
+   ```
+
+   `order=price` sorts cheapest first; `nflt` joins filters with `;`:
+   `review_score=80` is 8+, `ht_id=204` hotels only (drop it to include
+   apartments and hostels), `distance=1000` metres from the searched point,
+   `fc=2` free cancellation. Airbnb takes
+   `/s/<Place>/homes?checkin=…&checkout=…&adults=2` and, for a radius, the
+   map bounds `ne_lat`, `ne_lng`, `sw_lat`, `sw_lng` with `search_by_map=true`.
+4. **Read each results page once**, with a text read rather than a screenshot,
+   and write the first page to the session log as a table: name, price, total
+   or per night, taxes included or not, distance, score, free cancellation,
+   date read. Compare from the log, not by reloading with another filter.
+5. **Hotel-direct sites** are often outside the extension's allowed domains.
+   Quote the aggregator's figure and say direct booking may be cheaper; do not
+   try each site.
+
+Write the chosen stay as an `accommodation` segment with `cost.status`
+`not_booked` and the address and coordinates from step 2; the price and date
+read stay in the conversation.
 
 ## Preserve research evidence
 

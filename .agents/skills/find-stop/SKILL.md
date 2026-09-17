@@ -104,6 +104,18 @@ out body;
 ```
 
 URL-encode it onto `https://overpass-api.de/api/interpreter?data=<encoded-query>`.
+
+The same call lists **lodging near a point** — the step `browser-research`
+asks for before any booking site is opened:
+
+```
+[out:json][timeout:15];
+node["tourism"~"hotel|hostel|guest_house|apartment"](around:800,48.8443,2.3735);
+out tags center 40;
+```
+
+Tags carry `name`, sometimes `stars`, `website` and `phone`; the coordinates
+are the ones the accommodation segment needs.
 Each element has `lat`, `lon`, and `tags` (including `name`, and sometimes
 `ref` or `network`).
 
