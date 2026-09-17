@@ -168,8 +168,9 @@ scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     hand-edit it, run `itin doctrine --write`)
   journey-planner/  the shape of any European rail/coach/sleeper journey, GB
                     included, from the keyless Transitous API (scripts/plan.py
-                    condenses a 150–500 KB reply to the legs); the map from
-                    London without flying, and who verifies what
+                    condenses a 150–500 KB reply to the legs; scripts/seat61.py
+                    reads one section of a seat61 page); the map from London
+                    without flying, and who verifies what
   find-stop/        coordinates: Trainline's station database first, Photon /
                     Nominatim / Transitous geocode for named places, Overpass
                     for bus stops and anything the rest miss
