@@ -114,6 +114,9 @@ description or invoke it explicitly using their normal skill syntax. Skills are
 canonical in `.agents/skills`; `.claude/skills` is a compatibility symlink for
 clients that use Claude Code's repository layout.
 
+A private companion repo may be present at `../travel_planner_private`. If
+it is, it provides additional tools and context; read its README.
+
 The itinerary-authoring doctrine is generated from `src/lib/doctrine.js`. Update
 rules there and run `npm run itin -- doctrine --write`; never hand-edit the
 generated marker block in the skill.

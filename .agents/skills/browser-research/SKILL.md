@@ -43,8 +43,14 @@ combined. So:
 - **Write the extraction to the session log file (below) as soon as a page has
   answered**, then leave the page. Never scroll a results list a screen at a
   time when `get_page_text` or `find` can read it whole.
-- **Prefer text reads to screenshots.** A screenshot is for a grid, a seat map
-  or a calendar, where layout is the information.
+- **Prefer an extractor to a text read, and a text read to a screenshot.**
+  The private companion repo (see AGENTS.md) may supply one for the host; run
+  it through the JavaScript tool and it returns the results as compact JSON
+  at a fraction of the tokens of the page text, with structure. A screenshot is for
+  a grid, a seat map or a calendar, where layout is the information.
+- **Network responses are not readable.** The network tool lists URLs and
+  status codes only, and page scripts run in an isolated world, so a site's
+  fare API cannot be intercepted or replayed. The rendered page is the source.
 - **Accommodation: design the search before opening the site** (section
   below). Prices are session-priced and a second look is not more accurate.
 - **Trailheads and huts do not need AllTrails.** `find-stop`'s Photon and
@@ -120,10 +126,11 @@ geography first, then ask the booking site about prices.
    `fc=2` free cancellation. Airbnb takes
    `/s/<Place>/homes?checkin=…&checkout=…&adults=2` and, for a radius, the
    map bounds `ne_lat`, `ne_lng`, `sw_lat`, `sw_lng` with `search_by_map=true`.
-4. **Read each results page once**, with a text read rather than a screenshot,
-   and write the first page to the session log as a table: name, price, total
-   or per night, taxes included or not, distance, score, free cancellation,
-   date read. Compare from the log, not by reloading with another filter.
+4. **Read each results page once**, with the companion repo's extractor if
+   it has one for the host, otherwise a text read, never a screenshot, and
+   write the first page to the session log as a table: name, price, total or
+   per night, taxes included or not, distance, score, free cancellation, date
+   read. Compare from the log, not by reloading with another filter.
 5. **Hotel-direct sites** are often outside the extension's allowed domains.
    Quote the aggregator's figure and say direct booking may be cheaper; do not
    try each site.
