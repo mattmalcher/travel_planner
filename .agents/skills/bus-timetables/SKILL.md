@@ -21,7 +21,11 @@ earlier, works offline, answers a whole week at once, and lets you see how fresh
 the data is, which the app hides.
 
 For French *trains* use `sncf-timetables` — SNCF's fiches horaires are well
-organised, and it owns the mainline feed.
+organised, and it owns the mainline feed. For the *shape* of a journey
+(which lines, which changes, roughly when) ask `journey-planner` first: it
+reads most of the feeds below through one API call, and this skill is where
+you come to confirm a specific line on a specific date, or when it draws a
+blank — French departmental buses, in particular, are often missing there.
 
 ---
 
@@ -37,14 +41,27 @@ operator among hundreds, and some are behind a registration wall.
 The easiest case, and worth checking before assuming a France-shaped hunt.
 Download the URL and skip to Step 2:
 
+URLs verified September 2026; zipped size in brackets so you know what a
+download costs. Rail-only feeds are marked — they answer train questions, not
+buses.
+
 | Country | Feed |
 | --- | --- |
-| Switzerland | `https://data.opentransportdata.swiss/dataset/timetable-2026-gtfs2020/permalink` |
-| Netherlands | `https://gtfs.ovapi.nl/nl/gtfs-nl.zip` |
+| Switzerland | `https://data.opentransportdata.swiss/dataset/timetable-2026-gtfs2020/permalink` (207 MB) |
+| Netherlands | `https://gtfs.ovapi.nl/nl/gtfs-nl.zip` (246 MB) |
 | Norway (Entur) | `https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip` |
-| Ireland (TFI) | `https://www.transportforireland.ie/transitData/Data/GTFS_All.zip` |
-| Denmark | `https://www.rejseplanen.info/labs/GTFS.zip` |
-| Germany | `https://download.gtfs.de/germany/free/latest.zip` — an **unofficial** aggregate; the official Mobilithek needs an account |
+| Ireland (TFI) | `https://www.transportforireland.ie/transitData/Data/GTFS_All.zip` (185 MB) |
+| Denmark | `https://www.rejseplanen.info/labs/GTFS.zip` (53 MB) |
+| Germany | `https://download.gtfs.de/germany/free/latest.zip` (284 MB) — an **unofficial** aggregate; the official Mobilithek needs an account |
+| Great Britain, bus/coach/tram/ferry | `https://data.bus-data.dft.gov.uk/timetable/download/gtfs-file/<region>/` with region `all`, `london`, `south_east`, `south_west`, `east_midlands`, `west_midlands`, `east_anglia`, `yorkshire`, `north_east`, `north_west`, `wales`, `scotland` — no login. Rail is not in it; `journey-planner` covers GB rail. `bustimes.org/api/services/?search=<line or operator>` is a quick way to find which region and operator a rural line belongs to |
+| Belgium, rail (SNCB) | `https://sncb-opendata.hafas.de/gtfs/static/c21ac6758dd25af84cca5b707f3cb3de` (26 MB, official, refreshed daily) |
+| Belgium, Wallonia bus (TEC) | `https://opendata.tec-wl.be/Current%20GTFS/TEC-GTFS.zip` (79 MB); De Lijn and STIB need a key |
+| Austria, rail (ÖBB) | `https://static.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_OP_2025_obb.zip` (59 MB, includes Nightjet); the `_2026_` name did not exist yet in September 2026 — check `data.oebb.at` |
+| Spain, rail long-distance (Renfe AVE/LD/MD) | `https://ssl.renfe.com/gtransit/Fichero_AV_LD/google_transit.zip` (0.8 MB); Cercanías is a separate dataset on `data.renfe.com/dataset/horarios-viaje-cercanias` |
+| Portugal, rail (CP) | `https://publico.cp.pt/gtfs/gtfs.zip` (0.3 MB) |
+| Czechia, Prague region (PID) | `https://data.pid.cz/PID_GTFS.zip` (49 MB) |
+| Europe, coach (FlixBus) | `https://gtfs.gis.flix.tech/gtfs_generic_eu.zip` (30 MB) |
+| Europe, European Sleeper | `https://jbb.ghsq.de/gtfs/eu-es.gtfs.zip` (community-maintained) |
 
 The Swiss permalink redirects to a dated filename
 (`gtfs_fp2026_20260729.zip`) — that date is the freshness signal, the
@@ -57,11 +74,13 @@ France publishes every operator's GTFS at `transport.data.gouv.fr`. The dataset
 list is one JSON file; filter it locally rather than browsing the site:
 
 ```bash
-curl -sL https://transport.data.gouv.fr/api/datasets -o /tmp/tdg.json
-python3 - <<'EOF'
-import json, re
+# 2.5 MB; keep it next to the feed cache so it is fetched once a day, not once a query
+tdg=${GTFS_CACHE:-~/.cache/gtfs-feeds}/tdg.json
+[ -n "$(find "$tdg" -mtime -1 2>/dev/null)" ] || curl -sL https://transport.data.gouv.fr/api/datasets -o "$tdg"
+python3 - "$tdg" <<'EOF'
+import json, re, sys
 kw = re.compile(r'isere|vercors|zou', re.I)          # network, département or region
-for ds in json.load(open('/tmp/tdg.json')):
+for ds in json.load(open(sys.argv[1])):
     if ds['type'] == 'public-transit' and kw.search(ds['title']):
         print(ds['title'], '|', ds['page_url'])
         for r in ds['resources']:
@@ -120,17 +139,24 @@ Granada's entry is `is_official`, looks like a plain file URL, and answers
 `401 Api Key was not provided`. The `api.mobilitydatabase.org` v1 API likewise
 needs a token and returns empty without one; the CSV does not.
 
-**Registration-walled or absent, as of this writing**: Spain (`nap.mitma.es`),
-Finland (`finap.fi`), Belgium (`transportdata.be`) and Germany's official
-Mobilithek all want an account. **Italy has no national feed** — it is regional
-only, so search the region. **Great Britain is out of scope**: BODS publishes
-TransXChange, not GTFS.
+**Registration-walled or absent, as of September 2026**: Spain's access point
+(`nap.transportes.gob.es`) for anything beyond Renfe, Sweden (Samtrafiken,
+key), Hungary (MÁV answers 401), Finland (`finap.fi`), Belgium's
+`transportdata.be` and Germany's official Mobilithek all want an account.
+**Italy has no national feed** — Trenitalia publishes none; `journey-planner`
+carries a community conversion, and regional buses are per-region. When a
+country is walled, `journey-planner` may still answer, because the Transitous
+maintainers hold the keys.
 
 ## Step 2 — download it
 
 **Hand the URL straight to `gtfs_query.py`** — it downloads once, drops
 `shapes.txt`, and caches the feed under `~/.cache/gtfs-feeds`
-(`$GTFS_CACHE` to move it), so later queries and later sessions reuse it:
+(`$GTFS_CACHE` to move it), so later queries and later sessions reuse it.
+**Check the cache before downloading**: `ls ~/.cache/gtfs-feeds` and the
+`meta.json` in each slot say which feeds are already here and when they were
+fetched. data.gouv URLs are canonicalised so one resource has one slot
+whichever spelling of the link you found.
 
 ```bash
 .agents/skills/bus-timetables/scripts/gtfs_query.py "<resource url>" --routes 'T7|55'

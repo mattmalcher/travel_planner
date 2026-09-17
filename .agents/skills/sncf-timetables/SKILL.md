@@ -16,7 +16,12 @@ For a *derived* time — one you interpolated, remembered or computed rather tha
 read off a page — go to the GTFS feed in §4 instead. That is the check that
 catches a departure past the end of service.
 
-> **URLs verified July 2026.** SNCF reorganises these sites periodically; if one
+For the shape of a journey — which trains connect, the last one home, a
+departure board — `journey-planner` answers in one call, with SNCF train
+numbers, and costs nothing; come here to confirm a leg from the operator's
+own document before it goes into a file.
+
+> **URLs verified July 2026, feed re-probed September 2026.** SNCF reorganises these sites periodically; if one
 > 404s, fall back to a web search rather than guessing path variants.
 
 ---
@@ -39,6 +44,9 @@ construct those URLs, use the hub.
 search rather than by fetching the portal: `site:ter-fiches-horaires.sncf.fr
 <line>` or `fiche horaire <origin> <destination> filetype:pdf`. The PDF host
 itself serves files normally once you have the direct link.
+
+Read the PDF with `pdftotext -layout <file> -` — it keeps the columns lined
+up, where a fetch tool returns the cells in an order that cannot be trusted.
 
 Then: check the **validity dates** printed at the top — editions change roughly
 mid-December and early July — and read the **destination column and footnotes**,
@@ -80,9 +88,13 @@ republished roughly daily) is read in seconds by `gtfs_query.py` from the
 `bus-timetables` skill — a ~400k-row `stop_times.txt`, not a national monster:
 
 ```bash
-.agents/skills/bus-timetables/scripts/gtfs_query.py <resource-url> --routes 'Grenoble'
-.agents/skills/bus-timetables/scripts/gtfs_query.py <resource-url> 621A 2026-09-11 48.844888,2.37352 45.191493,5.714584
+F=https://www.data.gouv.fr/api/1/datasets/r/9ae758ec-cd7a-40cd-a890-bb3963224942
+.agents/skills/bus-timetables/scripts/gtfs_query.py $F --routes 'Grenoble'
+.agents/skills/bus-timetables/scripts/gtfs_query.py $F 621A 2026-09-11 48.844888,2.37352 45.191493,5.714584
 ```
+
+Use that URL spelling; the same resource is also served at `/fr/datasets/r/…`
+and the cache keys on the `/api/1/` form.
 
 Two things specific to this feed:
 
@@ -102,7 +114,8 @@ origin/destination stop pair before concluding a journey does not exist, and
 impossible, noting the last hub departure since that is the real cutoff.
 
 Unlike some regional coach feeds this one is current rather than stale. It
-contains **no Eurostar**, so cross-Channel legs go to `browser-research`.
+contains **no Eurostar**, so cross-Channel legs go to `journey-planner` for
+the structure and `browser-research` for fares.
 
 ---
 

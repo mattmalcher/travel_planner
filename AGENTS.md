@@ -88,11 +88,15 @@ load that large reference for a small, isolated change.
 Task-specific skills use the open Agent Skills format under `.agents/skills/`:
 
 - `itinerary-authoring`: edit, extend, validate, or research into itinerary JSON.
-- `find-stop`: resolve rail, bus, tram, ferry, and airport stop coordinates.
+- `journey-planner`: European rail, coach and sleeper journeys including Great
+  Britain, via the keyless Transitous API; the first call for any route question.
+- `find-stop`: resolve station, stop, hut, trailhead and hotel coordinates.
 - `sncf-timetables`: research or audit French train times.
-- `bus-timetables`: query GTFS for bus, coach, tram, and shuttle service dates.
+- `bus-timetables`: query GTFS for bus, coach, tram, and shuttle service dates,
+  with a table of open national and operator feeds across Europe and GB.
 - `browser-research`: use browser automation only when ordinary web research is
-  blocked or a user-authorized signed-in session is required.
+  blocked or a user-authorized signed-in session is required; carries a call
+  budget and per-host notes for Eurostar and DB/ÖBB/SBB.
 
 Agents that support repository skills can select one from its frontmatter
 description or invoke it explicitly using their normal skill syntax. Skills are

@@ -7,10 +7,8 @@
 # the station name, so `san sebastian` finds `San Sebastián` and `zurich|basel`
 # finds both. [country-code] is an optional ISO 3166-1 alpha-2 filter (ES, FR…).
 #
-# The ~16 MB stations.csv is cached and reused. Set STATIONS_CACHE to the
-# session scratchpad so the download happens once per session:
-#
-#   STATIONS_CACHE=<scratchpad> lookup.sh bayonne
+# The ~16 MB stations.csv is downloaded once into ~/.cache/trainline-stations
+# (or $STATIONS_CACHE) and reused across sessions; delete it to refresh.
 #
 # Data: https://github.com/trainline-eu/stations (ODbL). Never commit the cache.
 set -euo pipefail
@@ -22,14 +20,14 @@ if [ -z "$pattern" ]; then
   exit 2
 fi
 
-cache=${STATIONS_CACHE:-${TMPDIR:-/tmp}/trainline-stations}
+cache=${STATIONS_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/trainline-stations}
 mkdir -p "$cache"
 csv=$cache/stations.csv
 ascii=$cache/stations.ascii.csv
 url=https://raw.githubusercontent.com/trainline-eu/stations/master/stations.csv
 
 if [ ! -s "$csv" ]; then
-  echo "fetching stations.csv into $cache (~16 MB, once per session)…" >&2
+  echo "fetching stations.csv into $cache (~16 MB, once)…" >&2
   curl -sSf -o "$csv" "$url"
 fi
 # Accent-stripped mirror, matched by line number against the real file so the

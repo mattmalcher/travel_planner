@@ -94,3 +94,20 @@ See [CLAUDE.md](CLAUDE.md) for the architecture map, project invariants
 (single-file build output, schema-version rules, escaping rules) and testing
 conventions. In short: put logic in `src/lib/` with unit tests, keep views
 DOM-only, run `make lint test` before pushing, and never commit `dist/`.
+
+## Data sources and attribution
+
+The desktop research skills in `.agents/skills/` read public transport data
+from these sources. Their terms are honoured by identifying this project in
+every request, caching replies locally, and keeping request volumes small.
+
+- [Transitous](https://transitous.org/sources/) — the community journey
+  planner behind `journey-planner`, built on the operators' open timetable
+  feeds listed on that page.
+- [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL —
+  via Overpass, [Photon](https://photon.komoot.io) and
+  [Nominatim](https://operations.osmfoundation.org/policies/nominatim/),
+  and inside Transitous and the Trainline stations database.
+- [Trainline EU stations](https://github.com/trainline-eu/stations), ODbL.
+- National and operator GTFS feeds, each named with its URL in
+  `.agents/skills/bus-timetables/SKILL.md`.

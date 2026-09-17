@@ -112,13 +112,33 @@ Two more traps in the same area:
 
 ## 4. Research skills that feed this one
 
-`find-stop` for a stop's coordinates, `sncf-timetables` for French train times,
-`bus-timetables` for bus and coach times, `browser-research` for a page that
-refuses a fetch. Each reports its findings with a source and a date read; keep
+`journey-planner` for the shape of any European rail, coach or sleeper
+journey (Great Britain included) and the last departure home, `find-stop` for
+coordinates, `sncf-timetables` for French train times, `bus-timetables` for
+bus and coach times, `browser-research` for fares, ferries and pages that
+refuse a fetch. Each reports its findings with a source and a date read; keep
 that provenance in the conversation, not in the document (see the doctrine on
 notes below). Two field names they all trip over: the schema uses **`lng`**, not
 `lon`/`longitude`, and a stop's name field is **`place`** (it was `station`
 before schema 3.0).
+
+Two habits that keep research cheap: **get the whole route from
+`journey-planner` before verifying any leg**, so verification is a short list
+rather than a search; and when a trip spans currencies, **fetch one rate set
+at the start** (`https://api.frankfurter.dev/v1/latest?base=GBP&symbols=EUR,CHF`,
+keyless), write the converted figure into `cost`, and keep the rate and date
+in the conversation.
+
+### Auditing someone else's plan
+
+Verifying an existing itinerary (a travel agent's package, an old file) is a
+different job from authoring one, and produces two artefacts, not one: the
+corrected document, which contains only what actually runs, and a separate
+discrepancy log in the conversation or a scratch file — what was quoted, what
+is true, and which source says so. Keep them apart: the document is for the
+traveller, the log is for the person taking it back to whoever wrote the plan.
+Before reporting a leg as broken, run the same search on a control date a few
+weeks away; engineering works and a withdrawn train call for different advice.
 
 ## 5. The authoring rules
 

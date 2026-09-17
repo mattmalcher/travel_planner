@@ -95,8 +95,17 @@ def _slug(url):
         else hashlib.sha256(url.encode()).hexdigest()[:12]
 
 
+def canonical(url):
+    """data.gouv.fr serves one resource at several paths (`/fr/datasets/r/`,
+    `/en/datasets/r/`, `/api/1/datasets/r/`); caching by URL spelling stored
+    the 60 MB SNCF feed twice. One spelling, one slot."""
+    return re.sub(r'^https?://www\.data\.gouv\.fr/(?:[a-z]{2}/)?datasets/r/',
+                  'https://www.data.gouv.fr/api/1/datasets/r/', url)
+
+
 def fetch_feed(url, refresh=False):
     """Return a local directory for a feed URL, downloading it at most once."""
+    url = canonical(url)
     slot = os.path.join(cache_root(), _slug(url))
     directory, meta_path = os.path.join(slot, 'feed'), os.path.join(slot, 'meta.json')
     if os.path.exists(meta_path) and not refresh:
