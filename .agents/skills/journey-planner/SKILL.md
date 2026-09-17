@@ -40,7 +40,7 @@ from §4. It fetches without a browser.
 ```bash
 T=.agents/skills/journey-planner/scripts/seat61.py
 $T France                                   # headings on the country page
-$T France --find 'Lyon & Grenoble'          # the section for the route
+$T France --find 'London to Lyon'           # the section for the route
 $T Spain --find 'ferry'                     # Portsmouth–Santander/Bilbao
 $T sleepers.htm --find 'Nightjet|European Sleeper'
 $T train-and-ferry-to-dublin.htm --find 'SailRail'
@@ -57,19 +57,19 @@ rather than trying variants. Cite it as `seat61.com, read <date>`.
 
 ```bash
 S=.agents/skills/journey-planner/scripts/plan.py
-$S "London St Pancras" "Grenoble" 2026-09-25T08:00            # depart after
-$S --arrive-by "Grenoble" "London St Pancras" 2026-09-28T22:00 # last way home
+$S "London St Pancras" "Lyon Part Dieu" 2026-09-25T08:00      # depart after
+$S --arrive-by "Lyon Part Dieu" "London St Pancras" 2026-09-28T22:00 # last way home
 $S --direct "London Kings Cross" "Edinburgh Waverley" 2026-09-25T08:00
 $S --board "London Kings Cross" 2026-09-25T08:00 -n 4          # departure board
-$S --geocode "Wörgl"                                           # what a name resolves to
+$S --geocode "Innsbruck"                                       # what a name resolves to
 $S 43.7166,7.2515 44.0985,7.1897 2026-09-27T07:00 --json raw.json
 ```
 
 - Places are a name or `lat,lng`. A name is geocoded and then **planned from
   its coordinates**, so a station name that resolves to the bus stop outside
   still finds the trains. Prefer coordinates from the itinerary when you have
-  them; use `--geocode` when a name is ambiguous (`Grenoble` is a stop in four
-  French cities and two in Chișinău).
+  them; use `--geocode` when a name is ambiguous (a bare town name often
+  matches a street or a bus stop of that name in several countries).
 - Times are local to the origin; the script converts to and from the API's
   UTC. `-n` is the number of itineraries (default 4). Ask for a Saturday and
   a Sunday when the trip touches a weekend — a second call costs nothing.
@@ -101,8 +101,8 @@ leg before writing anything downstream of it.
   differ from rail and the traveller may not want it.
 - **Sleepers span midnight**: the summary marks `(+1d)` on the arrival.
 - **`no itineraries` is not "no journey".** It is the normal answer for a
-  French departmental bus (Lignes d'Azur bus 90 Nice → La Colmiane returns
-  nothing), for some Spanish regional operators, and during a feed outage.
+  French departmental bus, for some Spanish regional operators, and during a
+  feed outage.
   Fall through to `bus-timetables` or the operator.
 
 ## §3 — the map from London without flying

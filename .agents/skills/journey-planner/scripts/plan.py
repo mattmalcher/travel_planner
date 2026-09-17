@@ -2,11 +2,11 @@
 """Ask Transitous (a keyless, Europe-wide GTFS journey planner) for a journey,
 and print it small enough to read.
 
-  ./plan.py "London St Pancras" "Grenoble" 2026-09-25T08:00
-  ./plan.py 51.5308,-0.1238 45.1916,5.7145 2026-09-25T08:00 -n 5
-  ./plan.py --arrive-by "Paris Gare de Lyon" "Nice Ville" 2026-09-25T18:00
+  ./plan.py "London St Pancras" "Lyon Part Dieu" 2026-09-25T08:00
+  ./plan.py 51.5308,-0.1238 45.7605,4.8597 2026-09-25T08:00 -n 5
+  ./plan.py --arrive-by "Paris Gare de Lyon" "Marseille St-Charles" 2026-09-25T18:00
   ./plan.py --board "London Kings Cross" 2026-09-25T07:00
-  ./plan.py --geocode "Wörgl"
+  ./plan.py --geocode "Innsbruck"
 
 Places are either lat,lng or a name, which is geocoded through the same API
 (first STOP match wins; --geocode shows what it would pick). Times are local
