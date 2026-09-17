@@ -166,18 +166,24 @@ scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
   itinerary-authoring/  writing into a HolidayItinerary file — ids, rev, what
                     the schema cannot enforce (doctrine block generated — never
                     hand-edit it, run `itin doctrine --write`)
-  find-stop/        a stop's coordinates: Trainline's station database first,
-                    Overpass for bus stops and anything it misses
+  journey-planner/  the shape of any European rail/coach/sleeper journey, GB
+                    included, from the keyless Transitous API (scripts/plan.py
+                    condenses a 150–500 KB reply to the legs); the map from
+                    London without flying, and who verifies what
+  find-stop/        coordinates: Trainline's station database first, Photon /
+                    Nominatim / Transitous geocode for named places, Overpass
+                    for bus stops and anything the rest miss
   sncf-timetables/  French *train* times — fiche horaire PDFs rather than
                     SNCF Connect's date picker
-  bus-timetables/   French *bus* times, from the operator's GTFS feed: the one
-                    source that answers "does this line run on THIS date"
-                    (tools/gtfs_query.py); seasonality, weekend and short-turn
-                    traps, and the four things GTFS cannot tell you
+  bus-timetables/   bus, coach and rail times from the operator's GTFS feed: the
+                    one source that answers "does this line run on THIS date"
+                    (scripts/gtfs_query.py, cached under ~/.cache/gtfs-feeds);
+                    a table of open feeds across Europe and GB; seasonality,
+                    weekend and short-turn traps; the four things GTFS cannot say
   browser-research/ driving an available browser/computer-use surface for pages that
-                    refuse a fetch — last rung of the
-                    ladder, hands off to find-stop/authoring; one host is deep
-                    enough to sit in references/eurostar.md rather than inline
+                    refuse a fetch — last rung of the ladder, with a call budget;
+                    hands off to find-stop/authoring; two hosts are deep enough
+                    for references/ (eurostar.md, central-europe.md)
 examples/           anonymised fixture itineraries (fictional people/refs only)
 data/               gitignored real trips; hand-versioned _0.N snapshots of one
                     trip_id, round-tripped through the app's download/upload

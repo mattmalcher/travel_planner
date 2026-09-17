@@ -13,16 +13,46 @@ or the answer exists only in a signed-in session.
 
 Stop at the first method that works:
 
-1. Use web search when a result snippet answers the question or reveals a direct
+1. **Ask the data first.** `journey-planner` answers any European rail, coach
+   or sleeper timetable question, including all of Great Britain, in one call;
+   `bus-timetables` reads the operator's own GTFS feed; `sncf-timetables` has
+   the fiche PDFs. Most timetable questions never reach rung 2.
+2. Use web search when a result snippet answers the question or reveals a direct
    URL, especially for PDFs.
-2. Open or fetch the page with normal web tools for static pages, APIs, and
-   unprotected PDFs.
-3. Use an available browser or computer-use capability for a 403/429/CAPTCHA wall,
+3. Open or fetch the page with normal web tools for static pages, APIs, and
+   unprotected PDFs. `pdftotext -layout` reads a fiche horaire that a fetch
+   tool renders as noise.
+4. Use an available browser or computer-use capability for a 403/429/CAPTCHA wall,
    JavaScript-only content, or information the user asks you to read from their
    signed-in browser.
 
 Do not retry a known-blocked fetch several times. Move to the browser once the
 failure mode is clear.
+
+## Budget
+
+The browser is the most expensive rung by an order of magnitude: each read or
+screenshot lands tens of kilobytes in the conversation, and a timetable
+question answered this way costs more than the rest of the research
+combined. So:
+
+- **Set a call budget before starting** — about fifteen browser calls per
+  question — and say what you will do if it runs out.
+- **Write the extraction to the session log file (below) as soon as a page has
+  answered**, then leave the page. Never scroll a results list a screen at a
+  time when `get_page_text` or `find` can read it whole.
+- **Prefer text reads to screenshots.** A screenshot is for a grid, a seat map
+  or a calendar, where layout is the information.
+- **One search per accommodation question.** For Booking.com or Airbnb, open
+  the deep link with dates already in the URL, read the first page of results
+  once, log the figures with the date read, stop. Prices are session-priced and
+  a second look is not more accurate. Hotel-direct sites are often outside the
+  extension's allowed domains; plan to quote an aggregator and say so.
+- **Trailheads and huts do not need AllTrails.** `find-stop`'s Photon and
+  Overpass routes geocode a named refuge or col in one fetch.
+- A screenshot permission denial is not a dead end: `get_page_text`,
+  `read_page` and `find` may still work on the same domain, and are better for
+  quoting a timetable anyway.
 
 ## Browser setup
 
@@ -48,6 +78,10 @@ that tab unless the user explicitly identifies another one.
 
 | Host | Behaviour to a fetch | Note |
 |---|---|---|
+| `realtimetrains.co.uk` | Serves a 200 "checking your browser" interstitial to a fetch | Do not use for research at all: `journey-planner --board` gives the same departures with platforms. |
+| `nationalrail.co.uk` | 200 KB JavaScript shell | Same answer — `journey-planner`. |
+| `bahn.de` / `int.bahn.de` | `OPS_BLOCKED` to any API call, POST search blocked even in a real browser | Deep link only, ~6 searches before it rate-limits; see [references/central-europe.md](references/central-europe.md). |
+| `sbb.ch` | JS-rendered, form ignores URL parameters | The operator-grade source for DB/ÖBB/SBB; driving notes in the same reference. |
 | `ter.sncf.com` | 403 to non-browser clients | The PDF host `ter-fiches-horaires.sncf.fr` serves direct links; search for the PDF first. |
 | `sncf-connect.com` | Bot wall and JS-rendered results | Booking engine; for timetables prefer the fiche horaire route in `sncf-timetables`. |
 | `thetrainline.com` | Bot wall | Fares and times render only after JavaScript. |
@@ -90,6 +124,8 @@ page. Report what failed instead of wandering to adjacent pages.
 
 ## Handoffs
 
-Use `find-stop` for coordinates, `sncf-timetables` for French train times, and
-`itinerary-authoring` before writing findings into a HolidayItinerary document.
+Use `journey-planner` for any rail/coach structure question, `find-stop` for
+coordinates, `sncf-timetables` for French train times, `bus-timetables` for a
+bus feed, and `itinerary-authoring` before writing findings into a
+HolidayItinerary document.
 Cite the source URL and lookup date for every volatile fact.
