@@ -189,6 +189,8 @@ examples/           anonymised fixture itineraries (fictional people/refs only)
 data/               gitignored real trips; hand-versioned _0.N snapshots of one
                     trip_id, round-tripped through the app's download/upload
 tests/unit/         node --test, import directly from src/lib/
+tests/skills/       python unittest for the skill scripts' pure functions
+                    (clock parsing, calendars, short turns, section splitting)
 tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 ```
 

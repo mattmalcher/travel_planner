@@ -27,12 +27,13 @@ make lint        # ESLint over src/, scripts/, and tests/
 make validate FILE=data/trip.json
 make itin ARGS="digest data/trip.json"
 make test-unit   # fast node:test suite; use while iterating
+make test-skills # offline python unittest for .agents/skills/*/scripts
 make test-e2e    # build + Playwright smoke layer
 make test        # unit then e2e
 make host        # build + serve dist/ at http://localhost:8345
 ```
 
-CI runs lint, build, unit, and e2e checks. Use the narrowest meaningful check
+CI runs lint, build, unit, skill-script, and e2e checks. Use the narrowest meaningful check
 during development, then broaden when the change crosses layers or affects the
 built artifact.
 
@@ -53,6 +54,8 @@ built artifact.
 - `scripts/itin.mjs`: desktop itinerary CLI, including doctrine generation.
 - `worker/`: separate Cloudflare Worker for encrypted share storage.
 - `tests/unit/`: `node:test` + `assert/strict`.
+- `tests/skills/`: python `unittest` for the pure parts of the skill scripts;
+  no network.
 - `tests/e2e/`: Playwright against the built artifact.
 
 Read [docs/architecture.md](docs/architecture.md) when a task needs the detailed
@@ -109,7 +112,10 @@ generated marker block in the skill.
 
 ## Testing conventions
 
-- Add or update a unit test when changing a `src/lib/` contract.
+- Add or update a unit test when changing a `src/lib/` contract, or the
+  parsing, date or matching logic of a skill script. Skill tests never hit the
+  network: the sites and APIs are volunteer-run or bot-walled, and a format
+  change is reported by the script's own error path, not prevented by a test.
 - Keep e2e network behavior hermetic with `page.route` where appropriate.
 - E2e runs against `dist/`, and the npm script builds it first.
 - Validate itinerary fixtures with `make validate FILE=<path>`.

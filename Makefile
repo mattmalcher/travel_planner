@@ -1,4 +1,4 @@
-.PHONY: help install build host demo lint validate itin test test-unit test-e2e test-ui
+.PHONY: help install build host demo lint validate itin test test-unit test-e2e test-ui test-skills
 
 # Which itinerary file(s) `make validate` checks. Unquoted on purpose: the
 # recipe's shell expands the glob.
@@ -24,8 +24,9 @@ host: ## Build and host the viewer on http://localhost:8345
 demo: ## Build, then record demo/demo.gif (needs ffmpeg)
 	npm run demo
 
-lint: ## Run ESLint over src/, scripts/, worker/ and tests/
+lint: ## Run ESLint over src/, scripts/, worker/ and tests/, and compile the skill scripts
 	npm run lint
+	python3 -m py_compile .agents/skills/*/scripts/*.py
 
 validate: ## Schema-check and lint itinerary JSON (FILE=data/*.json)
 	npm run validate -- $(FILE)
@@ -38,6 +39,9 @@ test: ## Run unit tests then headless Playwright E2E tests
 
 test-unit: ## Run only the fast unit tests (node --test)
 	npm run test:unit
+
+test-skills: ## Run the offline unit tests for the skill scripts (python unittest)
+	python3 -m unittest discover -s tests/skills -t tests/skills
 
 test-e2e: ## Build, then run only the Playwright E2E tests
 	npm run test:e2e
