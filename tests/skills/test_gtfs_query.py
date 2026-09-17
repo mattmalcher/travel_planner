@@ -11,7 +11,7 @@ g = load('bus-timetables', 'gtfs_query.py')
 # weekday short turn that stops at 'mid', and a Sunday exception adds trip A
 # on one Sunday and removes it on one Friday.
 FEED = {
-    'routes.txt': 'route_id,route_short_name,route_long_name\nr1,T75,Grenoble - Bourg\nr2,,Only long name\n',
+    'routes.txt': 'route_id,route_short_name,route_long_name\nr1,T75,Town - Village\nr2,,Only long name\n',
     'stops.txt': 'stop_id,stop_name,stop_lat,stop_lon\n'
                  'a,Gare Routière,45.1900,5.7100\nm,Mid,45.1000,5.9000\nz,Bourg,45.0550,6.0300\n'
                  'bad,No coords,,\n',

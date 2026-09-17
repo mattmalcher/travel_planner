@@ -2,8 +2,8 @@
 """Read one section of a seat61.com page without pulling the whole page in.
 
   ./seat61.py France                       # headings on the country page
-  ./seat61.py France --find 'Grenoble'     # the section(s) mentioning it
-  ./seat61.py trains-and-routes/paris-to-nice-by-train.htm --find 'sleeper'
+  ./seat61.py France --find 'Lyon'         # the section(s) mentioning it
+  ./seat61.py trains-and-routes/paris-to-barcelona-by-train.htm --find 'sleeper'
   ./seat61.py https://www.seat61.com/sleepers.htm --find 'Nightjet' --context 1500
 
 A country page is 200-850 KB, so the page is fetched once, cached for a week

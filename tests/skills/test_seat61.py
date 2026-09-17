@@ -6,7 +6,7 @@ s61 = load('journey-planner', 'seat61.py')
 
 PAGE = ('<html><head><title>x</title><style>h2{}</style><script>var a="<h2>no</h2>";</script></head>'
         '<body><p>intro &amp; more</p>'
-        '<h2 class="c">London to Lyon &amp; Grenoble</h2><p>Option 1, via <b>Lille</b>.</p>'
+        '<h2 class="c">London to Lyon &amp; the Alps</h2><p>Option 1, via <b>Lille</b>.</p>'
         '<h3>Empty heading</h3>'
         '<h2>Ferries</h2><p>Caf\xe9 aboard.</p></body></html>').encode('cp1252')
 
@@ -14,7 +14,7 @@ PAGE = ('<html><head><title>x</title><style>h2{}</style><script>var a="<h2>no</h
 class Sections(unittest.TestCase):
     def test_split_on_headings_with_tags_and_entities_stripped(self):
         got = s61.sections(PAGE)
-        self.assertEqual([h for h, _ in got], ['(top)', 'London to Lyon & Grenoble', 'Ferries'])
+        self.assertEqual([h for h, _ in got], ['(top)', 'London to Lyon & the Alps', 'Ferries'])
         self.assertEqual(got[1][1], 'Option 1, via Lille .')
         self.assertEqual(got[0][1], 'x intro & more')
 

@@ -30,10 +30,11 @@ first; come here for the operator-grade confirmation.
   parentheses** (`Frankfurt(M) Flughafen Fernbf`), and **rate-limit after
   roughly six searches**, after which everything 751s. Budget the searches;
   use sbb.ch for those stations.
-- **`transport.opendata.ch` lies about international legs.** It reported the
-  Zürich → Paris Lyria as split at Mulhouse with a 2-hour wait when SBB showed
-  it direct, and returned nothing for Salzburg → Zürich. Fine for Swiss
-  station ids; never for a cross-border journey.
+- **`transport.opendata.ch` lies about international legs.** It has reported
+  a direct cross-border TGV as split at the frontier with a two-hour wait when
+  SBB showed it running through, and returned nothing at all for an
+  Austria → Switzerland pair. Fine for Swiss station ids; never for a
+  cross-border journey.
 - **`v6.db.transport.rest` and its mirrors** answer 503. Do not build on them.
 
 ## Feeds you can read offline instead
