@@ -1,27 +1,34 @@
 ---
 name: find-stop
-description: "Use this skill when an itinerary needs the coordinates of a place a journey starts or ends at — a train station, bus or tram stop, ferry pier or airport — or when a segment is missing lat/lng, or a stop name needs checking against a real station. Searches the local Trainline European stations database first and falls back to the OpenStreetMap Overpass API for bus stops and anything it does not cover."
+description: "Use this skill when an itinerary needs the coordinates of a place — a train station, bus or tram stop, ferry pier, airport, mountain hut, trailhead or hotel — or when a segment is missing lat/lng, or a stop name needs checking against a real station. Searches the local Trainline European stations database first, then keyless geocoders (Photon, Nominatim, Transitous) and the OpenStreetMap Overpass API for everything else."
 ---
 
 # Finding a stop's coordinates
 
 ## Which source to use
 
+- **Already have it?** A `journey-planner` reply carries coordinates for every
+  stop on the route, and a `bus-timetables` feed already downloaded for a
+  stop's times has its coordinates in `stops.txt`. Take them from there.
 - **Trainline** (`trainline-eu/stations`) — ~72k European **train stations**,
   plus airports and some coach stops. One cached file, no rate limit, no
   network round trip per query. Use it for anything that sounds like a
-  railway station. Coverage is strongest in CH, DE, FR, SE, ES, IT, GB, AT.
-- **Overpass** — everything else: bus stops, tram stops, ferry piers, minor
-  halts, and any station Trainline does not have. Rate limited (see below).
+  railway station. Coverage is strongest in CH, DE, FR, SE, ES, IT, GB; it has
+  holes even on main lines (some Austrian stations on the international
+  Innsbruck–Salzburg line are absent), so a miss means "not here", not "not a
+  station".
+- **Photon / Nominatim** — named places that are not stops: a refuge, a col,
+  a hotel, a museum. One fetch each, no key (step 2).
+- **Overpass** — bus stops, tram stops, ferry piers, minor halts, and any
+  station the above miss. Rate limited (step 3).
 
 Trainline holds no small bus stops at all, so a village bus stop goes straight
-to Overpass. Don't spend a query proving that — and if a `bus-timetables` GTFS
-feed is already downloaded for that stop's times, its coordinates are in there.
+to Overpass. Don't spend a query proving that.
 
 ## Step 1 — search Trainline
 
 ```bash
-STATIONS_CACHE=<temporary-cache-path> .agents/skills/find-stop/scripts/lookup.sh '<pattern>' [CC]
+.agents/skills/find-stop/scripts/lookup.sh '<pattern>' [CC]
 ```
 
 The pattern is an extended regex, matched case- and **accent-insensitively**,
@@ -30,9 +37,10 @@ alternating them: `'bayonne|hendaye|san sebastian'`. The optional second
 argument is an ISO 3166-1 alpha-2 country filter (`ES`, `FR`) — worth using,
 because the same name recurs across countries.
 
-Point `STATIONS_CACHE` at the session scratchpad so the ~16 MB `stations.csv`
-downloads once per session rather than once per lookup. **Never read that file
-into context** — the script is the only thing that should touch it.
+The ~16 MB `stations.csv` lives in `~/.cache/trainline-stations` and is
+downloaded once, not once per session (`STATIONS_CACHE` moves it; delete it to
+refresh). **Never read that file into context** — the script is the only
+thing that should touch it.
 
 Reading the output:
 
@@ -47,9 +55,31 @@ Reading the output:
   `is_city` and `is_main_station` exist in the data but upstream documents them
   as unreliable, so nothing here ranks on them.
 
-If a stop is missing, or it is a bus/tram/ferry stop, go to step 2.
+If a stop is missing, or it is a bus/tram/ferry stop, go to step 3. If it is
+not a stop at all, step 2.
 
-## Step 2 — Overpass fallback
+## Step 2 — named places: Photon, Nominatim, Transitous
+
+Three keyless geocoders, one fetch each, no query building:
+
+```
+https://photon.komoot.io/api/?q=Refuge%20de%20la%20Pra&limit=3
+https://nominatim.openstreetmap.org/search?q=Refuge+de+la+Pra&format=json&limit=3
+https://api.transitous.org/api/v1/geocode?text=W%C3%B6rgl
+```
+
+- **Photon** answers fastest and returns the OSM tag (`alpine_hut`,
+  `guidepost`, `hotel`), which is how you tell the hut from the signpost
+  100 m from it. Coordinates come back as `[lon, lat]` — the other order.
+- **Nominatim** wants the **bare name, not the postal address**: "Grand Hotel
+  Zell am See" hits first time, the same with street and postcode returns
+  nothing. Send a User-Agent and keep to one request a second.
+- **Transitous geocode** knows every stop in every feed the planner reads,
+  so it fills the Trainline holes for stations; `plan.py --geocode <name>`
+  in `journey-planner` prints it. Its first hit is not always the station
+  (a bus stop outside can outrank it), so read the list.
+
+## Step 3 — Overpass fallback
 
 Overpass enforces per-IP concurrency limits and answers 429 when too many
 requests are in flight, so build **one** query covering every stop Trainline
@@ -57,7 +87,9 @@ could not answer and fetch it with a **single** web request — never parallel c
 Keep `[timeout:15]` or lower so you don't hold a server slot. If one combined
 query returns too much noise, split it into *sequential* requests.
 
-Scope it with a bounding box derived from coordinates already in the itinerary
+For a station Trainline missed, `node["railway"="station"]["name"~"Wörgl"];`
+with no bounding box is enough — station names are rare enough. For bus
+stops, scope it with a bounding box derived from coordinates already in the itinerary
 (including any you just got from Trainline), or with a union of
 `area["name"="TownA"]->.a;` … `node[…](area.a);` scopes where the places are
 named but far apart.
@@ -75,7 +107,7 @@ URL-encode it onto `https://overpass-api.de/api/interpreter?data=<encoded-query>
 Each element has `lat`, `lon`, and `tags` (including `name`, and sometimes
 `ref` or `network`).
 
-## Step 3 — report
+## Step 4 — report
 
 For each requested stop, report the top matches (up to 3) in a table: name,
 lat, lon, country or any useful tags, **and which source it came from**. Flag
