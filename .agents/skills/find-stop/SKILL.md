@@ -14,9 +14,8 @@ description: "Use this skill when an itinerary needs the coordinates of a place 
   plus airports and some coach stops. One cached file, no rate limit, no
   network round trip per query. Use it for anything that sounds like a
   railway station. Coverage is strongest in CH, DE, FR, SE, ES, IT, GB; it has
-  holes even on main lines (some Austrian stations on the international
-  Innsbruck–Salzburg line are absent), so a miss means "not here", not "not a
-  station".
+  holes even on main lines (some Austrian stations served by international
+  trains are absent), so a miss means "not here", not "not a station".
 - **Photon / Nominatim** — named places that are not stops: a refuge, a col,
   a hotel, a museum. One fetch each, no key (step 2).
 - **Overpass** — bus stops, tram stops, ferry piers, minor halts, and any
@@ -71,8 +70,8 @@ https://api.transitous.org/api/v1/geocode?text=W%C3%B6rgl
 - **Photon** answers fastest and returns the OSM tag (`alpine_hut`,
   `guidepost`, `hotel`), which is how you tell the hut from the signpost
   100 m from it. Coordinates come back as `[lon, lat]` — the other order.
-- **Nominatim** wants the **bare name, not the postal address**: "Grand Hotel
-  Zell am See" hits first time, the same with street and postcode returns
+- **Nominatim** wants the **bare name, not the postal address**: a hotel's
+  name alone hits first time, the same name with street and postcode returns
   nothing. Send a User-Agent and keep to one request a second.
 - **Transitous geocode** knows every stop in every feed the planner reads,
   so it fills the Trainline holes for stations; `plan.py --geocode <name>`
@@ -87,7 +86,7 @@ could not answer and fetch it with a **single** web request — never parallel c
 Keep `[timeout:15]` or lower so you don't hold a server slot. If one combined
 query returns too much noise, split it into *sequential* requests.
 
-For a station Trainline missed, `node["railway"="station"]["name"~"Wörgl"];`
+For a station Trainline missed, `node["railway"="station"]["name"~"<name>"];`
 with no bounding box is enough — station names are rare enough. For bus
 stops, scope it with a bounding box derived from coordinates already in the itinerary
 (including any you just got from Trainline), or with a union of

@@ -85,6 +85,14 @@ load that large reference for a small, isolated change.
 - Tests and examples use fictional data only. Do not commit real traveller
   names, addresses, booking references, private coordinates, API keys, or
   downloaded personal data.
+- The repository must not reveal where its owner travels. `data/` is
+  gitignored for that reason; nothing from it, from a research session or from
+  agent memory is quoted in committed text. Examples in skills, scripts, tests,
+  docs, commit messages and PRs use major hubs (London, Paris, Lyon, Brussels,
+  Zürich) or invented places, never a destination, date or route taken from a
+  real trip. Session notes and review write-ups go in `data/` or the
+  scratchpad, not the repo root.
+
 
 ## Repository skills
 
