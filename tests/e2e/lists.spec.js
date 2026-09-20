@@ -416,3 +416,43 @@ test.describe('Editing lists by hand', () => {
     expect(list.items[0].name).toBe('Miradouro');
   });
 });
+
+// The jump strip scrolls inside its own box with the scrollbar hidden, so on
+// a desktop the only ways to the chips past the column edge are the pointer
+// drag and the keyboard (views/jump-nav.js). The fade classes are what say
+// which side still has chips behind it.
+test.describe('Jump strip overflow', () => {
+  const manyLists = {
+    ...listItinerary,
+    lists: ['Foods to try', 'Packing', 'Museums', 'Bookshops', 'Day trips',
+      'Rainy day ideas', 'Coffee stops', 'Evening walks', 'Souvenirs', 'Markets']
+      .map((name, i) => ({ id: `list-${i}`, name, kind: 'sight', items: [{ id: `li-${i}`, name: 'Something' }] }))
+  };
+
+  test('drags to the chips past the edge without jumping to the one let go of', async ({ page }) => {
+    await page.goto('/holiday_itinerary_viewer.html');
+    await page.setInputFiles('#hfile', {
+      name: 'lists.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(manyLists))
+    });
+    await page.click('.htab[data-v="lists"]');
+
+    const nav = page.locator('#hvlists .hjump-nav');
+    await expect(nav).toHaveClass(/hj-scrollable/);
+    await expect(nav).toHaveClass(/hj-can-r/);    // more chips to the right
+    await expect(nav).not.toHaveClass(/hj-can-l/); // and none to the left yet
+
+    const box = await nav.boundingBox();
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width - 60, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 60, y, { steps: 10 });
+    await page.mouse.up();
+
+    expect(await nav.evaluate(n => n.scrollLeft)).toBeGreaterThan(0);
+    await expect(nav).toHaveClass(/hj-can-l/);
+    // Letting go over a chip is the end of a drag, not a click on it.
+    expect(await page.evaluate(() => globalThis.scrollY)).toBe(0);
+  });
+});
