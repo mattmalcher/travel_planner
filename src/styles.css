@@ -83,7 +83,19 @@ body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--co
    the Lists view's list chips (issue #69): the same widget over different
    anchors (.hjump-a), driven by views/jump-nav.js. */
 .hjump-a{scroll-margin-top:56px}
-.hjump-nav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:.6rem 1.25rem;margin:-1.25rem -1.25rem 1rem;background:var(--color-background-page-blur);backdrop-filter:blur(4px);border-bottom:.5px solid var(--color-border-tertiary);scrollbar-width:none}
+/* scrollbar-width:none, plus the webkit rule below: the strip hides its own
+   scrollbar and is reached by finger, drag or keyboard instead. */
+.hjump-nav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:.6rem 1.25rem;margin:-1.25rem -1.25rem 1rem;background:var(--color-background-page-blur);backdrop-filter:blur(4px);border-bottom:.5px solid var(--color-border-tertiary);scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.hjump-nav::-webkit-scrollbar{display:none}
+/* The strip is drag-scrollable with a mouse and fades at whichever edge still
+   has chips behind it (views/jump-nav.js sets the classes): with the scrollbar
+   hidden, a chip clipped by the column edge otherwise reads as a rendering
+   bug rather than as more content. */
+.hjump-nav.hj-scrollable{cursor:grab}
+.hjump-nav.hj-drag{cursor:grabbing;user-select:none}
+.hjump-nav.hj-can-r{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+.hjump-nav.hj-can-l{-webkit-mask-image:linear-gradient(90deg,transparent,#000 28px);mask-image:linear-gradient(90deg,transparent,#000 28px)}
+.hjump-nav.hj-can-l.hj-can-r{-webkit-mask-image:linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent)}
 /* min-height here and on the row chips below is WCAG 2.5.8 (issue #91): 11px
    text at 3px padding is a ~17px tall target, under the 24×24 minimum. The
    spacing exception does not rescue them — .hli is a gap:8px flex row, so the
