@@ -47,6 +47,7 @@ export function updateActiveChip(viewId) {
   if (!view || !view.classList.contains('on')) return;
   const nav = view.querySelector('.hjump-nav');
   if (!nav) return;
+  updateJumpOverflow(nav);
   let cur = null;
   for (const a of anchors(viewId)) if (!cur || a.getBoundingClientRect().top <= 64) cur = a;
   // The `on` class is colour alone, which is invisible to assistive tech (and
@@ -62,7 +63,85 @@ export function updateActiveChip(viewId) {
 /** One passive scroll listener per view, bound on its first render. */
 const spied = new Set();
 export function bindJumpSpy(viewId) {
+  bindJumpDrag();
   if (spied.has(viewId)) return;
   spied.add(viewId);
   addEventListener('scroll', () => updateActiveChip(viewId), { passive: true });
+}
+
+/* ---- reaching the overflow with a mouse (issue #113) --------------------
+   The strip scrolls in its own box with the scrollbar hidden, which a touch
+   screen solves by itself: a finger flicks it. A mouse had nothing — no
+   scrollbar, no wheel axis, and on a wide screen the chips simply stopped
+   mid-chip at the column edge with no hint that more were there. So the
+   pointer drags the strip, and the edges it can still scroll towards fade
+   out, which is also what tells the reader the cut is deliberate. */
+
+/** Mark which edges a strip can still scroll towards; the fades and the grab
+    cursor are those classes in styles.css. Pure CSS cannot ask whether a flex
+    row overflows, so it is settled here and re-settled after every render (see
+    updateActiveChip) and on every scroll of the strip. */
+export function updateJumpOverflow(nav) {
+  if (!nav) return;
+  const max = nav.scrollWidth - nav.clientWidth;
+  nav.classList.toggle('hj-scrollable', max > 1);
+  nav.classList.toggle('hj-can-l', nav.scrollLeft > 1);
+  nav.classList.toggle('hj-can-r', nav.scrollLeft < max - 1);
+}
+
+// The drag in progress, and whether the last one actually moved — a drag that
+// ends over a chip must not also jump to it.
+let drag = null;
+let dragged = false;
+
+function onPointerDown(e) {
+  dragged = false;
+  if (e.pointerType === 'touch' || e.button !== 0) return;
+  const nav = e.target.closest?.('.hjump-nav');
+  if (!nav || nav.scrollWidth - nav.clientWidth <= 1) return;
+  drag = { nav, x: e.clientX, left: nav.scrollLeft, moved: false };
+}
+
+function onPointerMove(e) {
+  if (!drag) return;
+  const dx = e.clientX - drag.x;
+  if (!drag.moved && Math.abs(dx) < 4) return;   // a click wobbles a pixel or two
+  drag.moved = true;
+  drag.nav.classList.add('hj-drag');
+  drag.nav.scrollLeft = drag.left - dx;
+  e.preventDefault();                            // no text selection mid-drag
+}
+
+function onPointerUp() {
+  if (!drag) return;
+  drag.nav.classList.remove('hj-drag');
+  dragged = drag.moved;
+  drag = null;
+}
+
+// Capture, so the chip's own onclick never runs for a click that was a drag.
+function onClickCapture(e) {
+  if (!dragged) return;
+  dragged = false;
+  if (e.target.closest?.('.hjump-nav')) { e.stopPropagation(); e.preventDefault(); }
+}
+
+// Scroll does not bubble, so the strips' own scrolling is caught on the way
+// down; one listener covers every strip, including ones rendered later.
+function onScrollCapture(e) {
+  const nav = e.target;
+  if (nav?.classList?.contains('hjump-nav')) updateJumpOverflow(nav);
+}
+
+let navBound = false;
+function bindJumpDrag() {
+  if (navBound) return;
+  navBound = true;
+  addEventListener('pointerdown', onPointerDown);
+  addEventListener('pointermove', onPointerMove);
+  addEventListener('pointerup', onPointerUp);
+  addEventListener('pointercancel', onPointerUp);
+  addEventListener('click', onClickCapture, true);
+  addEventListener('scroll', onScrollCapture, true);
+  addEventListener('resize', () => document.querySelectorAll('.hjump-nav').forEach(updateJumpOverflow));
 }
