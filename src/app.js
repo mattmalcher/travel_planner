@@ -18,6 +18,7 @@ import { renderForm, readForm } from './views/edit-form.js';
 import { updateHeader, renderAll, refreshAfterChange, showApp } from './render.js';
 import { renderMap, destroyMap } from './views/map.js';
 import { refreshGanttNow } from './views/gantt.js';
+import { refreshListNow } from './views/list.js';
 import { updateActiveChip } from './views/jump-nav.js';
 import { focusKey, focusTo } from './views/focus.js';
 import { renderChat, restoreChat } from './ai/chat.js';
@@ -193,6 +194,28 @@ export function switchView(v) {
   // A hidden view can't measure its jump strip, so mark the current chip on
   // arrival; a no-op for the views that have no strip (issue #69).
   updateActiveChip('hv' + v);
+}
+
+/** Bring every "now" marker up to the current time. */
+function refreshNow() {
+  if (!state.HD || document.visibilityState !== 'visible') return;
+  refreshListNow();
+  refreshGanttNow();
+}
+
+/**
+ * Keep "now" current while the page stays open. The markers are otherwise
+ * set only when a view renders, and a phone can hold the page suspended in
+ * the background for days: iOS resumes it without a reload, so the Itinerary
+ * still showed the day it was opened on. Check on every return to the page
+ * (visibility, bfcache restore, focus) and once a minute while visible, which
+ * also carries it across midnight and keeps the Schedule's time line moving.
+ */
+export function watchClock() {
+  document.addEventListener('visibilitychange', refreshNow);
+  addEventListener('pageshow', refreshNow);
+  addEventListener('focus', refreshNow);
+  setInterval(refreshNow, 60000);
 }
 
 /**
