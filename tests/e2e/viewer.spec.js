@@ -621,6 +621,37 @@ test.describe('Holiday Itinerary Viewer', () => {
     await expect(nowLine).toBeVisible();
   });
 
+  test('should move Today on when a page left open resumes on a later day', async ({ page }) => {
+    // iOS keeps a backgrounded page suspended for days and resumes it without
+    // a reload, so "today" has to be re-read on return, not only at load.
+    await page.clock.install({ time: new Date('2026-08-01T20:00:00') });
+    await page.goto('/holiday_itinerary_viewer.html');
+    const days = ['2026-08-01', '2026-08-02', '2026-08-03', '2026-08-04'];
+    await page.setInputFiles('#hfile', {
+      name: 'resume_trip.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        trip: { name: 'Resume Test', travellers: ['Alice'], start: days[0], end: days[3], currency_primary: 'GBP' },
+        segments: days.flatMap((date, di) => [0, 1, 2, 3, 4, 5].map(i => ({
+          id: `evt-${di}-${i}`, type: 'event', name: `Activity ${di + 1}.${i + 1}`, subtype: 'activity',
+          date, time: `${String(8 + i * 2).padStart(2, '0')}:00`, duration_min: 60,
+          cost: { amount: 10, currency: 'GBP', status: 'paid', paid_by: 'Alice' }
+        })))
+      }))
+    });
+    const todayBtn = page.locator('#hvlist .hjump-chip.hday-today');
+    await expect(todayBtn).toHaveAttribute('data-k', '2026-08-01');
+
+    // Two days pass with the page suspended, then it comes back to the front.
+    await page.clock.setSystemTime(new Date('2026-08-03T09:00:00'));
+    await page.evaluate(() => globalThis.document.dispatchEvent(new globalThis.Event('visibilitychange')));
+
+    await expect(todayBtn).toHaveAttribute('data-k', '2026-08-03');
+    await expect(page.locator('#hvlist .hjump-chip.is-today')).toHaveText('Mon 3');
+    await expect.poll(() => page.locator('#hvlist .hjump-a[data-k="2026-08-03"]')
+      .evaluate(el => el.getBoundingClientRect().top)).toBeLessThan(120);
+  });
+
   test('should hide the now markers when the trip is not underway (issue #35)', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-07-01T12:00:00'));
     await page.goto('/holiday_itinerary_viewer.html');

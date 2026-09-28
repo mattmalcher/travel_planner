@@ -117,15 +117,21 @@ const emptyState = `<div class="hempty">
   or load a <code>HolidayItinerary</code> file. Ideas that aren't plans yet belong on the Lists tab.
 </div>`;
 
+/** Segments grouped by day, in itinerary order. */
+function dayGroups(HD) {
+  const grp = {};
+  sortSegments(HD.segments).forEach(s => { const d = segDate(s); (grp[d] = grp[d] || []).push(s); });
+  return grp;
+}
+
 export function renderList() {
   const HD = state.HD;
-  const sorted = sortSegments(HD.segments);
-  const grp = {};
-  sorted.forEach(s => { const d = segDate(s); (grp[d] = grp[d] || []).push(s); });
+  const grp = dayGroups(HD);
   const days = Object.keys(grp);
   // During the trip the strip gets a Today shortcut and today's chip a marker,
   // and the first render lands on the current day (issue #35).
   const today = currentDayChip(days, HD.trip, Date.now());
+  renderList._today = today;
   const todayBtn = today ? [jumpChip(today, 'hJumpDay', 'Today', { icon: 'ti-calendar-pin', cls: 'hday-today' })] : [];
   // Gated on the day count, not the chip count: the Today shortcut is an extra
   // chip over the same single day, and a one-day trip needs no strip.
@@ -178,4 +184,22 @@ export function renderList() {
     renderList._jumped = true;
     jumpToDay(today, 'auto');
   }
+}
+
+/**
+ * Catch the view up with the clock. "Today" is decided at render time, so a
+ * page left open — or suspended in the background on a phone, where iOS
+ * resumes it without reloading — kept yesterday's Today chip and never moved
+ * on. When the current day has changed since the last render, redraw and land
+ * on the new day, as a fresh load would; otherwise leave the scroll alone.
+ */
+export function refreshListNow(nowMs = Date.now()) {
+  const HD = state.HD;
+  if (!HD) return;
+  const today = currentDayChip(Object.keys(dayGroups(HD)), HD.trip, nowMs);
+  if (today === renderList._today) return;
+  // Only jump when the itinerary is on screen: a hidden view can't scroll,
+  // and the flag would otherwise be spent on a jump that never happened.
+  if (document.getElementById('hvlist').classList.contains('on')) renderList._jumped = false;
+  renderList();
 }
