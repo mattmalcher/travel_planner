@@ -11,8 +11,8 @@
 // out of src/lib/: lib/ is the browser bundle's pure logic, and a node-only ajv
 // wrapper living there would be one careless import away from a second copy of
 // ajv in the single-file output.
-import { readFileSync, writeFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
@@ -352,5 +352,6 @@ function main(argv) {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+// Node resolves module URLs through symlinks, but argv retains the invoked path.
+if (process.argv[1] && realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]))
   process.exit(main(process.argv.slice(2)));

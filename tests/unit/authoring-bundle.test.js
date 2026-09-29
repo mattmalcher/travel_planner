@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +22,24 @@ test('standalone authoring validates, mints ids and bumps an external file witho
     const run = (...args) => spawnSync(process.execPath, [cli, ...args], {
       cwd: temp, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' },
     });
+    const linkedRuns = ['.agents', '.claude'].map(discovery => {
+      const directory = join(temp, discovery, 'skills');
+      mkdirSync(directory, { recursive: true });
+      const link = join(directory, 'itinerary-authoring');
+      symlinkSync(bundle, link, 'dir');
+      return (...args) => spawnSync(process.execPath, [join(link, 'scripts/itin.mjs'), ...args], {
+        cwd: temp, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' },
+      });
+    });
+    for (const linkedRun of linkedRuns) {
+      const digest = linkedRun('digest', file);
+      assert.equal(digest.status, 0, digest.stderr);
+      assert.match(digest.stdout, /Paris Weekend/);
+      assert.equal(digest.stdout, run('digest', file).stdout);
+      const valid = linkedRun('validate', file, '--strict');
+      assert.equal(valid.status, 0, valid.stderr);
+      assert.ok(valid.stdout.trim(), 'validation must actually execute through discovery links');
+    }
     assert.equal(run('validate', file, '--strict').status, 0);
     const ids = run('ids', file, 'seg', '2');
     assert.equal(ids.status, 0, ids.stderr);
@@ -37,6 +55,11 @@ test('standalone authoring validates, mints ids and bumps an external file witho
     delete after.trip.currency_primary;
     writeFileSync(file, JSON.stringify(after));
     assert.equal(run('validate', file).status, 1);
+    for (const linkedRun of linkedRuns) {
+      const invalid = linkedRun('validate', file);
+      assert.equal(invalid.status, 1, 'invalid files must fail through discovery links');
+      assert.match(invalid.stdout + invalid.stderr, /currency_primary/);
+    }
     assert.equal(run('doctrine', '--write').status, 1);
   } finally {
     rmSync(temp, { recursive: true, force: true });
