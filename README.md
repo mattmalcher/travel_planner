@@ -94,3 +94,24 @@ See [CLAUDE.md](CLAUDE.md) for the architecture map, project invariants
 (single-file build output, schema-version rules, escaping rules) and testing
 conventions. In short: put logic in `src/lib/` with unit tests, keep views
 DOM-only, run `make lint test` before pushing, and never commit `dist/`.
+
+## Authoring and research tools
+
+The public repository owns `itinerary-authoring`, its schema, CLI and shared
+rules. Generate a standalone authoring skill with:
+
+```bash
+node scripts/bundle-authoring.mjs /path/to/output/itinerary-authoring
+```
+
+Research skills and their Python tests have moved to a separate private source
+repository. Travel sessions run in the private research workspace with pinned
+bundles of both toolsets. The public planner no longer requires Python.
+
+## Data sources and attribution
+
+Historical research tools used [Transitous](https://transitous.org/sources/),
+[OpenStreetMap contributors](https://www.openstreetmap.org/copyright),
+[Trainline EU stations](https://github.com/trainline-eu/stations) and operator
+GTFS feeds. Attribution and source-specific usage guidance travel with the
+extracted skills. Removing them here does not retract published Git history.

@@ -175,12 +175,12 @@ export const DOCTRINE = [
   {
     id: 'filenames',
     scope: 'desktop',
-    text: 'data/<trip>_<0.N>.json is a hand-kept chain of snapshots of one trip_id, not separate trips. Read the highest N, and write a research pass to N+1 so the previous pass stays readable as a diff. The highest N is the one to upload.',
+    text: 'Itinerary files may live outside the planner checkout, including a private research workspace. Accept an explicit file path. For numbered snapshots, read the highest N and write the next snapshot without overwriting the previous version. The latest completed snapshot is the one to upload.',
   },
   {
     id: 'privacy',
     scope: 'desktop',
-    text: 'data/*.json is gitignored real personal data — real names, addresses and booking references. Never copy any of it into examples/, tests/, a commit message or a PR body; those stay fictional (the Jetsons pattern).',
+    text: 'Real itineraries and research belong in a private workspace or the planner’s ignored data/ directory. Never copy personal trip data into public examples, tests, documentation, commit messages or PRs. In a private workspace, save the requested trip files through its documented persistence workflow.',
   },
 ];
 

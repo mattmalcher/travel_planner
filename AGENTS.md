@@ -82,22 +82,26 @@ load that large reference for a small, isolated change.
 - Tests and examples use fictional data only. Do not commit real traveller
   names, addresses, booking references, private coordinates, API keys, or
   downloaded personal data.
+- The repository must not reveal where its owner travels. `data/` is
+  gitignored for that reason; nothing from it, from a research session or from
+  agent memory is quoted in committed text. Examples in skills, scripts, tests,
+  docs, commit messages and PRs use major hubs (London, Paris, Lyon, Brussels,
+  Zürich) or invented places, never a destination, date or route taken from a
+  real trip. Session notes and review write-ups go in `data/` or the
+  scratchpad, not the repo root.
+
 
 ## Repository skills
 
-Task-specific skills use the open Agent Skills format under `.agents/skills/`:
+Only `itinerary-authoring` lives in `.agents/skills/`; `.claude/skills` is
+its compatibility symlink. The schema, CLI and doctrine stay in this public
+repository. `node scripts/bundle-authoring.mjs <output-directory>` generates a
+standalone skill with its schema and runtime dependencies for private workspaces.
 
-- `itinerary-authoring`: edit, extend, validate, or research into itinerary JSON.
-- `find-stop`: resolve rail, bus, tram, ferry, and airport stop coordinates.
-- `sncf-timetables`: research or audit French train times.
-- `bus-timetables`: query GTFS for bus, coach, tram, and shuttle service dates.
-- `browser-research`: use browser automation only when ordinary web research is
-  blocked or a user-authorized signed-in session is required.
-
-Agents that support repository skills can select one from its frontmatter
-description or invoke it explicitly using their normal skill syntax. Skills are
-canonical in `.agents/skills`; `.claude/skills` is a compatibility symlink for
-clients that use Claude Code's repository layout.
+Reusable research skills and Python tests now belong to the private
+`travel_research_skills` repo. Start travel research in private `travel_research`,
+which installs pinned research and authoring bundles. Do not copy real trip
+notes into this public repository.
 
 The itinerary-authoring doctrine is generated from `src/lib/doctrine.js`. Update
 rules there and run `npm run itin -- doctrine --write`; never hand-edit the
@@ -105,7 +109,8 @@ generated marker block in the skill.
 
 ## Testing conventions
 
-- Add or update a unit test when changing a `src/lib/` contract.
+- Add or update a unit test when changing a `src/lib/` contract, or the
+  CLI validation or authoring contract.
 - Keep e2e network behavior hermetic with `page.route` where appropriate.
 - E2e runs against `dist/`, and the npm script builds it first.
 - Validate itinerary fixtures with `make validate FILE=<path>`.

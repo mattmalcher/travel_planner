@@ -1,6 +1,6 @@
 ---
 name: itinerary-authoring
-description: "Use this skill when editing, extending or researching into a HolidayItinerary JSON file (data/*.json, examples/*.json) on the desktop: adding segments, geocoding stops, filling in train times, promoting list items into plans, translating a phrase group, or preparing a file to upload back into the viewer. Every other research skill hands off to this one for writing what it found."
+description: "Use when creating, editing, validating or preparing a HolidayItinerary JSON file for viewer import, including files in a private workspace outside the planner checkout. Research alone does not require itinerary authoring."
 ---
 
 # Authoring HolidayItinerary documents
@@ -27,41 +27,24 @@ So: anything that gains a date or a cost becomes a segment, with a
 between are **one list**, never competing segments. Something to be able to
 *say* is a phrase. Nothing outside `segments` is ever counted into the budget.
 
-## 1. The desktop loop
+## 1. File authoring loop
 
-Real trips live in `data/`, which is **gitignored**. The chain looks like
-`data/<trip>_0.1.json`, `_0.2.json`, `_0.3.json` — hand-kept snapshots of *one*
-trip, not separate trips.
-
-```bash
-# 1. Orient without pulling the whole file into context
-npm run itin -- digest data/<trip>_0.3.json
-
-# 2. Read and edit the highest-numbered file, writing to the next number
-#    (keeps the previous pass readable as a diff)
-
-# 3. Check it
-make validate FILE=data/<trip>_0.4.json
-
-# 4. Mark it finished, so it doesn't import as a fork (§3)
-npm run itin -- bump data/<trip>_0.4.json
-
-# 5. Tell the user to upload that file in the viewer
-```
-
-`digest` is one line per segment — about a quarter the size of the raw JSON, and
-usually all you need to find the segment you're changing. Read the full file
-when you need fields the digest hides (notes, warnings, seats, payments,
-coordinates).
-
-Other things the CLI does:
+Accept an explicit path to the itinerary, including one outside this checkout.
+In the planner, run CLI commands from its root and use absolute input/output
+paths. Real trips belong in the private research workspace; `data/` remains a
+legacy ignored location. Preserve previous numbered snapshots.
 
 ```bash
-npm run itin -- schema-brief             # condensed schema reference
-npm run itin -- ids <file> seg 3         # 3 fresh segment ids
-make validate                            # defaults to FILE=data/*.json
-npm run validate -- <file> --strict      # make lint warnings fatal too
+npm run itin -- digest <file>
+npm run itin -- schema-brief
+npm run itin -- validate <edited-file>
+npm run itin -- bump <edited-file>
 ```
+
+Read the full file before editing fields absent from the digest. Validate the
+finished file, report advisory warnings, and bump once before handoff unless
+the user's viewer copy has independently diverged. Tell the user which file
+to import. Node 22+ is required; the standalone bundle includes dependencies.
 
 ## 2. Ids
 
@@ -110,15 +93,12 @@ Two more traps in the same area:
   once in the browser between passes. Never "fix" a gap — `rev` is a counter,
   not an index.
 
-## 4. Research skills that feed this one
+## 4. Research handoff
 
-`find-stop` for a stop's coordinates, `sncf-timetables` for French train times,
-`bus-timetables` for bus and coach times, `browser-research` for a page that
-refuses a fetch. Each reports its findings with a source and a date read; keep
-that provenance in the conversation, not in the document (see the doctrine on
-notes below). Two field names they all trip over: the schema uses **`lng`**, not
-`lon`/`longitude`, and a stop's name field is **`place`** (it was `station`
-before schema 3.0).
+Accept findings, sources, retrieval dates and uncertainties from research.
+Author only chosen, supported plans. Keep evidence and unresolved questions
+in separate private research notes. The schema uses `lng`, not `lon`, and
+`place`, not `station`. Research orchestration belongs to the research skills.
 
 ## 5. The authoring rules
 
@@ -147,17 +127,17 @@ desktop cannot drift apart. Edit that file, not this block, then run
 - Competing options are a list, not competing segments. Three candidate trains or four candidate restaurants belong in a list, where they carry no date and no cost; promote the chosen one to a segment and set the item's segment_id. The schema has no notion of mutually exclusive segments, so two candidates for the same slot would both plot on the map and both count into the budget.
 - trip_id, updated_at, forked_from and schema_version are the app's bookkeeping — never hand-edit them. rev is the one sanctioned exception, and only via `npm run itin -- bump`, which exists because a re-uploaded file whose rev did not move is indistinguishable from a genuine divergence.
 - A file you edited is not finished until `make validate FILE=<path>` is clean. Schema errors are fatal. Lint warnings are advisory — say what they are rather than swallowing them, since they catch the things hand editing breaks: duplicate ids, a segment_id pointing at a segment that no longer exists, payments that do not sum to their total.
-- data/<trip>_<0.N>.json is a hand-kept chain of snapshots of one trip_id, not separate trips. Read the highest N, and write a research pass to N+1 so the previous pass stays readable as a diff. The highest N is the one to upload.
-- data/*.json is gitignored real personal data — real names, addresses and booking references. Never copy any of it into examples/, tests/, a commit message or a PR body; those stay fictional (the Jetsons pattern).
+- Itinerary files may live outside the planner checkout, including a private research workspace. Accept an explicit file path. For numbered snapshots, read the highest N and write the next snapshot without overwriting the previous version. The latest completed snapshot is the one to upload.
+- Real itineraries and research belong in a private workspace or the planner’s ignored data/ directory. Never copy personal trip data into public examples, tests, documentation, commit messages or PRs. In a private workspace, save the requested trip files through its documented persistence workflow.
 <!-- doctrine:end -->
 
 ## Quick reference
 
-- [ ] Edited the **highest** `data/<trip>_0.N.json`, written to `N+1`
+- [ ] Used the requested file path and preserved previous snapshots
 - [ ] Every new id came from `npm run itin -- ids`
 - [ ] Shortlists went in `lists`, not `segments`
 - [ ] No invented booking refs; unconfirmed things are `not_booked`
 - [ ] All-day things set `all_day`, not a made-up `time`
-- [ ] `make validate FILE=…` is clean, and any lint warnings were reported
+- [ ] `npm run itin -- validate <file>` is clean, and any lint warnings were reported
 - [ ] `npm run itin -- bump` run (unless the phone has diverged)
 - [ ] Told the user which file to upload
