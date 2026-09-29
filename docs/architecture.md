@@ -161,23 +161,10 @@ scripts/itin.mjs    the desktop CLI: validate / digest / schema-brief / ids /
                     doctrine / bump. Reuses src/lib/ for all interpretation and
                     owns only argv, file I/O and formatting; ajv stays here
                     rather than in lib/ so the bundle can never gain a second copy
-.agents/skills/     the desktop research + editing ladder, roughly in the order
-                    a trip needs them:
-  itinerary-authoring/  writing into a HolidayItinerary file — ids, rev, what
-                    the schema cannot enforce (doctrine block generated — never
-                    hand-edit it, run `itin doctrine --write`)
-  find-stop/        a stop's coordinates: Trainline's station database first,
-                    Overpass for bus stops and anything it misses
-  sncf-timetables/  French *train* times — fiche horaire PDFs rather than
-                    SNCF Connect's date picker
-  bus-timetables/   French *bus* times, from the operator's GTFS feed: the one
-                    source that answers "does this line run on THIS date"
-                    (tools/gtfs_query.py); seasonality, weekend and short-turn
-                    traps, and the four things GTFS cannot tell you
-  browser-research/ driving an available browser/computer-use surface for pages that
-                    refuse a fetch — last rung of the
-                    ladder, hands off to find-stop/authoring; one host is deep
-                    enough to sit in references/eurostar.md rather than inline
+.agents/skills/     itinerary-authoring only: ids, rev and document semantics;
+                    doctrine generated from src/lib/doctrine.js
+scripts/bundle-authoring.mjs  standalone authoring skill, schema and CLI
+                    with runtime dependencies; research skills live separately
 examples/           anonymised fixture itineraries (fictional people/refs only)
 data/               gitignored real trips; hand-versioned _0.N snapshots of one
                     trip_id, round-tripped through the app's download/upload
@@ -580,7 +567,7 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   rule that belongs to another skill is *linked*, in one line, not restated —
   the handoff paragraphs had drifted into five phrasings of the same thing. A
   per-host or per-region deep-dive that is read once a trip goes in a
-  `references/` file beside the SKILL.md (`browser-research/references/`).
+  `references/` file beside the SKILL.md in its owning repository.
   Authoring rules are the exception to all of this: they live in
   `lib/doctrine.js` and are generated into the skill, never written by hand.
 
