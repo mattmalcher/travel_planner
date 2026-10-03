@@ -2,7 +2,7 @@
     well-formed HolidayItinerary looks like, as opposed to what the JSON Schema
     can enforce on its own.
 
-    Four consumers render three views. The in-app assistant renders the `app`
+    Four consumers share three views. The in-app assistant renders the `app`
     view into its system prompt (src/ai/prompt.js). Desktop editing in this
     repo renders the `desktop` view into
     .agents/skills/itinerary-authoring/SKILL.md, kept in step by
