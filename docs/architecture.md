@@ -76,9 +76,14 @@ src/
     dates.js        formatting, toMs/msToIso, and ALL default times (issue #13)
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
     doctrine.js     THE authoring rules, as scoped data: the in-app assistant
-                    renders scope app|both into its prompt, the desktop skill
-                    renders scope desktop|both into its SKILL.md. One source,
+                    renders the app view into its prompt, the desktop skill
+                    the desktop view into its SKILL.md, and the travel plugin
+                    the mcp view into its MCP instructions. One source,
                     guarded by tests/unit/doctrine.test.js
+    authoring.js    the authoring core: tool definitions and a pure applyTool
+                    (document in, document out; validators and the
+                    read-before-edit record are parameters). ai/tools.js
+                    adapts it to the app; the travel plugin vendors it
     library.js      the trip library: document identity (trip_id/rev), the
                     index, revision history, import decisions, quota policy —
                     the store is a parameter, so all of it is unit-testable
@@ -372,20 +377,30 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   say what a well-formed *plan* looks like (as opposed to well-formed JSON) are
   scoped data, not prose in a prompt. `src/ai/prompt.js` renders the `app` view;
   `.agents/skills/itinerary-authoring/SKILL.md` carries the `desktop` view inside
-  generated markers, synced by `npm run itin -- doctrine --write`. Add a rule by
+  generated markers, synced by `npm run itin -- doctrine --write`; the travel
+  plugin renders the `mcp` view from its vendored copy. Add a rule by
   adding an entry with the right `scope` — never by editing the prompt string or
   the SKILL.md block, both of which `tests/unit/doctrine.test.js` will catch.
   The split matters: the digest disclosure, read-before-edit and
   prefer-a-patch rules are mobile context-window mitigations and are *wrong* on
-  the desktop, where the whole file is in hand.
+  the desktop, where the whole file is in hand. An MCP host returns whole
+  documents, so the `mcp` view keeps the app's tool mechanics but drops the
+  digest and read-before-edit rules.
 - **The AI's tools come in entity families, and the family is the unit**:
   segments, lists and phrase groups each need a read-before-edit guard, a
   wrong-id error, id assignment and a schema check. Each of those four is
-  written *once* in `ai/tools.js` (`guardRead`, `noSuchId`, `assignIds`,
-  `schemaError`) and named per family beneath. They were three copies apiece
-  before, which is how the phrase-group messages ended up phrased differently
-  from the list ones. A fourth family is four one-liners plus its branch of
-  `applyTool` — not four more copies.
+  written *once* in `lib/authoring.js` (`guardRead`, `noSuchId`, `assignIds`,
+  `schemaError`) and described per family in `FAMILIES`. They were three copies
+  apiece before, which is how the phrase-group messages ended up phrased
+  differently from the list ones. A fourth family is one `FAMILIES` entry plus
+  its branch of `applyTool` — not four more copies.
+- **The authoring core is pure so another host can share it**: `lib/authoring.js`
+  takes the document, returns the next one and never mutates either, and gets
+  its validators and read record as parameters (a null read record turns the
+  guard off, for a host that shows whole documents). The app's state, its
+  `window.hValidate*` validators and OpenRouter's tool envelope stay in
+  `ai/tools.js`. The travel plugin vendors the file pinned to a commit, so
+  change tool names and argument shapes additively: hosts cache tool schemas.
 - **A desktop-edited file must have its `rev` bumped before it goes back**
   (`npm run itin -- bump`). `classifyImport` reads same `trip_id` + same `rev` +
   different content as a **fork**, and `src/app.js` offers "Keep both" *first*
