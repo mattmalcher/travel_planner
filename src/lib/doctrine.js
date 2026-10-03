@@ -2,13 +2,17 @@
     well-formed HolidayItinerary looks like, as opposed to what the JSON Schema
     can enforce on its own.
 
-    Three surfaces consume this. The in-app assistant renders the `app` view
-    into its system prompt (src/ai/prompt.js). Desktop editing in this repo
-    renders the `desktop` view into .agents/skills/itinerary-authoring/SKILL.md,
-    kept in step by `npm run itin -- doctrine --write` and guarded by
-    tests/unit/doctrine.test.js. An MCP host driving lib/authoring.js (the
-    travel plugin, which vendors this file) renders the `mcp` view: the app's
-    tools, but with whole documents in hand rather than a digest.
+    Four consumers render three views. The in-app assistant renders the `app`
+    view into its system prompt (src/ai/prompt.js). Desktop editing in this
+    repo renders the `desktop` view into
+    .agents/skills/itinerary-authoring/SKILL.md, kept in step by
+    `npm run itin -- doctrine --write` and guarded by
+    tests/unit/doctrine.test.js; the standalone skill that
+    scripts/bundle-authoring.mjs generates for private workspaces copies that
+    SKILL.md, so it carries the same view. An MCP host driving
+    lib/authoring.js (the travel plugin, which vendors this file) renders the
+    `mcp` view: the app's tools, but with whole documents in hand rather than
+    a digest.
 
     The split exists because roughly a third of the original prompt was not
     doctrine at all but context-window mitigation: the assistant sees a digest

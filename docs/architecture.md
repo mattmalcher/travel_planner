@@ -77,8 +77,9 @@ src/
     digest.js       one-line-per-segment digest for the AI prompt (issue #31)
     doctrine.js     THE authoring rules, as scoped data: the in-app assistant
                     renders the app view into its prompt, the desktop skill
-                    the desktop view into its SKILL.md, and the travel plugin
-                    the mcp view into its MCP instructions. One source,
+                    the desktop view into its SKILL.md (which the generated
+                    standalone skill copies), and the travel plugin the mcp
+                    view into its MCP instructions. One source,
                     guarded by tests/unit/doctrine.test.js
     authoring.js    the authoring core: tool definitions and a pure applyTool
                     (document in, document out; validators and the
