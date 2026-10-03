@@ -2,11 +2,17 @@
     well-formed HolidayItinerary looks like, as opposed to what the JSON Schema
     can enforce on its own.
 
-    Two surfaces consume this. The in-app assistant renders the `app` view into
-    its system prompt (src/ai/prompt.js). Desktop editing in this repo renders
-    the `desktop` view into .agents/skills/itinerary-authoring/SKILL.md, kept in
-    step by `npm run itin -- doctrine --write` and guarded by
-    tests/unit/doctrine.test.js.
+    Four consumers share three views. The in-app assistant renders the `app`
+    view into its system prompt (src/ai/prompt.js). Desktop editing in this
+    repo renders the `desktop` view into
+    .agents/skills/itinerary-authoring/SKILL.md, kept in step by
+    `npm run itin -- doctrine --write` and guarded by
+    tests/unit/doctrine.test.js; the standalone skill that
+    scripts/bundle-authoring.mjs generates for private workspaces copies that
+    SKILL.md, so it carries the same view. An MCP host driving
+    lib/authoring.js (the travel plugin, which vendors this file) renders the
+    `mcp` view: the app's tools, but with whole documents in hand rather than
+    a digest.
 
     The split exists because roughly a third of the original prompt was not
     doctrine at all but context-window mitigation: the assistant sees a digest
@@ -18,11 +24,15 @@
 
     Pure: no DOM, no state, no imports. */
 
-/** `scope` decides which surfaces a rule reaches:
-      both     — a format truth that holds wherever the JSON is written
+/** `scope` decides which surfaces a rule reaches — 'all', one surface, or an
+    array of surfaces:
+      all      — a format truth that holds wherever the JSON is written
       app      — tool mechanics or digest handling, meaningless outside the app
       desktop  — file, id and hand-off conventions the app never faces
-    An `id` may repeat across scopes when one topic needs a per-surface tail. */
+      mcp      — tool mechanics for a host that returns whole documents, so the
+                 app's digest and read-before-edit rules do not apply
+    An `id` may repeat across entries when one topic needs a per-surface tail,
+    but never twice under the same scope value. */
 export const DOCTRINE = [
   {
     id: 'digest',
@@ -35,23 +45,28 @@ export const DOCTRINE = [
     text: 'Before editing an existing segment with patch_segment or update_segment, fetch its full JSON with get_segment (batch several ids in one call) — segments carry fields the digest hides (notes, warnings, seats, payments, coordinates) that an unread edit would lose, so unread edits are rejected.',
   },
   {
+    id: 'whole-document',
+    scope: 'mcp',
+    text: 'Tool results carry the whole stored itinerary, not a digest. Read a segment, list or phrase group there before editing it, and build each edit on the latest result rather than an earlier copy.',
+  },
+  {
     id: 'partial-edits',
-    scope: 'app',
+    scope: ['app', 'mcp'],
     text: 'Prefer patch_segment for partial edits to an existing segment, and patch_trip for partial trip changes (send only the fields that change; null removes a field); use update_segment / update_trip only when replacing most of it — a full replacement drops every field it omits.',
   },
   {
     id: 'ids',
-    scope: 'app',
+    scope: ['app', 'mcp'],
     text: "Segment ids are assigned for you: add_segment returns the created segment's id — use ids exactly as returned there or shown in the digest, never invent or guess one.",
   },
   {
     id: 'schema-authority',
-    scope: 'both',
+    scope: 'all',
     text: 'Follow the schema exactly: required fields, enums, and the "type" const for each segment kind.',
   },
   {
     id: 'schema-authority',
-    scope: 'app',
+    scope: ['app', 'mcp'],
     text: 'The schema reference below marks required fields with *. Every tool payload is validated against the full JSON Schema and any errors are returned to you to fix.',
   },
   {
@@ -61,32 +76,32 @@ export const DOCTRINE = [
   },
   {
     id: 'formats',
-    scope: 'both',
+    scope: 'all',
     text: "Use 24-hour HH:MM times and YYYY-MM-DD dates. Currency codes are 3 uppercase letters; default to the trip's currency_primary (GBP for a new trip).",
   },
   {
     id: 'duration',
-    scope: 'both',
+    scope: 'all',
     text: 'Provide duration_min where the schema requires it (transport).',
   },
   {
     id: 'cost-shape',
-    scope: 'both',
+    scope: 'all',
     text: 'Costs carry one "amount" (plus optional payments[] instalments that sum to it); a cost with status paid/pending needs an amount or payments.',
   },
   {
     id: 'refs-and-passes',
-    scope: 'both',
+    scope: 'all',
     text: 'Transport ref is optional: omit it when unknown or not applicable (taxis, local buses) — never fill in placeholders like "n/a". Travel class goes in seats[] or notes if it matters. When a leg is covered by a travel pass (e.g. Interrail), define the pass once in trip.passes and set the leg\'s pass_id instead of abusing ref.',
   },
   {
     id: 'event-timing',
-    scope: 'both',
+    scope: 'all',
     text: 'Multi-day events (festivals) set end_date; timed events use time plus end_time or duration_min; genuinely all-day activities set all_day true instead of an invented time.',
   },
   {
     id: 'lists',
-    scope: 'both',
+    scope: 'all',
     text: "Lists hold intentions that aren't (yet) plans (packing, foods to try, restaurant options); segments hold plans. List items have no date or cost — when the user schedules an item, create a normal event segment, then set that item's segment_id to the new segment's id. To tick an item off set its done flag.",
   },
   {
@@ -95,8 +110,13 @@ export const DOCTRINE = [
     text: 'Create that segment with add_segment and record the segment_id with patch_list. The same read-before-edit rule applies: get_list before patch_list, and a patch\'s items array replaces wholesale, so send it complete. List and item ids are assigned by add_list — use them exactly as returned or shown in the digest.',
   },
   {
+    id: 'lists',
+    scope: 'mcp',
+    text: "Create that segment with add_segment and record the segment_id with patch_list. A patch's items array replaces wholesale, so send it complete. List and item ids are assigned by add_list — use them exactly as returned.",
+  },
+  {
     id: 'phrases',
-    scope: 'both',
+    scope: 'all',
     text: 'The phrasebook (phrases) holds things the traveller wants to be able to SAY, grouped by situation, with no date, cost or done flag — it is reference material, not a plan and not a checklist. A Phrase has text (the traveller\'s own language), local (the same thing in the local language), an optional pronunciation respelled for a reader of the traveller\'s language, and an optional note on when to use it. Set the group\'s language so it is clear which language "local" is.',
   },
   {
@@ -105,18 +125,23 @@ export const DOCTRINE = [
     text: 'When asked to translate a group, get_phrase_group it, then patch_phrase_group with the complete items array carrying the filled-in local and pronunciation fields. The read-before-edit rule and assigned ids work exactly as they do for lists.',
   },
   {
+    id: 'phrases',
+    scope: 'mcp',
+    text: 'When asked to translate a group, patch_phrase_group with the complete items array carrying the filled-in local and pronunciation fields. Group and phrase ids are assigned by add_phrase_group, exactly as they are for lists.',
+  },
+  {
     id: 'unconfirmed',
-    scope: 'both',
+    scope: 'all',
     text: 'Infer reasonable values for missing details, but do not invent booking references unless asked; use status "not_booked" when something isn\'t confirmed.',
   },
   {
     id: 'unconfirmed',
-    scope: 'app',
+    scope: ['app', 'mcp'],
     text: 'A segment that has been suggested rather than agreed can carry a proposal instead.',
   },
   {
     id: 'preference',
-    scope: 'app',
+    scope: ['app', 'mcp'],
     text: 'If a choice between valid options genuinely depends on user preference, ask in your text reply before calling tools.',
   },
   {
@@ -126,22 +151,22 @@ export const DOCTRINE = [
   },
   {
     id: 'open-questions',
-    scope: 'both',
+    scope: 'all',
     text: 'Never park a question, a decision or an unresolved option set in the document. Ask it in the conversation and write the answer. A document is a plan the traveller acts on, not a worklist between you and them: an entry saying "decide X before booking" or "Option A / Option B" is a question that will be read weeks later by someone who cannot answer it and has no idea what you were weighing.',
   },
   {
     id: 'broken-plan',
-    scope: 'both',
+    scope: 'all',
     text: 'If research shows the plan cannot work as written — a connection that does not exist, a hut shut on the night, a bus that does not run that day — STOP and say so in the conversation. Do not record the impossibility in the document, and do not carry on filling in the parts that come after it: work downstream of a broken leg is wasted if the fix moves the dates, and a file describing a trip that cannot happen is worse than no file. Fix it with the user first, then write.',
   },
   {
     id: 'reader',
-    scope: 'both',
+    scope: 'all',
     text: 'The document is read by a traveller who was not present for the research, on a phone, possibly mid-trip. Notes and warnings are instructions to them, not a log of how you worked: no feed names, dataset ids, tool names, file versions, schema talk, or "read on <date> from <source>". Give them what they can act on instead — the number to ring, the page to check, what to confirm and by when, and how much slack a connection really has. Say what changed and why only when it changes what they should DO.',
   },
   {
     id: 'summarise',
-    scope: 'app',
+    scope: ['app', 'mcp'],
     text: 'After your tool calls, reply with a short plain-text summary of what you changed.',
   },
 
@@ -184,18 +209,23 @@ export const DOCTRINE = [
   },
 ];
 
-const SCOPES = ['both', 'app', 'desktop'];
+/** The surfaces a rule can reach. */
+export const SURFACES = ['app', 'desktop', 'mcp'];
+
+/** Whether `rule` reaches `surface`. */
+export function reaches(rule, surface) {
+  return rule.scope === 'all' || rule.scope === surface
+    || (Array.isArray(rule.scope) && rule.scope.includes(surface));
+}
 
 /** The doctrine as prompt/markdown bullet lines, for one surface. Entries keep
     their array order so the app's prompt prefix stays byte-stable across calls
     (issue #24: implicit prompt caching keys on it). */
 export function renderDoctrine(target) {
-  if (target !== 'app' && target !== 'desktop')
-    throw new Error(`renderDoctrine: unknown target "${target}" (expected "app" or "desktop")`);
+  if (!SURFACES.includes(target))
+    throw new Error(`renderDoctrine: unknown target "${target}" (expected one of ${SURFACES.join(', ')})`);
   return DOCTRINE
-    .filter(rule => rule.scope === 'both' || rule.scope === target)
+    .filter(rule => reaches(rule, target))
     .map(rule => '- ' + rule.text)
     .join('\n');
 }
-
-export { SCOPES };
