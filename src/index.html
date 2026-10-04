@@ -1,10 +1,15 @@
 <!-- Source skeleton for the itinerary viewer. scripts/build.mjs replaces the
      two "build:" placeholder comments below with the inlined stylesheet and
      the bundled app script (which now carries ajv and the schema too),
-     emitting the standalone dist/holiday_itinerary_viewer.html. -->
+     emitting the standalone dist/holiday_itinerary_viewer.html.
+     A block between an "if:name" comment and its "/if:name" comment belongs
+     to one feature (ai, library, share, edit, offline) and is dropped from a
+     page built without it, such as the read-only dist/embedded_viewer.html;
+     "if:!name" marks a block for the pages without it. -->
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Itinerary Viewer</title>
+<!-- if:offline -->
 <!-- PWA sidecars (issue #45): additive links that 404 harmlessly when the
      page is used as a standalone saved file without them. Safari ignores
      manifest icons, hence the apple-touch-icon + apple-mobile-web-app tags. -->
@@ -20,6 +25,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="Itinerary"/>
+<!-- /if:offline -->
 <!-- The icon font, subset to the glyphs this page actually renders and inlined
      as a data: URI by scripts/icon-font.mjs. It used to be a fourth CDN load —
      829 kB of woff2 and 250 kB of CSS for ~70 glyphs, and the one reason a
@@ -57,6 +63,7 @@
 <div id="hverwarn" style="display:none;max-width:460px;margin:1rem auto;background:var(--color-background-warning);color:var(--color-text-warning);border-radius:var(--border-radius-lg);padding:.85rem 1rem;font-size:12px;line-height:1.45"></div>
 
 <div id="hupl" style="padding:2.5rem 1.5rem">
+<!-- if:library -->
   <h1 class="sr-only">Holiday itinerary viewer — upload a HolidayItinerary JSON to explore itinerary, map, schedule and budget views</h1>
   <div style="text-align:center;margin-bottom:1.75rem">
     <div style="font-size:17px;font-weight:500;margin-bottom:4px">Itinerary viewer</div>
@@ -82,9 +89,21 @@
     <button onclick="document.getElementById('hfile').click()"><i class="ti ti-upload" aria-hidden="true"></i> Browse</button>
     <!-- Start from scratch (issue #76): the trip form, then an empty
          itinerary every view invites you to fill — no file, no AI. -->
+<!-- if:edit -->
     <button onclick="hNewItinerary()"><i class="ti ti-file-plus" aria-hidden="true"></i> Start from scratch</button>
+<!-- /if:edit -->
+<!-- if:ai -->
     <button onclick="hChatOpen()"><i class="ti ti-sparkles" aria-hidden="true"></i> Create with AI</button>
+<!-- /if:ai -->
   </div>
+<!-- /if:library -->
+<!-- if:!library -->
+  <!-- The embedded page has no upload screen: the host page around it hands
+       it the trip through window.HolidayViewer.show() (src/main.js). Until
+       then this is all it shows. -->
+  <h1 class="sr-only">Holiday itinerary viewer</h1>
+  <p style="text-align:center;font-size:13px;color:var(--color-text-secondary)">Loading the trip…</p>
+<!-- /if:!library -->
 </div>
 
 <div id="happ" style="display:none">
@@ -102,13 +121,21 @@
       <!-- The trip switcher (issue #80): several trips live here, and this is
            where you flip between them, wind one back, forget one, or put this
            one down. -->
+      <!-- if:library -->
       <button onclick="hLibOpen()" class="htool" title="Switch trip"><i class="ti ti-luggage" aria-hidden="true"></i></button>
+      <!-- /if:library -->
+      <!-- if:ai -->
       <button onclick="hChatOpen()" class="htool" title="Edit with AI assistant"><i class="ti ti-sparkles" aria-hidden="true"></i></button>
+      <!-- /if:ai -->
+      <!-- if:edit -->
       <button id="hedit-toggle" onclick="hToggleEdit()" class="htool" title="Toggle edit mode"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+      <!-- /if:edit -->
       <!-- Sharing is a choice now (issue #124): a frozen copy, or a live room
            that stays current. Either way the link is the whole itinerary, and
            the confirmation on it says so out loud (issue #81). -->
+      <!-- if:share -->
       <button onclick="hShareOpen()" class="htool" title="Share this trip"><i class="ti ti-share" aria-hidden="true"></i></button>
+      <!-- /if:share -->
     </div>
   </div>
   <!-- Live sharing's status (issue #124), shown only while this trip is in a
@@ -119,16 +146,20 @@
        after a failed push and the way into a parked decision, so it stays a
        button. The strip scrolls away with the header, so the space it costs is
        only ever the top of the page. -->
+  <!-- if:share -->
   <div id="hroom-bar" style="display:none">
     <button id="hroom-pill" class="hpill" onclick="hRoomPill()"></button>
   </div>
+  <!-- /if:share -->
   <!-- Shown only when a save failed: iOS private browsing rejects every write,
        and the download is the durable copy either way (issue #80). -->
+  <!-- if:library -->
   <div id="hstorewarn" style="display:none">
     <span><i class="ti ti-alert-triangle" aria-hidden="true"></i> This browser wouldn't save your changes — download the JSON to keep them.</span>
     <button onclick="hDownload()" class="htool"><i class="ti ti-download" aria-hidden="true"></i> Download</button>
     <button onclick="hStoreWarnClose()" class="htool" title="Dismiss"><i class="ti ti-x" aria-hidden="true"></i></button>
   </div>
+  <!-- /if:library -->
   <!-- ARIA tabs pattern (issue #90): the strip is ONE tab stop, and Left/Right
        (plus Home/End) move along it — the roving tabindex and aria-selected are
        kept in step by switchView() in app.js, the keys by the .htabs listener in
@@ -161,6 +192,7 @@
   <div id="hvgantt" class="hv" role="tabpanel" aria-labelledby="htab-gantt" tabindex="-1" style="padding:0"></div>
 </div>
 
+<!-- if:edit -->
 <div id="hedit-modal" class="hmodal" onclick="if(event.target===this)hCloseEdit()">
   <div id="hedit-inner" class="hmodal-inner">
     <div id="hedit-hd">
@@ -183,7 +215,9 @@
     </div>
   </div>
 </div>
+<!-- /if:edit -->
 
+<!-- if:ai -->
 <div id="hchat">
   <div id="hchat-hd">
     <span style="font-size:13px;font-weight:500"><i class="ti ti-sparkles" aria-hidden="true"></i> AI assistant</span>
@@ -201,7 +235,9 @@
     <button onclick="hChatSubmit()" id="hchat-send" class="htool" style="font-weight:500" title="Send"><i class="ti ti-send" aria-hidden="true"></i></button>
   </div>
 </div>
+<!-- /if:ai -->
 
+<!-- if:library -->
 <!-- The trip library (issue #80): every trip saved in this browser, each row
      expandable into its revision history. -->
 <div id="hlib-modal" class="hmodal" onclick="if(event.target===this)hLibClose()">
@@ -232,7 +268,9 @@
     </div>
   </div>
 </div>
+<!-- /if:library -->
 
+<!-- if:share -->
 <!-- The share sheet (issue #124). Two options plus a modifier, never three
      peer buttons: a frozen copy, or a live room, with "Let them edit" as a
      checkbox on the act of sharing — deliberately not a toggle, because a
@@ -247,7 +285,9 @@
     <div id="hshare-body"></div>
   </div>
 </div>
+<!-- /if:share -->
 
+<!-- if:ai -->
 <div id="hset-modal" class="hmodal" onclick="if(event.target===this)hSetClose()">
   <div id="hset-inner" class="hmodal-inner">
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -274,6 +314,7 @@
     </div>
   </div>
 </div>
+<!-- /if:ai -->
 
 <!-- The one polite live region (issue #93), written by views/focus.js when a
      view mutates: "Bordeaux ticked off. 4 of 8 done.", "Deleted Bordeaux. Undo
@@ -285,12 +326,16 @@
      text node that changed instead of the whole sentence. -->
 <div id="hlive" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 
+<!-- if:offline -->
 <!-- Shown by sw-register.js only when this page load was served from the
      service worker's offline cache. -->
 <div id="hswbadge" title="Loaded from the offline cache"><i class="ti ti-cloud-check" aria-hidden="true"></i> Offline ready</div>
+<!-- /if:offline -->
 
+<!-- if:share -->
 <!-- Confirmation that a share link went to the clipboard, with the warning
      that goes with it (issue #81). Tap to dismiss; it also self-dismisses. -->
 <div id="hshare-toast" onclick="hShareToastClose()" title="Dismiss"></div>
+<!-- /if:share -->
 
 <!-- build:app -->

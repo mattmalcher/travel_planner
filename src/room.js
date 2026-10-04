@@ -54,7 +54,7 @@ import { renderRoom, renderShareSheet, currentRoom, letThemEdit } from './views/
 
 export { renderRoom, currentRoom, canShareLive } from './views/room.js';
 
-const store = localStorage;
+const store = __H_SHARE__ ? localStorage : null;
 
 /**
  * How often a visible tab looks for someone else's changes. Reads are 100k/day

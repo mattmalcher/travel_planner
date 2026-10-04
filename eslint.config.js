@@ -14,13 +14,16 @@ export default [
     // Browser app code (bundled by scripts/build.mjs). L is Leaflet, loaded
     // from a CDN script tag; __H_FORM_SPEC__ and __H_SCHEMA_TEXT__ are
     // substituted at build time by esbuild's define (see src/form-spec.js and
-    // src/validate.js).
+    // src/validate.js), as are the feature switches __H_AI__ … __H_OFFLINE__
+    // (scripts/build.mjs, docs/architecture.md "Two pages").
     files: ['src/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.browser, L: 'readonly',
         __H_FORM_SPEC__: 'readonly', __H_SCHEMA_TEXT__: 'readonly',
         __H_SHARE_ENDPOINT__: 'readonly',
+        __H_AI__: 'readonly', __H_LIBRARY__: 'readonly', __H_SHARE__: 'readonly',
+        __H_EDIT__: 'readonly', __H_OFFLINE__: 'readonly',
       },
     },
   },

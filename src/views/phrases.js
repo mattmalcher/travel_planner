@@ -112,16 +112,16 @@ function phraseRow(phrase, gi, pi) {
       ${phrase.pronunciation ? `<div class="hph-say">${esc(phrase.pronunciation)}</div>` : ''}
       ${phrase.note ? `<div class="hph-note">${linkify(phrase.note)}</div>` : ''}
     </div>
-    <div class="hph-acts">
+    ${__H_EDIT__ ? `<div class="hph-acts">
       <button class="hph-edit hedit-btn" data-focus="ph-edit:${gi}:${pi}" onclick="hOpenEditPhrase(${gi},${pi})" title="Edit phrase" aria-label="Edit phrase"><i class="ti ti-pencil" aria-hidden="true"></i></button>
       <button class="hph-del hedit-btn" data-focus="ph-del:${gi}:${pi}" onclick="hPhraseDel(${gi},${pi})" title="Delete phrase" aria-label="Delete phrase"><i class="ti ti-x" aria-hidden="true"></i></button>
-    </div>
+    </div>` : ''}
   </div>`;
 }
 
 /** The undo offer, shown in the group the deleted phrase came from. */
 function undoRow(gi) {
-  if (!undo || undo.gi !== gi) return '';
+  if (!__H_EDIT__ || !undo || undo.gi !== gi) return '';
   return `<div class="hli-undo">
     <span>Deleted “${esc(undo.phrase.text || 'phrase')}”</span>
     <button class="hli-chip" data-focus="ph-undo:${gi}" onclick="hPhraseUndo()"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> Undo</button>
@@ -130,6 +130,7 @@ function undoRow(gi) {
 
 /** The quick-add row under each group — always shown, no edit mode needed. */
 function addRow(gi) {
+  if (!__H_EDIT__) return '';
   return `<div class="hli-add">
     <input class="hph-add-in hli-add-in" type="text" data-gi="${gi}" data-focus="ph-add:${gi}" placeholder="Something to be able to say…"
       aria-label="Add a phrase" onkeydown="hPhraseAddKey(event,${gi})">
@@ -137,7 +138,7 @@ function addRow(gi) {
   </div>`;
 }
 
-const newGroupBtn = `<button onclick="hOpenAddPhraseGroup()" class="htool"><i class="ti ti-plus" aria-hidden="true"></i> New group</button>`;
+const newGroupBtn = !__H_EDIT__ ? '' : `<button onclick="hOpenAddPhraseGroup()" class="htool"><i class="ti ti-plus" aria-hidden="true"></i> New group</button>`;
 
 /** The jump strip over the groups — the same widget the Itinerary and Lists
     views use, keyed by index so a group with no id still works. */
@@ -155,8 +156,8 @@ export function renderPhrases() {
   if (!groups.length) {
     box.innerHTML = `<div class="hempty">
       No phrases yet. A phrasebook holds things you want to be able to say — greetings, ordering food,
-      asking directions — grouped by situation, for looking up on the day. Add a group below, ask the
-      AI assistant to build and translate one, or write them into the itinerary JSON (<code>phrases</code>).
+      asking directions — grouped by situation, for looking up on the day. ${__H_EDIT__ ? `Add a group below, ask the
+      AI assistant to build and translate one, or write them into the itinerary JSON (<code>phrases</code>).` : 'Ask in the chat to add one.'}
       <div style="margin-top:.7rem">${newGroupBtn}</div></div>`;
     return;
   }
@@ -172,7 +173,7 @@ export function renderPhrases() {
         </div>
         ${todo ? `<span class="hli-progress hph-todo-count" title="Phrases with no translation yet">${todo} to translate</span>` : ''}
         <span class="hli-progress">${phraseCount(group)}</span>
-        <button class="hpencil hedit-btn" data-focus="group-edit:${gi}" onclick="hOpenEditPhraseGroup(${gi})" title="Edit group"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+        ${__H_EDIT__ ? `<button class="hpencil hedit-btn" data-focus="group-edit:${gi}" onclick="hOpenEditPhraseGroup(${gi})" title="Edit group"><i class="ti ti-pencil" aria-hidden="true"></i></button>` : ''}
       </div>
       <div style="margin-top:8px">${items.map(p => phraseRow(p, gi, group.items.indexOf(p))).join('') ||
         '<div style="font-size:12px;color:var(--color-text-tertiary)">No phrases yet.</div>'}</div>

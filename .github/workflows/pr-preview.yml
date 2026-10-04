@@ -36,6 +36,13 @@ jobs:
           npm ci
           npm run build
 
+      - name: Add the embedded viewer's host page
+        # dist/embedded_viewer.html shows only "Loading the trip…" until a host
+        # hands it a trip. This stand-in host frames it, sandboxed as a chat
+        # host does, at desktop and phone width, with the example trip. It's
+        # added here rather than in the build, so the live site doesn't get it.
+        run: cp preview/embedded_host.html examples/paris_weekend.json dist/
+
       - name: Deploy to gh-pages subfolder
         uses: peaceiris/actions-gh-pages@v4
         with:
@@ -56,13 +63,17 @@ jobs:
             // old build keeps loading from cache after review changes. The ?v=
             // commit stamp gives every redeploy a fresh URL that can't be
             // served stale (issue #29).
-            const url = `https://${owner}.github.io/${repo}/previews/pr-${issue_number}/holiday_itinerary_viewer.html?v=${sha}`;
+            const base = `https://${owner}.github.io/${repo}/previews/pr-${issue_number}`;
+            const url = `${base}/holiday_itinerary_viewer.html?v=${sha}`;
+            const embeddedUrl = `${base}/embedded_host.html?v=${sha}`;
             const marker = '<!-- pr-preview-url -->';
             const body = [
               marker,
               `### 📄 Preview ready`,
               ``,
               `**[Open the itinerary viewer](${url})**`,
+              ``,
+              `**[Open the embedded viewer, as a chat host shows it](${embeddedUrl})** (sandboxed frames at desktop and phone width, with the example trip)`,
               ``,
               `Built from \`${sha}\`. Note: previews share the \`github.io\` origin, so they share browser localStorage (API key + saved itinerary) with each other and the live site.`,
             ].join('\n');

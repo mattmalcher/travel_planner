@@ -143,8 +143,10 @@ function itemRow(item, li, ii, segIds) {
     chip = `<button class="hli-chip" data-sid="${esc(item.segment_id)}" onclick="hListSeg(this.dataset.sid)" title="Open in itinerary" aria-label="Open ${esc(item.segment_id)} in itinerary"><i class="ti ti-calendar-check" aria-hidden="true"></i> ${esc(item.segment_id)}</button>`;
   } else if (item.segment_id) {
     chip = `<span class="hli-chip broken" title="The scheduled segment no longer exists"><i class="ti ti-unlink" aria-hidden="true"></i> ${esc(item.segment_id)}</span>`;
-  } else {
+  } else if (__H_EDIT__) {
     chip = `<button class="hli-chip" onclick="hListSchedule(${li},${ii})" title="Create a segment from this item"><i class="ti ti-calendar-plus" aria-hidden="true"></i> Schedule</button>`;
+  } else {
+    chip = '';
   }
   // data-focus is what survives the innerHTML rewrite (issue #93): the row is
   // destroyed and rebuilt on every tick, and it moves as well (displayOrder
@@ -160,20 +162,20 @@ function itemRow(item, li, ii, segIds) {
   // so they need no escaping.
   return `<li class="hli${item.done ? ' done' : ''}">
     <label class="hli-main">
-      <input type="checkbox" data-focus="li-check:${li}:${ii}" ${item.done ? 'checked' : ''} onchange="hListToggle(${li},${ii})">
+      <input type="checkbox" data-focus="li-check:${li}:${ii}" ${item.done ? 'checked' : ''} ${__H_EDIT__ ? `onchange="hListToggle(${li},${ii})"` : 'disabled'}>
       <span class="hli-name">${esc(item.name)}${item.local_name ? ` <span class="hli-local">${esc(item.local_name)}</span>` : ''}</span>
     </label>
     ${url ? `<a class="hli-chip" href="${esc(url)}" target="_blank" rel="noopener">Link <i class="ti ti-external-link hlink-ic" aria-hidden="true"></i></a>` : ''}
     ${chip}
-    <button class="hli-edit hedit-btn" data-focus="li-edit:${li}:${ii}" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
-    <button class="hli-del hedit-btn" data-focus="li-del:${li}:${ii}" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>
+    ${__H_EDIT__ ? `<button class="hli-edit hedit-btn" data-focus="li-edit:${li}:${ii}" onclick="hOpenEditListItem(${li},${ii})" title="Edit item" aria-label="Edit item"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+    <button class="hli-del hedit-btn" data-focus="li-del:${li}:${ii}" onclick="hListDel(${li},${ii})" title="Delete item" aria-label="Delete item"><i class="ti ti-x" aria-hidden="true"></i></button>` : ''}
     ${item.note ? `<div class="hli-note">${linkify(item.note)}</div>` : ''}
   </li>`;
 }
 
 /** The undo offer, shown in the list the deleted item came from. */
 function undoRow(li) {
-  if (!undo || undo.li !== li) return '';
+  if (!__H_EDIT__ || !undo || undo.li !== li) return '';
   return `<div class="hli-undo">
     <span>Deleted “${esc(undo.item.name || 'item')}”</span>
     <button class="hli-chip" data-focus="li-undo:${li}" onclick="hListUndo()"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> Undo</button>
@@ -182,6 +184,7 @@ function undoRow(li) {
 
 /** The quick-add row under each list — always shown, no edit mode needed. */
 function addRow(li) {
+  if (!__H_EDIT__) return '';
   return `<div class="hli-add">
     <input class="hli-add-in" type="text" data-li="${li}" data-focus="li-add:${li}" placeholder="Add an item…"
       aria-label="Add an item" onkeydown="hListAddKey(event,${li})">
@@ -189,7 +192,7 @@ function addRow(li) {
   </div>`;
 }
 
-const newListBtn = `<button onclick="hOpenAddList()" class="htool"><i class="ti ti-plus" aria-hidden="true"></i> New list</button>`;
+const newListBtn = !__H_EDIT__ ? '' : `<button onclick="hOpenAddList()" class="htool"><i class="ti ti-plus" aria-hidden="true"></i> New list</button>`;
 
 /** The jump strip over the lists (issue #69) — the itinerary's day chips for
     lists, so a long Lists tab is navigable without scrolling through it.
@@ -208,8 +211,8 @@ export function renderLists() {
   if (!lists.length) {
     box.innerHTML = `<div class="hempty">
       No lists yet. Lists hold intentions that aren't plans — foods to try, packing, restaurant options.
-      Add one below, with the AI assistant, or in the itinerary JSON (<code>lists</code>), then tick
-      items off here or schedule them into the itinerary.
+      ${__H_EDIT__ ? `Add one below, with the AI assistant, or in the itinerary JSON (<code>lists</code>), then tick
+      items off here or schedule them into the itinerary.` : 'Ask in the chat to add one.'}
       <div style="margin-top:.7rem">${newListBtn}</div></div>`;
     return;
   }
@@ -228,7 +231,7 @@ export function renderLists() {
              span (role=generic) is ignored by most screen readers, and the
              visible glyphs stay exactly as they were (issue #92). -->
         <span class="hli-progress" role="img" aria-label="${p.done} of ${p.total} done">${p.done}/${p.total}</span>
-        <button class="hpencil hedit-btn" data-focus="list-edit:${li}" onclick="hOpenEditList(${li})" title="Edit list" aria-label="Edit list ${esc(list.name || '')}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+        ${__H_EDIT__ ? `<button class="hpencil hedit-btn" data-focus="list-edit:${li}" onclick="hOpenEditList(${li})" title="Edit list" aria-label="Edit list ${esc(list.name || '')}"><i class="ti ti-pencil" aria-hidden="true"></i></button>` : ''}
       </div>
       ${items
         ? `<ul class="hplain-list" style="margin-top:8px">${items}</ul>`
