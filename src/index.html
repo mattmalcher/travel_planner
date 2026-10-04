@@ -48,6 +48,14 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <!-- build:styles -->
+<!-- if:!library -->
+<!-- A chat host sizes the frame to the height this page reports, so a
+     100vh-based schedule would chase its own tail, growing with every resize
+     (issue #138). The embedded page gives the schedule its natural height and
+     lets the host's page scroll. The standalone page keeps the viewport fit
+     in styles.css. -->
+<style>.hgt-wrap{height:auto;min-height:0}.hgt-scroll{overflow-y:visible}</style>
+<!-- /if:!library -->
 
 <!-- Each screen owns its own <h1> (issue #92), and only one of the two is ever
      displayed: the opening screen's is sr-only prose describing the app, the

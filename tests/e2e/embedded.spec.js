@@ -108,3 +108,24 @@ test('calls no service of its own: no share store, no AI, no service worker', as
   expect(others).toEqual([]);
   expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(r => r.length))).toBe(0);
 });
+
+test('the schedule takes its natural height rather than scrolling inside the host frame', async ({ page }) => {
+  const errors = await open(page);
+  await show(page, example);
+  await page.locator('#htab-gantt').click();
+  await expect(page.locator('#hvgantt')).toHaveClass(/\bon\b/);
+  // 100vh is the frame's own height in a chat host, which is sized to the
+  // content: a vh-based schedule grows without limit and then scrolls inside
+  // the chat's scroll (issue #138). No element in it may be a vertical scroller.
+  const scrollers = await page.evaluate(() => [...globalThis.document.querySelectorAll('#hvgantt, #hvgantt *')]
+    .filter(el => /auto|scroll/.test(globalThis.getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight)
+    .map(el => el.className || el.id));
+  expect(scrollers).toEqual([]);
+  // And its height does not follow the viewport's.
+  const height = () => page.locator('.hgt-wrap').evaluate(el => el.getBoundingClientRect().height);
+  const before = await height();
+  const { width, height: tall } = page.viewportSize();
+  await page.setViewportSize({ width, height: tall * 2 });
+  expect(await height()).toBe(before);
+  expect(errors).toEqual([]);
+});
