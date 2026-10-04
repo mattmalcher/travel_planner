@@ -195,6 +195,41 @@ tests/e2e/          Playwright, runs against the BUILT dist/ artifact
   version: every view redraws in place and the open tab is kept. Until then
   it shows "Loading the trip…".
 
+### Hosting the embedded page
+
+The planner owns the page; the consuming plugin owns everything around it
+(server registration, resource metadata, deployment settings).
+
+- **Packaging.** `embedded_viewer.html` is one self-contained file: script,
+  styles, schema and the subsetted icon font are inlined. Build it from a
+  pinned planner commit (`npm run build`) and serve that file as the UI
+  resource. Do not commit it to either repo. The schema version it accepts
+  comes from `schema/holiday_itinerary_schema.json` at that commit.
+- **Host bridge.** The page has no bridge of its own and talks to nothing but
+  its host frame. The plugin's widget shell loads the page, connects to the
+  host, and calls `window.HolidayViewer.show(doc)` with `structuredContent.trip`
+  from the first tool result and again from each later one. Register the
+  tool-result callback before connecting, so the first result is not missed.
+  `show()` replaces the displayed trip and keeps the open tab; it never
+  saves, increments `rev` or alters the document. Until the first call the
+  page shows "Loading the trip…". The shell should report the frame's height
+  to the host as it changes: the schedule takes its natural height, so the
+  host page scrolls, not the frame.
+- **Network.** The page makes no request for the trip. It fetches only
+  Leaflet's script and stylesheet from `cdn.jsdelivr.net` (pinned, with
+  Subresource Integrity hashes) and map tiles from
+  `*.tile.openstreetmap.org`. `tests/e2e/embedded.spec.js` checks that list.
+  Itinerary links open in a new tab with `rel="noopener"`, so the host must
+  allow that navigation.
+- **CSP.** The host's frame policy therefore needs: `script-src` and
+  `style-src` allowing the inline script and styles plus
+  `https://cdn.jsdelivr.net`; `img-src` allowing `https://*.tile.openstreetmap.org`
+  and `data:`; and `connect-src` none. If the CDN or tiles are blocked or
+  offline, `renderMap()` returns without drawing (no `window.L`) or shows
+  blank tiles. The other views do not depend on either.
+- **Sandbox.** The page works in a frame without `allow-same-origin`, where
+  any storage access throws; it does not touch storage.
+
 Each feature (`ai`, `library`, `share`, `edit`, `offline`) is a build-time
 constant, `__H_AI__` … `__H_OFFLINE__`. Use it directly at each check
 (`if (__H_EDIT__)`, `__H_EDIT__ ? … : ''`), not through a re-exported
