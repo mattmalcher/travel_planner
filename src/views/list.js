@@ -106,15 +106,18 @@ export function jumpToDay(date, behavior = 'smooth') {
 
 /* One button per addable segment type (issue #76). Like the Lists view's
    quick-add these are always on rather than gated on edit mode: an itinerary
-   with nothing in it would otherwise hide the only way to start it. */
-const addBar = `<div class="hadd">
+   with nothing in it would otherwise hide the only way to start it. A page
+   built without editing (the embedded viewer) has neither. */
+const addBar = !__H_EDIT__ ? '' : `<div class="hadd">
   <span class="hadd-lbl">Add to the itinerary</span>
   ${SEGMENT_KINDS.map(k => `<button class="hli-chip" onclick="hAddSegment('${k.type}')"><i class="ti ${segIcon({ type: k.type })}" aria-hidden="true"></i> ${k.label}</button>`).join('')}
 </div>`;
 
-const emptyState = `<div class="hempty">
+const emptyState = __H_EDIT__ ? `<div class="hempty">
   Nothing planned yet. Add travel, a stay or something to do below — or ask the AI assistant,
   or load a <code>HolidayItinerary</code> file. Ideas that aren't plans yet belong on the Lists tab.
+</div>` : `<div class="hempty">
+  Nothing planned yet. Ask in the chat to add travel, a stay or something to do.
 </div>`;
 
 /** Segments grouped by day, in itinerary order. */
@@ -167,7 +170,7 @@ export function renderList() {
               <div><h3 style="margin:0;font-size:14px;font-weight:500">${title}</h3><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${sub}</div></div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-              <button class="hpencil hedit-btn" data-focus="seg-edit:${HD.segments.indexOf(s)}" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment" aria-label="Edit ${title}"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+              ${__H_EDIT__ ? `<button class="hpencil hedit-btn" data-focus="seg-edit:${HD.segments.indexOf(s)}" onclick="hOpenEdit(${HD.segments.indexOf(s)})" title="Edit segment" aria-label="Edit ${title}"><i class="ti ti-pencil" aria-hidden="true"></i></button>` : ''}
               ${costStr ? `<span style="font-size:13px;font-weight:500${ci.estimated || ci.st === 'not_booked' ? ';color:var(--color-text-secondary)' : ''}">${costStr}</span>` : ''}
               ${costBadge(ci)}${proposalBadge(s)}
             </div>

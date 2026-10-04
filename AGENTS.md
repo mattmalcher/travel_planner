@@ -5,8 +5,9 @@ This repository builds a holiday-itinerary viewer: a modular browser app for
 budget, sharing, and an optional OpenRouter-backed editor.
 
 The source lives in `src/`. The main deliverable is the generated, self-contained
-`dist/holiday_itinerary_viewer.html`. Never edit or commit `dist/`; build and
-deployment workflows generate it.
+`dist/holiday_itinerary_viewer.html`. The same build also emits
+`dist/embedded_viewer.html`, a read-only page for chat hosts. Never edit or
+commit `dist/`; build and deployment workflows generate it.
 
 ## Work autonomously
 
@@ -79,6 +80,11 @@ load that large reference for a small, isolated change.
   `src/lib/dates.js`.
 - Inline event handlers require a corresponding exported `window.h*` handler
   registered in `main.js`.
+- The embedded viewer is read-only and keeps nothing in the browser: changes
+  go through the chat host. Gate feature code with the build-time constants
+  (`__H_EDIT__` and the others) and `src/index.html` markup with `if:` marker
+  lines, as described in docs/architecture.md "Two pages". Gating a feature
+  must leave the standalone viewer's behaviour unchanged.
 - Tests and examples use fictional data only. Do not commit real traveller
   names, addresses, booking references, private coordinates, API keys, or
   downloaded personal data.

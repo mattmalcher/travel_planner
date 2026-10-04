@@ -17,7 +17,7 @@ import {
   safeSetItem, isQuotaError,
 } from './lib/library.js';
 
-const store = localStorage;
+const store = __H_LIBRARY__ ? localStorage : null;
 
 /** Who the picker says last touched a trip — a free-text label, not a login. */
 export function updatedBy() {
@@ -58,7 +58,9 @@ export function dismissStoreWarning() {
  * than a lost save.
  */
 export function persist() {
-  if (!state.HD) return;
+  // A page built without the library (the embedded viewer) keeps nothing in
+  // this browser, and its edits, if it has any, stay in memory.
+  if (!__H_LIBRARY__ || !state.HD) return;
   const nowIso = new Date().toISOString();
   const settled = withIdentity(state.HD, { nowIso });
   const stored = readDoc(store, settled.trip_id);
@@ -75,7 +77,7 @@ export function persist() {
   // "How much of this has not been shared" is `rev` against `rev_pushed`
   // (issue #124), and `rev` is settled right here — so this is the one place
   // that cannot miss a change, whichever view made it.
-  renderRoom();
+  if (__H_SHARE__) renderRoom();
   if (changed && stored) recordSuperseded(stored);
 }
 

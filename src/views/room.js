@@ -14,7 +14,7 @@ import { esc } from '../lib/escape.js';
 import { readRoom, canWrite, unpushedCount } from '../lib/room.js';
 import { hasShareStore, SHARE_TTL_DAYS } from '../share-store.js';
 
-const store = localStorage;
+const store = __H_SHARE__ ? localStorage : null;
 
 /** The room the open trip is in, or null. Read from the store each time rather
     than cached in `state`: it is a handful of bytes, and a stale copy of a

@@ -29,12 +29,26 @@ import { hidePreview } from './ai/preview.js';
 
 export function load(data) {
   state.HD = typeof data === 'string' ? JSON.parse(data) : data;
-  dismissStoreWarning();
-  persist(); // settles trip_id/rev and makes this the library's current trip
-  restoreChat(); // the saved transcript for this trip, now that it has a trip_id
+  if (__H_LIBRARY__) {
+    dismissStoreWarning();
+    persist(); // settles trip_id/rev and makes this the library's current trip
+  }
+  if (__H_AI__) restoreChat(); // the saved transcript for this trip, now that it has a trip_id
   showApp();
   updateHeader();
   renderAll();
+}
+
+/**
+ * Display a document handed over by the page around this one, on a page built
+ * without the library (the embedded viewer, scripts/build.mjs): nothing is
+ * saved. Called again with each newer version, it redraws every view in place,
+ * the map included if it is showing, and keeps the open tab.
+ */
+export function show(data) {
+  load(data);
+  if (document.getElementById('hvmap').classList.contains('on')) renderMap();
+  else destroyMap();
 }
 
 /* --- upload guard (issue #15): files declare a schema_version and are
@@ -169,7 +183,8 @@ export function closeTrip() {
   // one, so it is dropped with it — the room record stays and the next pull
   // fetches it again.
   state.roomWaiting = null; state.pendingRoom = null;
-  hidePreview(); renderChat(); renderRoom();
+  if (__H_AI__) { hidePreview(); renderChat(); }
+  if (__H_SHARE__) renderRoom();
   document.getElementById('hupl').style.display = 'block';
   document.getElementById('happ').style.display = 'none';
   hideWarning();

@@ -47,21 +47,20 @@ if (!schema.version) throw new Error('schema/holiday_itinerary_schema.json has n
 // produces the long fragment links, which is still a working share).
 const shareEndpoint = process.env.SHARE_ENDPOINT ?? DEFAULT_SHARE_ENDPOINT;
 
-const bundle = await build({
-  entryPoints: [src('main.js')],
-  bundle: true,
-  format: 'iife',
-  minify: true,
-  legalComments: 'none',
-  define: {
-    __H_FORM_SPEC__: JSON.stringify(specFromSchema(schema)),
-    __H_SCHEMA_TEXT__: JSON.stringify(JSON.stringify(schema)),
-    __H_SHARE_ENDPOINT__: JSON.stringify(shareEndpoint),
-  },
-  write: false,
-});
-const js = bundle.outputFiles[0].text.replaceAll('__H_SCHEMA_VERSION__', schema.version);
-if (js.includes('__H_SCHEMA_VERSION__')) throw new Error('schema version placeholder not replaced');
+// Two pages from one source. The standalone viewer has every feature; the
+// embedded viewer is shown inside a chat host (the travel plugin's MCP Apps
+// widget), which owns the trip, so it is read-only and keeps nothing in the
+// browser: no AI chat, no trip library or upload screen, no sharing, no
+// editing and no offline support. Each feature is a build-time constant that
+// esbuild folds, so the code behind a switched-off feature is not in the page
+// at all, and a block of src/index.html between <!-- if:name --> and
+// <!-- /if:name --> (or <!-- if:!name --> for its absence) is kept or dropped
+// with it. Only these two sets are built and tested; other mixes may not work.
+const FEATURES = ['ai', 'library', 'share', 'edit', 'offline'];
+const PAGES = {
+  standalone: Object.fromEntries(FEATURES.map(f => [f, true])),
+  embedded: Object.fromEntries(FEATURES.map(f => [f, false])),
+};
 
 const css = (await transform(readFileSync(src('styles.css'), 'utf8'), { loader: 'css', minify: true })).code;
 
@@ -70,26 +69,68 @@ const css = (await transform(readFileSync(src('styles.css'), 'utf8'), { loader: 
 // than rendering as silent nothing on the page.
 const icons = await iconFontCss();
 
-// A literal "</script>" inside inlined code would truncate the page early.
-// The bundle now carries the schema text, so this guards that too.
-if (js.includes('</script')) {
-  throw new Error('inlined script contains "</script>" — escape it before inlining');
+/** Keep or drop each feature's marked blocks of the skeleton. */
+function markup(html, features) {
+  for (const f of FEATURES) {
+    for (const [mark, keep] of [[f, features[f]], ['!' + f, !features[f]]]) {
+      const open = `<!-- if:${mark} -->`, close = `<!-- /if:${mark} -->`;
+      // Each marker is a line of its own, so it takes its indent and newline with it.
+      const block = new RegExp(`^[ \\t]*${open}\\n([\\s\\S]*?)^[ \\t]*${close}\\n`, 'gm');
+      html = html.replace(block, (_, inner) => {
+        if (inner.includes(open)) throw new Error(`${open} is nested inside itself in src/index.html`);
+        return keep ? inner : '';
+      });
+      if (html.includes(open) || html.includes(close)) throw new Error(`unbalanced ${open} in src/index.html`);
+    }
+  }
+  if (/<!-- \/?if:/.test(html)) throw new Error('src/index.html has an if: marker for an unknown feature');
+  return html;
 }
 
-// Placeholder replacement uses replacer functions so '$' sequences in the
-// generated code are never interpreted as String.replace patterns.
-let html = readFileSync(src('index.html'), 'utf8');
-const inject = (placeholder, text) => {
-  if (!html.includes(placeholder)) throw new Error(`placeholder ${placeholder} missing from src/index.html`);
-  html = html.replace(placeholder, () => text);
-};
-inject('<!-- build:icons -->', `<style>${icons.css}</style>`);
-inject('<!-- build:styles -->', `<style>\n${css}</style>`);
-inject('<!-- build:app -->', `<script>\n${js}</script>`);
+async function page(features) {
+  const bundle = await build({
+    entryPoints: [src('main.js')],
+    bundle: true,
+    format: 'iife',
+    minify: true,
+    legalComments: 'none',
+    define: {
+      __H_FORM_SPEC__: JSON.stringify(specFromSchema(schema)),
+      __H_SCHEMA_TEXT__: JSON.stringify(JSON.stringify(schema)),
+      __H_SHARE_ENDPOINT__: JSON.stringify(features.share ? shareEndpoint : ''),
+      ...Object.fromEntries(FEATURES.map(f => [`__H_${f.toUpperCase()}__`, String(features[f])])),
+    },
+    write: false,
+  });
+  const js = bundle.outputFiles[0].text.replaceAll('__H_SCHEMA_VERSION__', schema.version);
+  if (js.includes('__H_SCHEMA_VERSION__')) throw new Error('schema version placeholder not replaced');
+
+  // A literal "</script>" inside inlined code would truncate the page early.
+  // The bundle now carries the schema text, so this guards that too.
+  if (js.includes('</script')) {
+    throw new Error('inlined script contains "</script>" — escape it before inlining');
+  }
+
+  // Placeholder replacement uses replacer functions so '$' sequences in the
+  // generated code are never interpreted as String.replace patterns.
+  let html = markup(readFileSync(src('index.html'), 'utf8'), features);
+  const inject = (placeholder, text) => {
+    if (!html.includes(placeholder)) throw new Error(`placeholder ${placeholder} missing from src/index.html`);
+    html = html.replace(placeholder, () => text);
+  };
+  inject('<!-- build:icons -->', `<style>${icons.css}</style>`);
+  inject('<!-- build:styles -->', `<style>\n${css}</style>`);
+  inject('<!-- build:app -->', `<script>\n${js}</script>`);
+  return html;
+}
+
+const html = await page(PAGES.standalone);
+const embedded = await page(PAGES.embedded);
 
 mkdirSync(out(''), { recursive: true });
 writeFileSync(out('holiday_itinerary_viewer.html'), html);
 writeFileSync(out('index.html'), html);
+writeFileSync(out('embedded_viewer.html'), embedded);
 copyFileSync(schemaPath, out('holiday_itinerary_schema.json'));
 
 // Offline sidecars (issue #45): service worker, manifest and icons emitted
@@ -127,5 +168,6 @@ writeFileSync(out('manifest.webmanifest'), JSON.stringify({
 writeIcons(out(''));
 
 console.log(`built dist/holiday_itinerary_viewer.html (schema ${schema.version}, ${(html.length / 1024).toFixed(0)} kB) + sw.js/manifest/icons (build ${buildTag})`);
+console.log(`built dist/embedded_viewer.html (${(embedded.length / 1024).toFixed(0)} kB): read-only, for chat hosts`);
 console.log(`  share store: ${shareEndpoint || '(none — long links only)'}`);
 console.log(`  icons: ${icons.used.length} glyphs subset from Tabler ${iconVersion()} (${(icons.bytes / 1024).toFixed(1)} kB woff2, inlined)`);

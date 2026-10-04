@@ -12,7 +12,7 @@ build output.**
 
 ```bash
 make install     # npm install
-make build       # src/ → dist/holiday_itinerary_viewer.html (esbuild, scripts/build.mjs)
+make build       # src/ → dist/holiday_itinerary_viewer.html + dist/embedded_viewer.html (esbuild, scripts/build.mjs)
 make lint        # ESLint over src/, scripts/, tests/
 make validate    # schema-check + lint an itinerary file (FILE=data/*.json)
 make itin ARGS="digest data/trip.json"   # the desktop itinerary CLI
@@ -177,6 +177,35 @@ data/               gitignored real trips; hand-versioned _0.N snapshots of one
 tests/unit/         node --test, import directly from src/lib/
 tests/e2e/          Playwright, runs against the BUILT dist/ artifact
 ```
+
+## Two pages
+
+`scripts/build.mjs` builds two pages from the same source:
+
+- `dist/holiday_itinerary_viewer.html` (and its `index.html` copy): the
+  standalone viewer, with every feature. This is what GitHub Pages serves.
+- `dist/embedded_viewer.html`: the read-only page a chat host shows, such as
+  the travel plugin's MCP Apps widget. The host owns the trip and every change
+  goes through the chat, so this page has no AI chat, no trip library or
+  upload screen, no sharing, no editing and no offline support, and it never
+  touches browser storage. A sandboxed frame without `allow-same-origin`
+  throws on any storage access, and `tests/e2e/embedded.spec.js` checks that
+  the page loads that way. The page around it calls
+  `window.HolidayViewer.show(doc)` with the trip, and again with each newer
+  version: every view redraws in place and the open tab is kept. Until then
+  it shows "Loading the trip…".
+
+Each feature (`ai`, `library`, `share`, `edit`, `offline`) is a build-time
+constant, `__H_AI__` … `__H_OFFLINE__`. Use it directly at each check
+(`if (__H_EDIT__)`, `__H_EDIT__ ? … : ''`), not through a re-exported
+constant: esbuild folds a define where it appears, so the code behind a
+switched-off feature is not in the page at all, but it does not drop the
+imports behind a constant it has inlined from another module. In
+`src/index.html`, a block between `<!-- if:name -->` and `<!-- /if:name -->`
+lines (or `<!-- if:!name -->` for a page without the feature) is kept or
+dropped with it; each marker is a line of its own. A feature's `h*` handlers
+are registered in `main.js` only when it is on. Only the two sets above are
+built and tested; other mixes are not supported.
 
 ## Invariants
 
