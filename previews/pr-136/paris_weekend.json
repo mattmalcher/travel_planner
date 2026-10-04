@@ -1,0 +1,140 @@
+{
+  "schema_version": "3.3.0",
+  "trip": {
+    "name": "Paris Weekend (example)",
+    "travellers": ["Judy Jetson", "George Jetson"],
+    "start": "2026-09-18",
+    "end": "2026-09-20",
+    "currency_primary": "GBP"
+  },
+  "segments": [
+    {
+      "id": "seg-1",
+      "type": "transport",
+      "mode": "train",
+      "operator": "Eurostar",
+      "ref": "AB1234",
+      "date": "2026-09-18",
+      "departs": { "place": "London St Pancras Int'l", "time": "16:31", "lat": 51.5322, "lng": -0.1270 },
+      "arrives": { "place": "Paris Gare du Nord", "time": "19:49", "lat": 48.8809, "lng": 2.3553 },
+      "duration_min": 138,
+      "seats": [
+        { "traveller": "Judy Jetson", "coach": 5, "seat": 84 },
+        { "traveller": "George Jetson", "coach": 5, "seat": 83 }
+      ],
+      "cost": { "amount": 156.0, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" }
+    },
+    {
+      "id": "seg-2",
+      "type": "accommodation",
+      "name": "Cosy Studio near Sacré-Cœur",
+      "host": "Pierre",
+      "ref": "XY9876Z",
+      "address": "42 Rue de l'Exemple, 75018 Paris, France",
+      "lat": 48.8867,
+      "lng": 2.3431,
+      "checkin": { "date": "2026-09-18", "from": "14:00" },
+      "checkout": { "date": "2026-09-20", "by": "11:00" },
+      "self_checkin": true,
+      "cost": { "amount": 174.48, "currency": "GBP", "status": "paid", "paid_by": "Judy Jetson" },
+      "notes": "Smart lock check-in.",
+      "warnings": ["Code arrives by SMS on the day."]
+    },
+    {
+      "id": "seg-3",
+      "type": "event",
+      "subtype": "gig",
+      "name": "Jazz at Le Petit Exemple",
+      "venue": "Le Petit Exemple, Montmartre",
+      "date": "2026-09-19",
+      "time": "20:30",
+      "duration_min": 120,
+      "lat": 48.8842,
+      "lng": 2.3388,
+      "cost": { "amount": 40.0, "currency": "EUR", "status": "pending", "due": "2026-09-16" }
+    }
+  ],
+  "lists": [
+    {
+      "id": "list-food",
+      "name": "Foods to try",
+      "kind": "food",
+      "items": [
+        { "id": "li-1", "name": "Custard tart", "local_name": "Flan pâtissier", "note": "Best from a proper bakery, not a supermarket.", "done": true },
+        { "id": "li-2", "name": "Buckwheat crêpe", "local_name": "Galette de sarrasin" },
+        { "id": "li-3", "name": "Jazz-club cocktail", "note": "Before the gig on Saturday.", "segment_id": "seg-3" }
+      ]
+    },
+    {
+      "id": "list-packing",
+      "name": "Packing",
+      "kind": "packing",
+      "items": [
+        { "id": "li-4", "name": "Passports", "done": true },
+        { "id": "li-5", "name": "Eurostar tickets (offline copies)" },
+        { "id": "li-6", "name": "Comfortable walking shoes" }
+      ]
+    }
+  ],
+  "phrases": [
+    {
+      "id": "phr-basics",
+      "name": "Getting by",
+      "language": "French",
+      "kind": "greetings",
+      "items": [
+        {
+          "id": "ph-1",
+          "text": "Good morning",
+          "local": "Bonjour",
+          "pronunciation": "bon-ZHOOR",
+          "note": "Say it on entering any shop — skipping it reads as rude."
+        },
+        {
+          "id": "ph-2",
+          "text": "Do you speak English?",
+          "local": "Parlez-vous anglais ?",
+          "pronunciation": "par-lay VOO on-GLEH"
+        },
+        {
+          "id": "ph-3",
+          "text": "Sorry, I don't understand",
+          "local": "Désolé, je ne comprends pas",
+          "pronunciation": "day-zo-LAY, zhuh nuh kom-PRON pa"
+        }
+      ]
+    },
+    {
+      "id": "phr-food",
+      "name": "Ordering food",
+      "language": "French",
+      "kind": "food",
+      "items": [
+        {
+          "id": "ph-4",
+          "text": "A table for two, please",
+          "local": "Une table pour deux, s'il vous plaît",
+          "pronunciation": "oon TAB-luh poor DUH, seel voo PLEH"
+        },
+        {
+          "id": "ph-5",
+          "text": "Two coffees, please",
+          "local": "Deux cafés, s'il vous plaît",
+          "pronunciation": "duh ka-FAY, seel voo PLEH",
+          "note": "A plain \"café\" is an espresso; ask for \"un allongé\" if you want it longer."
+        },
+        {
+          "id": "ph-6",
+          "text": "Could we have the bill?",
+          "local": "L'addition, s'il vous plaît",
+          "pronunciation": "la-dee-see-ON, seel voo PLEH",
+          "note": "It won't arrive until you ask."
+        },
+        {
+          "id": "ph-7",
+          "text": "Is there a vegetarian option?"
+        }
+      ]
+    }
+  ]
+}

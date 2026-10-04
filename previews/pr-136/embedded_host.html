@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embedded viewer host</title>
+<!--
+  A stand-in chat host for dist/embedded_viewer.html, published only with PR
+  previews (.github/workflows/pr-preview.yml). It shows the page the way a
+  chat host's widget does: in a frame sandboxed without allow-same-origin, so
+  any storage access throws, at desktop and phone width, handed the example
+  trip. "Send a newer version" re-sends it, to eyeball the in-place redraw.
+
+  It can't check a real host's content security policy: that still needs
+  testing inside ChatGPT and Claude.
+-->
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0; padding: 16px; }
+  header { max-width: 72ch; margin-bottom: 16px; }
+  h1 { font-size: 1.25rem; margin: 0 0 8px; }
+  p { margin: 0 0 12px; line-height: 1.4; }
+  #status { margin-left: 8px; opacity: .7; }
+  main { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  figure { margin: 0; }
+  figcaption { font-size: .85rem; opacity: .7; margin-bottom: 4px; }
+  iframe { display: block; border: 1px solid #8888; border-radius: 8px; background: Canvas; }
+  #desktop-fig { flex: 1 1 600px; }
+  #desktop { width: 100%; height: 844px; }
+  #phone { width: 390px; height: 844px; max-width: calc(100vw - 32px); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Embedded viewer, as a chat host shows it</h1>
+  <p>Both frames are sandboxed with <code>allow-scripts</code> only, like a chat host's widget, and are handed
+    <code>examples/paris_weekend.json</code>. Real hosts can still differ in their security policy.</p>
+  <button id="bump" disabled>Send a newer version</button><span id="status">Loading…</span>
+</header>
+<main>
+  <figure id="desktop-fig"><figcaption>Desktop</figcaption><iframe id="desktop" sandbox="allow-scripts" title="Embedded viewer, desktop"></iframe></figure>
+  <figure><figcaption>Phone (390 × 844)</figcaption><iframe id="phone" sandbox="allow-scripts" title="Embedded viewer, phone"></iframe></figure>
+</main>
+<script>
+// Without allow-same-origin the frame's window is cross-origin, so this page
+// can't call HolidayViewer.show() directly. It posts the trip instead, and a
+// one-line bridge added to the page passes it on: the job the plugin's MCP
+// Apps adapter will do.
+const BRIDGE = '<script>addEventListener("message", e => { if (e.source === parent) HolidayViewer.show(e.data); });<\/script>';
+const frames = ['desktop', 'phone'].map(id => document.getElementById(id));
+const status = document.getElementById('status');
+
+async function main() {
+  // Pass the preview link's ?v= commit stamp on, so neither fetch is served
+  // stale from the Pages CDN after a redeploy.
+  const v = new URLSearchParams(location.search).get('v');
+  const q = v ? `?v=${encodeURIComponent(v)}` : '';
+  const [html, trip] = await Promise.all([
+    fetch(`embedded_viewer.html${q}`).then(r => { if (!r.ok) throw new Error(`embedded_viewer.html: ${r.status}`); return r.text(); }),
+    fetch(`paris_weekend.json${q}`).then(r => { if (!r.ok) throw new Error(`paris_weekend.json: ${r.status}`); return r.json(); }),
+  ]);
+  const send = doc => frames.forEach(f => f.contentWindow.postMessage(doc, '*'));
+  await Promise.all(frames.map(f => new Promise(resolve => {
+    f.addEventListener('load', resolve, { once: true });
+    f.srcdoc = html + BRIDGE;
+  })));
+  send(trip);
+  status.textContent = 'Version 1 sent.';
+
+  let version = 1;
+  const bump = document.getElementById('bump');
+  bump.disabled = false;
+  bump.addEventListener('click', () => {
+    version++;
+    const doc = structuredClone(trip);
+    doc.trip.name += ` (version ${version})`;
+    send(doc);
+    status.textContent = `Version ${version} sent: the trip name should change, and each frame keep its open tab.`;
+  });
+}
+
+main().catch(e => { status.textContent = `Couldn't load: ${e.message}`; });
+</script>
+</body>
+</html>
